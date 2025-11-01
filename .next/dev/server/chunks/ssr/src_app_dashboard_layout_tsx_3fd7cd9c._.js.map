@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/app/dashboard/layout.tsx"],"sourcesContent":["import React from 'react';\n\nexport default function DashboardLayout({\n  children,\n}: Readonly<{\n  children: React.ReactNode;\n}>) {\n  return (\n    <div className=\"min-h-screen bg-gray-100\">\n      <nav className=\"bg-gray-800 p-4 text-white\">\n        <div className=\"container mx-auto flex justify-between\">\n          <a href=\"/dashboard\" className=\"text-lg font-bold\">Dashboard</a>\n          <div>\n            <a href=\"/\" className=\"mr-4 hover:text-gray-300\">Home</a>\n            <a href=\"/dashboard\" className=\"hover:text-gray-300\">Products</a>\n          </div>\n        </div>\n      </nav>\n      <div className=\"container mx-auto p-4\">\n        {children}\n      </div>\n    </div>\n  );\n}\n"],"names":[],"mappings":";;;;;;AAEe,SAAS,gBAAgB,EACtC,QAAQ,EAGR;IACA,qBACE,8OAAC;QAAI,WAAU;;0BACb,8OAAC;gBAAI,WAAU;0BACb,cAAA,8OAAC;oBAAI,WAAU;;sCACb,8OAAC;4BAAE,MAAK;4BAAa,WAAU;sCAAoB;;;;;;sCACnD,8OAAC;;8CACC,8OAAC;oCAAE,MAAK;oCAAI,WAAU;8CAA2B;;;;;;8CACjD,8OAAC;oCAAE,MAAK;oCAAa,WAAU;8CAAsB;;;;;;;;;;;;;;;;;;;;;;;0BAI3D,8OAAC;gBAAI,WAAU;0BACZ;;;;;;;;;;;;AAIT","debugId":null}}]
+}

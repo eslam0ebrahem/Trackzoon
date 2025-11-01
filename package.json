@@ -1,0 +1,39 @@
+{
+  "name": "trackzoon-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "quickchart-js": "^3.1.3",
+    "cheerio": "^1.1.2",
+    "dotenv": "^17.2.3",
+    "i18next": "^25.6.0",
+    "i18next-fs-backend": "^2.6.0",
+    "mongoose": "^8.19.2",
+    "next": "16.0.1",
+    "next-auth": "^4.24.13",
+    "node-cron": "^4.2.1",
+    "react": "19.2.0",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "19.2.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

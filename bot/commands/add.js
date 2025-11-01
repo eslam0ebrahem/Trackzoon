@@ -1,0 +1,115 @@
+// bot/commands/add.js
+import { i18next } from '../config/i18n.js';
+import { resolveAmazonUrl } from '../utils/url.js';
+import Product from '../models/Product.js';
+import User from '../models/User.js';
+import { getProductName } from '../../src/lib/scraper/getProductName.js';
+import { getPrice } from '../../src/lib/scraper/getPrice.js';
+
+export default (bot, i18next) => {
+  bot.command('add', async (ctx) => {
+    const parts = ctx.message.text.split(' ');
+    if (parts.length < 3) {
+      // Initiate step-by-step add process
+      const user = await User.findOne({ chatId: ctx.chat.id });
+      if (user) {
+        user.state = { command: 'add', step: 'waitingForUrl' };
+        await user.save();
+        return ctx.reply(i18next.t('promptForUrl'));
+      } else {
+        // This case should ideally not happen if user interacts with bot
+        return ctx.reply(i18next.t('addUsage'));
+      }
+    }
+    let [, url, thresholdStr] = parts;
+
+    const threshold = parseFloat(thresholdStr);
+    if (isNaN(threshold) || threshold <= 0) {
+      return ctx.reply(i18next.t('invalidThreshold'));
+    }
+
+    ctx.reply(i18next.t('processing'));
+
+    // Extract URL from markdown link if present
+    const markdownLinkMatch = url.match(/\[.*\]\((.*?)\)/);
+    if (markdownLinkMatch && markdownLinkMatch[1]) {
+      url = markdownLinkMatch[1];
+    }
+
+    // Resolve short links
+    url = await resolveAmazonUrl(url);
+
+    const asinMatch = url.match(/dp\/([A-Za-z0-9]{10})/);
+    if (!asinMatch) return ctx.reply(i18next.t('invalidUrl'));
+
+    const asin = asinMatch[1];
+    let product = await Product.findOne({ asin });
+    let name;
+    try {
+      name = await getProductName(url);
+    } catch (err) {
+      name = `ASIN:${asin}`;
+    }
+
+    if (!product) {
+      let currentPrice;
+      try {
+        currentPrice = await getPrice(url);
+      } catch (err) {
+        console.error("Error fetching initial price:", err);
+        currentPrice = 0; // Default to 0 or handle as appropriate
+      }
+
+      product = new Product({
+        asin,
+        url,
+        name,
+        trackedBy: [{ chatId: ctx.chat.id, muteUntil: null, lastAlertedAt: null, alertType: 'drop', percentageThreshold: null }],
+        thresholdPrice: parseFloat(threshold),
+        priceHistory: [{ price: currentPrice, date: new Date() }]
+      });
+      await product.save();
+      // Add product to user's tracked products
+      const user = await User.findOne({ chatId: ctx.chat.id });
+      if (user && !user.products.includes(product._id)) {
+        user.products.push(product._id);
+        await user.save();
+      }
+      ctx.reply(i18next.t('added', { name, threshold }));
+    } else {
+      // Add chatId if not already present
+      if (!product.trackedBy || !Array.isArray(product.trackedBy)) {
+        product.trackedBy = []; // Initialize if undefined or not an array
+      }
+      const existingTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+      if (!existingTracker) {
+        product.trackedBy.push({ chatId: ctx.chat.id, muteUntil: null, lastAlertedAt: null, alertType: 'drop', percentageThreshold: null });
+        await product.save();
+        // Add product to user's tracked products
+        const user = await User.findOne({ chatId: ctx.chat.id });
+        if (user && !user.products.includes(product._id)) {
+          user.products.push(product._id);
+          await user.save();
+        }
+        ctx.reply(i18next.t('added', { name, threshold }));
+      } else {
+        ctx.reply(i18next.t('alreadyTracking', { name }));
+      }
+      // Update threshold for the current user (simple logic)
+      const currentUserTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+      if (currentUserTracker) {
+        currentUserTracker.thresholdPrice = parseFloat(threshold);
+        currentUserTracker.alertType = 'drop';
+        currentUserTracker.percentageThreshold = null;
+      }
+      product.name = name; // Update product name in case it changed
+      await product.save();
+      // Add product to user's tracked products if not already there (in case it was just updated)
+      const user = await User.findOne({ chatId: ctx.chat.id });
+      if (user && !user.products.includes(product._id)) {
+        user.products.push(product._id);
+        await user.save();
+      }
+    }
+  });
+};

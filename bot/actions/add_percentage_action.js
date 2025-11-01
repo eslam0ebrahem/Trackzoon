@@ -1,0 +1,108 @@
+// bot/actions/add_percentage_action.js
+import { i18next } from '../config/init.js';
+import { resolveAmazonUrl } from '../utils/url.js';
+import Product from '../models/Product.js';
+import User from '../models/User.js';
+import { getProductName } from '../../src/lib/scraper/getProductName.js';
+import { getPrice } from '../../src/lib/scraper/getPrice.js';
+
+export default (bot, i18next) => {
+  bot.action('add_percentage_action', async (ctx) => {
+    // This action will likely be triggered by an inline keyboard button.
+    // The URL and percentage will need to be passed as part of the callback_data
+    // or the bot will need to ask for them in subsequent steps.
+    // For now, let's assume the data is available in ctx.match[1] and ctx.match[2]
+    // or we will need to implement a conversation flow.
+
+    // For simplicity, let's assume the callback_data is 'add_percentage_action:url:percentage'
+    const parts = ctx.match.input.split(':');
+    if (parts.length < 3) {
+      return ctx.reply(i18next.t('addPercentageUsage'));
+    }
+    let [, , url, percentageStr] = parts;
+
+    const percentage = parseFloat(percentageStr);
+    if (isNaN(percentage) || percentage <= 0 || percentage > 100) {
+      return ctx.reply(i18next.t('invalidPercentage'));
+    }
+
+    ctx.reply(i18next.t('processing'));
+
+    const markdownLinkMatch = url.match(/\[.*\]\((.*?)\)/);
+    if (markdownLinkMatch && markdownLinkMatch[1]) {
+      url = markdownLinkMatch[1];
+    }
+
+    url = await resolveAmazonUrl(url);
+
+    const asinMatch = url.match(/dp\/([A-Za-z0-9]{10})/);
+    if (!asinMatch) return ctx.reply(i18next.t('invalidUrl'));
+
+    const asin = asinMatch[1];
+    let product = await Product.findOne({ asin });
+    let name;
+    try {
+      name = await getProductName(url);
+    } catch (err) {
+      name = `ASIN:${asin}`;
+    }
+
+    if (!product) {
+      let currentPrice;
+      try {
+        currentPrice = await getPrice(url);
+      } catch (err) {
+        console.error("Error fetching initial price:", err);
+        currentPrice = 0;
+      }
+
+      product = new Product({
+        asin,
+        url,
+        name,
+        trackedBy: [{ chatId: ctx.chat.id, muteUntil: null, lastAlertedAt: null, alertType: 'percentage_drop', percentageThreshold: percentage }],
+        thresholdPrice: currentPrice * (1 - percentage / 100), // Calculate initial threshold based on current price
+        priceHistory: [{ price: currentPrice, date: new Date() }]
+      });
+      await product.save();
+      // Add product to user's tracked products
+      const user = await User.findOne({ chatId: ctx.chat.id });
+      if (user && !user.products.includes(product._id)) {
+        user.products.push(product._id);
+        await user.save();
+      }
+      ctx.reply(i18next.t('addedPercentage', { name, percentage }));
+    } else {
+      const existingTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+      if (!existingTracker) {
+        product.trackedBy.push({ chatId: ctx.chat.id, muteUntil: null, lastAlertedAt: null, alertType: 'percentage_drop', percentageThreshold: percentage });
+        await product.save();
+        // Add product to user's tracked products
+        const user = await User.findOne({ chatId: ctx.chat.id });
+        if (user && !user.products.includes(product._id)) {
+          user.products.push(product._id);
+          await user.save();
+        }
+        ctx.reply(i18next.t('addedPercentage', { name, percentage }));
+      } else {
+        ctx.reply(i18next.t('alreadyTracking', { name }));
+      }
+      const currentUserTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+      if (currentUserTracker) {
+        currentUserTracker.percentageThreshold = percentage;
+        currentUserTracker.alertType = 'percentage_drop';
+        // Recalculate thresholdPrice based on current price if alertType is percentage_drop
+        const latestPrice = product.priceHistory.length > 0 ? product.priceHistory.slice(-1)[0].price : 0;
+        currentUserTracker.thresholdPrice = latestPrice * (1 - percentage / 100);
+      }
+      product.name = name;
+      await product.save();
+      // Add product to user's tracked products if not already there (in case it was just updated)
+      const user = await User.findOne({ chatId: ctx.chat.id });
+      if (user && !user.products.includes(product._id)) {
+        user.products.push(product._id);
+        await user.save();
+      }
+    }
+  });
+};

@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/src/middleware.ts"],"sourcesContent":["import { withAuth } from 'next-auth/middleware';\nimport { NextResponse } from 'next/server';\n\nexport default withAuth(\n  function middleware(req) {\n    // This callback is called after the user is authenticated\n    // You can add custom authorization logic here if needed\n    // For now, simply allow access if authenticated\n    return NextResponse.next();\n  },\n  {\n    callbacks: {\n      authorized: ({ token }) => !!token, // Allow if token exists (user is authenticated)\n    },\n    pages: {\n      signIn: '/auth/signin',\n    },\n  }\n);\n\nexport const config = {\n  matcher: [\n    '/dashboard',\n    '/dashboard/users/:path*',\n    '/dashboard/products/:path*',\n    '/dashboard/logs/:path*',\n    '/dashboard/trigger-price-update/:path*',\n    '/api/admin/:path*',\n  ],\n};"],"names":[],"mappings":";;;;;;AAAA;AACA;AAAA;;;uCAEe,IAAA,8JAAQ,EACrB,SAAS,WAAW,GAAG;IACrB,0DAA0D;IAC1D,wDAAwD;IACxD,gDAAgD;IAChD,OAAO,gMAAY,CAAC,IAAI;AAC1B,GACA;IACE,WAAW;QACT,YAAY,CAAC,EAAE,KAAK,EAAE,GAAK,CAAC,CAAC;IAC/B;IACA,OAAO;QACL,QAAQ;IACV;AACF;AAGK,MAAM,SAAS;IACpB,SAAS;QACP;QACA;QACA;QACA;QACA;QACA;KACD;AACH"}}]
+}
