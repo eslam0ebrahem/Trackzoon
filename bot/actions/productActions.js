@@ -274,4 +274,77 @@ Choose a threshold or set a custom one:`,
       await ctx.answerCbQuery('⚠️ Error setting threshold. Please try again.');
     }
   });
+
+  // Confirm update price action
+  bot.action(/action_confirm_update_price_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const state = stateManager.getState(ctx.chat.id);
+      
+      if (!state || !state.data) {
+        return await ctx.answerCbQuery('⚠️ Session expired. Please try again.');
+      }
+
+      const { newThreshold } = state.data;
+      await ProductService.updateThreshold(asin, ctx.chat.id, newThreshold);
+      
+      stateManager.clearState(ctx.chat.id);
+
+      const message = escapeMarkdownV2(`✅ Alert price updated successfully to £${newThreshold.toFixed(2)}!`);
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+      await ctx.answerCbQuery('✅ Price updated!');
+    } catch (error) {
+      console.error('Error in confirm update price action:', error);
+      await ctx.answerCbQuery('⚠️ Error updating price. Please try again.');
+    }
+  });
+
+  // Cancel update price action
+  bot.action(/action_cancel_update_price_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      stateManager.clearState(ctx.chat.id);
+
+      const message = escapeMarkdownV2('❌ Update cancelled. Your old alert price remains unchanged.');
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+      await ctx.answerCbQuery('❌ Update cancelled');
+    } catch (error) {
+      console.error('Error in cancel update price action:', error);
+      await ctx.answerCbQuery('⚠️ Error cancelling update. Please try again.');
+    }
+  });
+
+  // Mute/Unmute alerts for product
+  bot.action(/action_mute_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
+      const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+      
+      // Toggle mute status
+      const isMuted = tracker.muted || false;
+      await ProductService.toggleMute(asin, ctx.chat.id);
+      
+      const message = escapeMarkdownV2(
+        isMuted 
+          ? `🔔 Alerts enabled for ${product.name}`
+          : `🔕 Alerts muted for ${product.name}`
+      );
+
+      await ctx.answerCbQuery(message);
+      
+      // Return to product view
+      ctx.update.callback_query.data = `action_view_${asin}`;
+      return bot.handleUpdate(ctx.update);
+    } catch (error) {
+      console.error('Error in mute action:', error);
+      await ctx.answerCbQuery('⚠️ Error toggling alerts. Please try again.');
+    }
+  });
 };

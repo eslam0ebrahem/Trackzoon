@@ -183,8 +183,11 @@ const registerHandlers = (bot) => {
 
       await ctx.reply(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: Markup.inlineKeyboard([[
-        Markup.button.callback('⚙️ Settings', 'action_settings')]])
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '⚙️ Settings', callback_data: 'action_settings' }
+          ]]
+        }
       });
     } catch (error) {
       handleError(ctx, error);
@@ -295,17 +298,19 @@ const registerHandlers = (bot) => {
       await ctx.editMessageText(message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: false,
-        reply_markup: Markup.inlineKeyboard([
-          [
-            Markup.button.callback('📈 Price History', `action_history_${asin}`),
-            Markup.button.callback('🎯 Set Threshold', `action_threshold_${asin}`)
-          ],
-          [
-            Markup.button.callback('🔕 Mute Alerts', `action_mute_${asin}`),
-            Markup.button.callback('❌ Stop Tracking', `action_remove_${asin}`)
-          ],
-          [Markup.button.callback('🔙 Back to Products', 'action_list_products')]
-        ])
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '📈 Price History', callback_data: `action_history_${asin}` },
+              { text: '🎯 Set Threshold', callback_data: `action_threshold_${asin}` }
+            ],
+            [
+              { text: '🔕 Mute Alerts', callback_data: `action_mute_${asin}` },
+              { text: '❌ Stop Tracking', callback_data: `action_remove_${asin}` }
+            ],
+            [{ text: '🔙 Back to Products', callback_data: 'action_list_products' }]
+          ]
+        }
       });
     } catch (error) {
       handleError(ctx, error);
@@ -318,16 +323,18 @@ const registerHandlers = (bot) => {
       const product = await ProductService.getProduct(asin, ctx.chat.id);
       const name = escapeMarkdownV2(product.name);
 
-      const message = escapeMarkdownV2(`❗️ *Confirm Removal*\n\nAre you sure you want to stop tracking:\n📦 [${name}](${product.url})?\n\nYou won't receive any more price alerts for this product.`);
+      const message = `❗️ *Confirm Removal*\n\nAre you sure you want to stop tracking:\n📦 [${name}](${product.url})?\n\nYou won\'t receive any more price alerts for this product.`;
 
       await ctx.editMessageText(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: Markup.inlineKeyboard([
-          [
-            Markup.button.callback('✅ Yes, Remove', `action_confirm_remove_${asin}`),
-            Markup.button.callback('❌ No, Keep', `action_cancel_remove_${asin}`)
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Yes, Remove', callback_data: `action_confirm_remove_${asin}` },
+              { text: '❌ No, Keep', callback_data: `action_cancel_remove_${asin}` }
+            ]
           ]
-        ]),
+        },
         disable_web_page_preview: true
       });
     } catch (error) {
@@ -385,19 +392,21 @@ const registerHandlers = (bot) => {
 
       await ctx.editMessageText(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: Markup.inlineKeyboard([
-          [
-            Markup.button.callback('5% off', `action_threshold_${asin}_5`),
-            Markup.button.callback('10% off', `action_threshold_${asin}_10`),
-            Markup.button.callback('20% off', `action_threshold_${asin}_20`)
-          ],
-          [
-            Markup.button.callback('💭 Custom Threshold', `action_custom_threshold_${asin}`)
-          ],
-          [
-            Markup.button.callback('🔙 Back', `action_view_${asin}`)
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '5% off', callback_data: `action_threshold_${asin}_5` },
+              { text: '10% off', callback_data: `action_threshold_${asin}_10` },
+              { text: '20% off', callback_data: `action_threshold_${asin}_20` }
+            ],
+            [
+              { text: '💭 Custom Threshold', callback_data: `action_custom_threshold_${asin}` }
+            ],
+            [
+              { text: '🔙 Back', callback_data: `action_view_${asin}` }
+            ]
           ]
-        ])
+        }
       });
     } catch (error) {
       handleError(ctx, error);
@@ -419,15 +428,15 @@ const registerHandlers = (bot) => {
       stateManager.clearState(ctx.chat.id);
 
       const productName = escapeMarkdownV2(product.name);
-      const productUrlEscaped = escapeMarkdownV2(product.url);
+      const productUrl = product.url;
 
       const message = [
         '✅ *Price Alert Updated*',
         '',
-        `📦 Product: [${productName}](${productUrlEscaped})`,
-        `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
-        `🎯 Old Alert Price: £${oldThreshold.toFixed(2)}`,
-        `🆕 New Alert Price: £${newThreshold.toFixed(2)}`,
+        `📦 Product: [${productName}](${productUrl})`,
+        `💵 Current Price: £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+        `🎯 Old Alert Price: £${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
+        `🆕 New Alert Price: £${escapeMarkdownV2(newThreshold.toFixed(2))}`,
         '',
         'You will now receive alerts based on the new threshold.'
       ].join('\n');
@@ -456,13 +465,13 @@ const registerHandlers = (bot) => {
 
       const product = await ProductService.getProduct(asin, ctx.chat.id);
       const productName = escapeMarkdownV2(product.name);
-      const productUrlEscaped = escapeMarkdownV2(product.url);
+      const productUrl = product.url;
 
       const message = [
         'ℹ️ *Price Update Canceled*',
         '',
-        `📦 Product: [${productName}](${productUrlEscaped})`,
-        `🎯 Your alert price remains: £${oldThreshold.toFixed(2)}`,
+        `📦 Product: [${productName}](${productUrl})`,
+        `🎯 Your alert price remains: £${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
         '',
         'No changes were made to your tracking settings.'
       ].join('\n');
@@ -581,20 +590,21 @@ async function handleThresholdInput(ctx) {
   const { product, isNew, isAlreadyTracked } = await ProductService.addProduct(productUrl, ctx.chat.id, threshold);
   stateManager.clearState(ctx.chat.id);
 
+  const productName = escapeMarkdownV2(product.name);
+  const productUrlFromProduct = product.url;
+
   if (isAlreadyTracked) {
     const oldThreshold = product.trackedBy.find(t => t.chatId === ctx.chat.id).thresholdPrice;
-    const productName = escapeMarkdownV2(product.name);
-    const productUrlEscaped = escapeMarkdownV2(product.url);
 
     const message = [
       `⚠️ *Product Already Tracked*`,
       '',
-      `📦 Product: [${productName}](${productUrlEscaped})`,
-      `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
-      `🎯 Your current alert price: £${oldThreshold.toFixed(2)}`,
-      `🆕 New proposed alert price: £${threshold.toFixed(2)}`,
+      `📦 Product: [${productName}](${escapeMarkdownV2(productUrlFromProduct)})`,
+      `💵 Current Price: £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+      `🎯 Your current alert price: £${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
+      `🆕 New proposed alert price: £${escapeMarkdownV2(threshold.toFixed(2))}`,
       '',
-      'Do you want to update your alert price to the new proposed price?'
+      escapeMarkdownV2('Do you want to update your alert price to the new proposed price?')
     ].join('\n');
 
     stateManager.setState(ctx.chat.id, BotStates.AWAITING_PRICE_UPDATE_CONFIRMATION, {
@@ -605,25 +615,25 @@ async function handleThresholdInput(ctx) {
 
     await ctx.reply(message, {
       parse_mode: 'MarkdownV2',
-      reply_markup: Markup.inlineKeyboard([
-        [Markup.button.callback('✅ Yes, update', `action_confirm_update_price_${asin}`)],
-        [Markup.button.callback('❌ No, keep old', `action_cancel_update_price_${asin}`)]
-      ]),
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '✅ Yes, update', callback_data: `action_confirm_update_price_${asin}` }],
+          [{ text: '❌ No, keep old', callback_data: `action_cancel_update_price_${asin}` }]
+        ]
+      },
       disable_web_page_preview: true
     });
     return;
   }
 
   const difference = ((product.currentPrice - threshold) / threshold) * 100;
-  const productName = escapeMarkdownV2(product.name);
-  const productUrlEscaped = escapeMarkdownV2(product.url);
 
   const message = [
     '✅ *Product Added Successfully*',
     '',
-    `📦 Product: [${productName}](${productUrlEscaped})`,
-    `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
-    `🎯 Alert Price: £${threshold.toFixed(2)}`,
+    `📦 Product: [${productName}](${productUrlFromProduct})`,
+    `💵 Current Price: £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+    `🎯 Alert Price: £${escapeMarkdownV2(threshold.toFixed(2))}`,
     '',
     product.currentPrice <= threshold
       ? '🎉 Good news\\! The current price is already below your alert threshold\\!'
@@ -668,14 +678,14 @@ async function handleThresholdUpdate(ctx) {
 
   const difference = ((product.currentPrice - newThreshold) / newThreshold) * 100;
   const productName = escapeMarkdownV2(product.name);
-  const productUrlEscaped = escapeMarkdownV2(product.url);
+  const productUrl = product.url;
 
   const message = [
     '✅ *Price Alert Updated*',
     '',
-    `📦 Product: [${productName}](${productUrlEscaped})`,
-    `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
-    `🎯 New Alert Price: £${newThreshold.toFixed(2)}`,
+    `📦 Product: [${productName}](${productUrl})`,
+    `💵 Current Price: £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+    `🎯 New Alert Price: £${escapeMarkdownV2(newThreshold.toFixed(2))}`,
     '',
     product.currentPrice <= newThreshold
       ? '🎉 Good news\\! The current price is already below your new alert threshold\\!'

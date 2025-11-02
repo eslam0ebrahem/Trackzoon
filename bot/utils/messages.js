@@ -181,7 +181,7 @@ export const Messages = {
   productAdded: (product, threshold, difference) => [
     '✅ *Product Added Successfully*',
     '',
-    `📦 Product: [${product.name}](${product.url})`,
+    `📦 Product: [${escapeMarkdownV2(product.name)}](${product.url})`,
     `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
     `🎯 Alert Price: £${threshold.toFixed(2)}`,
     '',

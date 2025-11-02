@@ -9,6 +9,7 @@ const ProductSchema = new mongoose.Schema({
   lastUpdated: { type: Date, default: Date.now },
   trackedBy: [{
     chatId: { type: Number, required: true },
+    muted: { type: Boolean, default: false },
     muteUntil: Date,
     lastAlertedAt: Date,
     alertType: { type: String, enum: ['drop', 'percentage_drop'], default: 'drop' },

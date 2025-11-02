@@ -32,10 +32,9 @@ const formatPercentage = (oldPrice, newPrice) => {
 };
 
 const formatProductLine = (index, product, tracker, showCurrentPrice = true) => {
-    const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
-    const url = product.url ? product.url.replace(/[_*\[\]()~`>#+=|{}.!-]/g, '\\$&') : '';
-    const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');
-    
+  const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
+  const url = product.url || '';
+  const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');    
     // Get the previous price for trend
     const previousPrice = product.priceHistory && product.priceHistory.length > 1 
         ? product.priceHistory[product.priceHistory.length - 2].price 
@@ -60,10 +59,10 @@ const formatProductLine = (index, product, tracker, showCurrentPrice = true) => 
 };
 
 const formatProductDetails = (product, tracker) => {
-    const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
-    const url = product.url ? product.url.replace(/[_*\[\]()~`>#+=|{}.!-]/g, '\\$&') : '';
-    const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');
-    const currentPrice = product.currentPrice || '—';
+  const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
+  const url = product.url || ''; // URL should not be escaped for Markdown links
+  const currentPrice = product.currentPrice;
+  const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');
 
     // Calculate price statistics
     let lowestPrice = currentPrice;
@@ -166,7 +165,7 @@ const buildProductListMessage = (products, chatId, options = { showCurrentPrice:
 
 const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
     const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
-    const url = product.url ? product.url.replace(/[_*\[\]()~`>#+=|{}.!-]/g, '\\$&') : '';
+    const url = product.url || '';
     const change = ((newPrice - oldPrice) / oldPrice) * 100;
     const isDecrease = newPrice < oldPrice;
     
