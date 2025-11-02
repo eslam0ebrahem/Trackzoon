@@ -8,7 +8,7 @@ export default (bot, i18next) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
       const products = await Product.find({ 'trackedBy.chatId': ctx.chat.id });
-      if (products.length === 0) return ctx.reply(i18next.t('noTrackedProducts'));
+      if (products.length === 0) return ctx.reply(ctx.i18n('noTrackedProducts'));
 
       for (const p of products) {
         const tracker = p.trackedBy.find(t => t.chatId === ctx.chat.id);
@@ -19,7 +19,7 @@ export default (bot, i18next) => {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: i18next.t('viewProduct'), callback_data: `view_${p.asin}` },
+                  { text: ctx.i18n('viewProduct'), callback_data: `view_${p.asin}` },
                 ],
               ],
             },
@@ -51,10 +51,10 @@ export default (bot, i18next) => {
       product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
     }
 
-    if (!product) return ctx.reply(i18next.t('productNotFoundOrNotTracked'));
+    if (!product) return ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
 
-    const currentPrice = product.priceHistory.length > 0 ? product.priceHistory.slice(-1)[0].price : i18next.t('priceNotAvailable');
-    const lastUpdated = product.priceHistory.length > 0 ? new Date(product.priceHistory.slice(-1)[0].date).toLocaleString() : i18next.t('notAvailable');
+    const currentPrice = product.priceHistory.length > 0 ? product.priceHistory.slice(-1)[0].price : ctx.i18n('priceNotAvailable');
+    const lastUpdated = product.priceHistory.length > 0 ? new Date(product.priceHistory.slice(-1)[0].date).toLocaleString() : ctx.i18n('notAvailable');
 
     let message = `<b>${product.name}</b>\n\n`;
     message += `Current Price: ${currentPrice} EGP\n`;

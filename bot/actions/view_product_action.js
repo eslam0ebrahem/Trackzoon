@@ -7,10 +7,10 @@ export default (bot, i18next) => {
     const asin = ctx.match[1];
     const product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
 
-    if (!product) return ctx.editMessageText(i18next.t('productNotFoundOrNotTracked'));
+    if (!product) return ctx.editMessageText(ctx.i18n('productNotFoundOrNotTracked'));
 
-    const currentPrice = product.priceHistory.length > 0 ? product.priceHistory.slice(-1)[0].price : i18next.t('priceNotAvailable');
-    const lastUpdated = product.priceHistory.length > 0 ? new Date(product.priceHistory.slice(-1)[0].date).toLocaleString() : i18next.t('notAvailable');
+    const currentPrice = product.priceHistory.length > 0 ? product.priceHistory.slice(-1)[0].price : ctx.i18n('priceNotAvailable');
+    const lastUpdated = product.priceHistory.length > 0 ? new Date(product.priceHistory.slice(-1)[0].date).toLocaleString() : ctx.i18n('notAvailable');
 
     let message = `<b>${product.name}</b>\n\n`;
     message += `Current Price: ${currentPrice} EGP\n`;

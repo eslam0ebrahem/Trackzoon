@@ -7,6 +7,6 @@ export default (bot, i18next) => {
     const lang = ctx.match[1];
     await User.findOneAndUpdate({ chatId: ctx.chat.id }, { locale: lang }, { upsert: true });
     i18next.changeLanguage(lang);
-    ctx.editMessageText(i18next.t('langSetTo', { lang: lang === 'en' ? 'English' : 'العربية' }));
+    ctx.editMessageText(ctx.i18n('langSetTo', { lang: lang === 'en' ? 'English' : 'العربية' }));
   });
 };

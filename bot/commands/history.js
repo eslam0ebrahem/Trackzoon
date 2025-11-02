@@ -9,7 +9,7 @@ export default (bot, i18next) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
       const products = await Product.find({ 'trackedBy.chatId': ctx.chat.id });
-      if (products.length === 0) return ctx.reply(i18next.t('noTrackedProducts'));
+      if (products.length === 0) return ctx.reply(ctx.i18n('noTrackedProducts'));
 
       for (const p of products) {
         const tracker = p.trackedBy.find(t => t.chatId === ctx.chat.id);
@@ -20,7 +20,7 @@ export default (bot, i18next) => {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: i18next.t('viewHistory'), callback_data: `history_${p.asin}` },
+                  { text: ctx.i18n('viewHistory'), callback_data: `history_${p.asin}` },
                 ],
               ],
             },
@@ -53,7 +53,7 @@ export default (bot, i18next) => {
       product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
     }
 
-    if (!product) return ctx.reply(i18next.t('productNotFoundOrNotTracked'));
+    if (!product) return ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
 
     let history = product.priceHistory;
     const now = new Date();
@@ -63,10 +63,10 @@ export default (bot, i18next) => {
       history = history.filter(h => (now - new Date(h.date)) / (1000 * 60 * 60 * 24) <= 30);
     }
 
-    if (history.length < 2) return ctx.reply(i18next.t('notEnoughData'));
+    if (history.length < 2) return ctx.reply(ctx.i18n('notEnoughData'));
 
-    const chartUrl = await generatePriceChart(product.name, history, i18next.t);
+    const chartUrl = await generatePriceChart(product.name, history, ctx.i18n);
 
-    return ctx.replyWithPhoto(chartUrl, { caption: i18next.t('historyCaption', { name: product.name }) });
+    return ctx.replyWithPhoto(chartUrl, { caption: ctx.i18n('historyCaption', { name: product.name }) });
   });
 };

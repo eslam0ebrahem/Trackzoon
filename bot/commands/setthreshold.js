@@ -8,7 +8,7 @@ export default (bot, i18next) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 3) {
       const products = await Product.find({ 'trackedBy.chatId': ctx.chat.id });
-      if (products.length === 0) return ctx.reply(i18next.t('noTrackedProducts'));
+      if (products.length === 0) return ctx.reply(ctx.i18n('noTrackedProducts'));
 
       for (const p of products) {
         const tracker = p.trackedBy.find(t => t.chatId === ctx.chat.id);
@@ -19,7 +19,7 @@ export default (bot, i18next) => {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: i18next.t('setThreshold'), callback_data: `setthreshold_${p.asin}` },
+                  { text: ctx.i18n('setThreshold'), callback_data: `setthreshold_${p.asin}` },
                 ],
               ],
             },
@@ -32,7 +32,7 @@ export default (bot, i18next) => {
 
     const newThreshold = parseFloat(newThresholdStr);
     if (isNaN(newThreshold) || newThreshold <= 0) {
-      return ctx.reply(i18next.t('invalidThreshold'));
+      return ctx.reply(ctx.i18n('invalidThreshold'));
     }
 
     let product;
@@ -56,15 +56,15 @@ export default (bot, i18next) => {
       product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
     }
 
-    if (!product) return ctx.reply(i18next.t('productNotFoundOrNotTracked'));
+    if (!product) return ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
 
     const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
     if (tracker) {
       tracker.thresholdPrice = newThreshold;
       await product.save();
-      ctx.reply(i18next.t('thresholdUpdated', { name: product.name, threshold: newThreshold }));
+      ctx.reply(ctx.i18n('thresholdUpdated', { name: product.name, threshold: newThreshold }));
     } else {
-      ctx.reply(i18next.t('productNotFoundOrNotTracked')); // Should not happen if product is found with chatId
+      ctx.reply(ctx.i18n('productNotFoundOrNotTracked')); // Should not happen if product is found with chatId
     }
   });
 };

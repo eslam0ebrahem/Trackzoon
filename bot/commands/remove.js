@@ -8,7 +8,7 @@ export default (bot, i18next) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
       const products = await Product.find({ 'trackedBy.chatId': ctx.chat.id });
-      if (products.length === 0) return ctx.reply(i18next.t('noTrackedProducts'));
+      if (products.length === 0) return ctx.reply(ctx.i18n('noTrackedProducts'));
 
       for (const p of products) {
         const tracker = p.trackedBy.find(t => t.chatId === ctx.chat.id);
@@ -19,7 +19,7 @@ export default (bot, i18next) => {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: i18next.t('removeProduct'), callback_data: `remove_${p.asin}` },
+                  { text: ctx.i18n('removeProduct'), callback_data: `remove_${p.asin}` },
                 ],
               ],
             },
@@ -51,24 +51,24 @@ export default (bot, i18next) => {
       product = await Product.findOne({ asin });
     }
 
-    if (!product) return ctx.reply(i18next.t('productNotFound'));
+    if (!product) return ctx.reply(ctx.i18n('productNotFound'));
 
     if (product.trackedBy.includes(ctx.chat.id)) {
       ctx.reply(
-        i18next.t('removeConfirmation', { name: product.name }),
+        ctx.i18n('removeConfirmation', { name: product.name }),
         {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: i18next.t('yesRemove'), callback_data: `remove_${product.asin}` },
-                { text: i18next.t('noKeep'), callback_data: 'cancel_remove' },
+                { text: ctx.i18n('yesRemove'), callback_data: `remove_${product.asin}` },
+                { text: ctx.i18n('noKeep'), callback_data: 'cancel_remove' },
               ],
             ],
           },
         }
       );
     } else {
-      ctx.reply(i18next.t('notTracked'));
+      ctx.reply(ctx.i18n('notTracked'));
     }
   });
 };

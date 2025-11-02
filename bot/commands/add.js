@@ -11,16 +11,16 @@ export default (bot, addingProductState) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 3) {
       addingProductState.set(ctx.chat.id, { step: 'waiting_for_url', data: {} });
-      return ctx.reply(i18next.t('promptForUrl'));
+      return ctx.reply(ctx.i18n('promptForUrl'));
     }
     let [, url, thresholdStr] = parts;
 
     const threshold = parseFloat(thresholdStr);
     if (isNaN(threshold) || threshold <= 0) {
-      return ctx.reply(i18next.t('invalidThreshold'));
+      return ctx.reply(ctx.i18n('invalidThreshold'));
     }
 
-    ctx.reply(i18next.t('processing'));
+    ctx.reply(ctx.i18n('processing'));
 
     // Extract URL from markdown link if present
     const markdownLinkMatch = url.match(/\[.*\]\((.*?)\)/);
@@ -32,7 +32,7 @@ export default (bot, addingProductState) => {
     url = await resolveAmazonUrl(url);
 
     const asinMatch = url.match(/dp\/([A-Za-z0-9]{10})/);
-    if (!asinMatch) return ctx.reply(i18next.t('invalidUrl'));
+    if (!asinMatch) return ctx.reply(ctx.i18n('invalidUrl'));
 
     const asin = asinMatch[1];
     let product = await Product.findOne({ asin });
@@ -67,7 +67,7 @@ export default (bot, addingProductState) => {
         user.products.push(product._id);
         await user.save();
       }
-      ctx.reply(i18next.t('added', { name, threshold }));
+      ctx.reply(ctx.i18n('added', { name, threshold }));
     } else {
       // Add chatId if not already present
       if (!product.trackedBy || !Array.isArray(product.trackedBy)) {
@@ -83,9 +83,9 @@ export default (bot, addingProductState) => {
           user.products.push(product._id);
           await user.save();
         }
-        ctx.reply(i18next.t('added', { name, threshold }));
+        ctx.reply(ctx.i18n('added', { name, threshold }));
       } else {
-        ctx.reply(i18next.t('alreadyTracking', { name }));
+        ctx.reply(ctx.i18n('alreadyTracking', { name }));
       }
       // Update threshold for the current user (simple logic)
       const currentUserTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);

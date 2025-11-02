@@ -9,9 +9,9 @@ export default (bot, i18next) => {
     if (product) {
       product.trackedBy = product.trackedBy.filter(tracker => tracker.chatId !== ctx.chat.id);
       await product.save();
-      ctx.editMessageText(i18next.t('removed'));
+      ctx.editMessageText(ctx.i18n('removed'));
     } else {
-      ctx.editMessageText(i18next.t('productNotFound'));
+      ctx.editMessageText(ctx.i18n('productNotFound'));
     }
   });
 };

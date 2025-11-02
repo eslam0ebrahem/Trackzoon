@@ -12,7 +12,7 @@ export default (bot, i18next) => {
 
     const parts = ctx.message.text.split(' ');
 
-    if (parts.length < 3) return ctx.reply(i18next.t('addPercentageUsage'));
+    if (parts.length < 3) return ctx.reply(ctx.i18n('addPercentageUsage'));
 
     let [, url, percentageStr] = parts;
 
@@ -22,13 +22,13 @@ export default (bot, i18next) => {
 
     if (isNaN(percentage) || percentage <= 0 || percentage > 100) {
 
-      return ctx.reply(i18next.t('invalidPercentage'));
+      return ctx.reply(ctx.i18n('invalidPercentage'));
 
     }
 
 
 
-    ctx.reply(i18next.t('processing'));
+    ctx.reply(ctx.i18n('processing'));
 
 
 
@@ -48,7 +48,7 @@ export default (bot, i18next) => {
 
     const asinMatch = url.match(/dp\/([A-Za-z0-9]{10})/);
 
-    if (!asinMatch) return ctx.reply(i18next.t('invalidUrl'));
+    if (!asinMatch) return ctx.reply(ctx.i18n('invalidUrl'));
 
 
 
@@ -118,7 +118,7 @@ export default (bot, i18next) => {
 
       }
 
-      ctx.reply(i18next.t('addedPercentage', { name, percentage }));
+      ctx.reply(ctx.i18n('addedPercentage', { name, percentage }));
 
     } else {
 
@@ -142,11 +142,11 @@ export default (bot, i18next) => {
 
         }
 
-        ctx.reply(i18next.t('addedPercentage', { name, percentage }));
+        ctx.reply(ctx.i18n('addedPercentage', { name, percentage }));
 
       } else {
 
-        ctx.reply(i18next.t('alreadyTracking', { name }));
+        ctx.reply(ctx.i18n('alreadyTracking', { name }));
 
       }
 
