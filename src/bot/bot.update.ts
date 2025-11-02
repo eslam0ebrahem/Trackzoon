@@ -4,6 +4,7 @@ import { UserService } from '../services/user.service';
 import { ProductService } from '../services/product.service';
 import { ScraperService } from '../services/scraper.service';
 import { Markup } from 'telegraf';
+import { Messages } from './utils/messages';
 
 @Update()
 export class BotUpdate {
@@ -15,28 +16,13 @@ export class BotUpdate {
 
   @Start()
   async onStart(@Ctx() ctx: Context) {
-    const username = ctx.from?.first_name || ctx.from?.username || 'there';
+    const username = ctx.from?.first_name || ctx.from?.username || 'User';
     const chatId = ctx.chat?.id.toString();
 
     // Register or get user
     await this.userService.getOrCreateUser(chatId, username);
 
-    const welcomeMessage = `👋 *Welcome ${this.escapeMarkdown(username)}!*
-
-I'm your personal Amazon price tracker. I'll help you save money by tracking product prices and notifying you when they drop!
-
-🌟 *What I can do:*
-• Track Amazon product prices 24/7
-• Send instant alerts when prices drop
-• Show price history and trends
-• Help you find the best time to buy
-
-🚀 *Quick Start:*
-Just send me any Amazon product link to start tracking!
-
-Or use the menu below to explore more options...`;
-
-    await ctx.reply(welcomeMessage, {
+    await ctx.reply(Messages.welcome(username), {
       parse_mode: 'Markdown',
       ...this.getMainKeyboard(),
     });
@@ -44,38 +30,7 @@ Or use the menu below to explore more options...`;
 
   @Help()
   async onHelp(@Ctx() ctx: Context) {
-    const helpMessage = `📚 *Help & Commands*
-
-🎯 *Quick Actions:*
-• Just send me an Amazon link to start tracking!
-• Use buttons below for easy navigation
-
-📝 *Available Commands:*
-
-*Basic:*
-/start - Restart the bot
-/help - Show this help
-/list - View all tracked products
-/report - Get your daily price report
-
-*Product Management:*
-/add <URL> <price> - Track a product
-   Example: \`/add https://amzn.to/xxx 99.99\`
-/remove <ASIN> - Stop tracking a product
-
-*Settings:*
-/settings - Manage preferences
-
-💡 *Pro Tips:*
-• Set realistic price alerts
-• Check /list daily for deals
-• Enable daily reports in /settings
-• Products are checked automatically
-• You get instant notifications
-
-❓ Need more help? Just ask!`;
-
-    await ctx.reply(helpMessage, {
+    await ctx.reply(Messages.help, {
       parse_mode: 'Markdown',
       ...this.getMainKeyboard(),
     });
@@ -88,29 +43,40 @@ Or use the menu below to explore more options...`;
       const products = await this.productService.getUserProducts(chatId);
 
       if (!products || products.length === 0) {
-        await ctx.reply(
-          '📦 *Your Tracking List is Empty*\n\nSend me an Amazon product link to start tracking prices!',
-          {
-            parse_mode: 'Markdown',
-            ...this.getMainKeyboard(),
-          },
-        );
+        await ctx.reply(Messages.noTrackedProducts, {
+          parse_mode: 'Markdown',
+          ...this.getMainKeyboard(),
+        });
         return;
       }
 
       let message = `📦 *Your Tracked Products* (${products.length})\n\n`;
       
       for (const product of products) {
+        const trackedByUser = product.trackedBy.find((t: any) => t.chatId === chatId);
+        const threshold = trackedByUser?.thresholdPrice || 0;
+        
         message += `🔹 *${product.name}*\n`;
-        message += `   💰 Current: $${product.currentPrice.toFixed(2)}\n`;
-        message += `   🎯 Target: $${product.thresholdPrice?.toFixed(2) || 'Not set'}\n`;
+        message += `   💰 Current: £${product.currentPrice.toFixed(2)}\n`;
+        message += `   🎯 Target: £${threshold > 0 ? threshold.toFixed(2) : 'Not set'}\n`;
         message += `   🔗 ASIN: \`${product.asin}\`\n\n`;
       }
 
-      await ctx.reply(message, { parse_mode: 'Markdown' });
+      await ctx.reply(message, { 
+        parse_mode: 'Markdown',
+        ...this.getMainKeyboard(),
+      });
     } catch (error) {
-      await ctx.reply('❌ Error fetching your products. Please try again.');
+      await ctx.reply(Messages.errors.general, { parse_mode: 'Markdown' });
     }
+  }
+
+  @Command('add')
+  async onAddCommand(@Ctx() ctx: Context) {
+    await ctx.reply(Messages.addProduct, {
+      parse_mode: 'Markdown',
+      ...this.getMainKeyboard(),
+    });
   }
 
   @On('text')
@@ -123,10 +89,10 @@ Or use the menu below to explore more options...`;
     if (this.isAmazonUrl(text)) {
       await this.handleAmazonUrl(ctx, text);
     } else {
-      await ctx.reply(
-        '🤔 I can help you track Amazon products!\n\nPlease send me a valid Amazon product link.',
-        { ...this.getMainKeyboard() },
-      );
+      await ctx.reply(Messages.errors.invalidUrl, { 
+        parse_mode: 'Markdown',
+        ...this.getMainKeyboard(),
+      });
     }
   }
 
@@ -147,24 +113,21 @@ Or use the menu below to explore more options...`;
 
   private async handleAmazonUrl(ctx: Context, url: string) {
     try {
-      await ctx.reply('🔍 Analyzing product...');
+      await ctx.reply(Messages.processing.url);
 
       const chatId = ctx.chat?.id.toString();
       
       // Extract ASIN from URL
       const asin = this.extractAsin(url);
       if (!asin) {
-        await ctx.reply('❌ Could not extract product ID from URL. Please try another link.');
+        await ctx.reply(Messages.errors.invalidUrl, { parse_mode: 'Markdown' });
         return;
       }
 
       // Check if already tracking
       const existing = await this.productService.findByAsin(asin);
-      if (existing) {
-        await ctx.reply(
-          `✅ You're already tracking this product!\n\n*${existing.name}*\nCurrent price: $${existing.currentPrice}`,
-          { parse_mode: 'Markdown' },
-        );
+      if (existing && existing.trackedBy.some((t: any) => t.chatId === chatId)) {
+        await ctx.reply(Messages.errors.alreadyTracking, { parse_mode: 'Markdown' });
         return;
       }
 
@@ -173,35 +136,31 @@ Or use the menu below to explore more options...`;
       const currentPrice = await this.scraperService.getPrice(url);
 
       if (!productName || !currentPrice) {
-        await ctx.reply('❌ Could not fetch product details. Please try again later.');
+        await ctx.reply(Messages.errors.scrapingError, { parse_mode: 'Markdown' });
         return;
       }
 
-      await ctx.reply(
-        `📦 *Product Found!*\n\n${productName}\n\n💰 Current Price: $${currentPrice}\n\nWhat's your target price?`,
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            force_reply: true,
-          },
-        },
-      );
+      await ctx.reply(Messages.processing.tracking);
 
-      // Store temp data for next step (you'd use a proper state manager here)
-      // For now, create the product with a default threshold
+      // Add product with default threshold (10% discount)
+      const thresholdPrice = currentPrice * 0.9;
       await this.productService.addProduct({
         asin,
         url,
         name: productName,
         currentPrice,
         chatId,
-        thresholdPrice: currentPrice * 0.9, // Default 10% discount
+        thresholdPrice,
       });
 
-      await ctx.reply('✅ Product added to your tracking list!');
+      const difference = ((currentPrice - thresholdPrice) / thresholdPrice) * 100;
+      await ctx.reply(
+        Messages.productAdded({ name: productName, currentPrice, url }, thresholdPrice, difference),
+        { parse_mode: 'Markdown', ...this.getMainKeyboard() }
+      );
     } catch (error) {
       console.error('Error handling Amazon URL:', error);
-      await ctx.reply('❌ Something went wrong. Please try again later.');
+      await ctx.reply(Messages.errors.general, { parse_mode: 'Markdown' });
     }
   }
 
@@ -216,17 +175,12 @@ Or use the menu below to explore more options...`;
     return match ? match[1] || match[2] || match[3] : null;
   }
 
-  private escapeMarkdown(text: string): string {
-    return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, '\\$&');
-  }
-
   private getMainKeyboard() {
     return {
       reply_markup: {
         keyboard: [
-          [{ text: '📋 My Products' }, { text: '➕ Add Product' }],
-          [{ text: '📊 Price Report' }, { text: '⚙️ Settings' }],
-          [{ text: '❓ Help' }],
+          [{ text: Messages.addCommand }, { text: Messages.listCommand }],
+          [{ text: Messages.helpCommand }],
         ],
         resize_keyboard: true,
       },
