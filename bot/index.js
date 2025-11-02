@@ -48,6 +48,14 @@ bot.launch().then(() => {
   console.log('Bot successfully launched!');
 }).catch(error => {
   console.error('Failed to launch bot:', error);
+  
+  // If there's a conflict (409), it means another instance is running
+  // Exit without retrying to prevent multiple instances
+  if (error.response?.error_code === 409) {
+    console.error('Another bot instance is already running. Exiting...');
+    process.exit(1);
+  }
+  
   process.exit(1);
 });
 
