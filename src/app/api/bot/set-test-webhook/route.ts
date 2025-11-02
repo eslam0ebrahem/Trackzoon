@@ -4,8 +4,10 @@ import { Telegraf } from 'telegraf';
 export async function GET(req: NextRequest) {
   try {
     const bot = new Telegraf(process.env.BOT_TOKEN || '');
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://trackzon-40obcf827-eslam0ebrahems-projects.vercel.app';
-    const webhookUrl = `${baseUrl}/api/bot/test-webhook`;
+    // Get the host from the request
+    const host = req.headers.get('host') || '';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const webhookUrl = `${protocol}://${host}/api/bot/test-webhook`;
 
     // Set the webhook
     await bot.telegram.setWebhook(webhookUrl);
