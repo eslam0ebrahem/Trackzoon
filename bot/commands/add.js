@@ -6,7 +6,7 @@ import User from '../models/User.js';
 import { getProductName } from '../../src/lib/scraper/getProductName.js';
 import { getPrice } from '../../src/lib/scraper/getPrice.js';
 
-export default (bot, i18next, addingProductState) => {
+export default (bot, addingProductState) => {
   bot.command('add', async (ctx) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 3) {

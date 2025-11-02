@@ -17,10 +17,13 @@ startScheduler(bot);
 console.log('Attempting to launch bot...');
 bot.launch();
 
-// Optionally handle graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('Received SIGINT. Disconnecting from MongoDB and stopping bot...');
-  bot.stop();
-  console.log('Bot stopped and MongoDB disconnected.');
-  process.exit(0);
+// Enable graceful stop
+process.once('SIGINT', () => {
+  console.log('Received SIGINT. Stopping bot...');
+  bot.stop('SIGINT');
+});
+
+process.once('SIGTERM', () => {
+  console.log('Received SIGTERM. Stopping bot...');
+  bot.stop('SIGTERM');
 });
