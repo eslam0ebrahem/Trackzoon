@@ -25,10 +25,6 @@ const ProductSchema = new mongoose.Schema({
         required: true,
         index: true,
       },
-      muteUntil: {
-        type: Date,
-        default: null,
-      },
       lastAlertedAt: {
         type: Date,
         default: null,

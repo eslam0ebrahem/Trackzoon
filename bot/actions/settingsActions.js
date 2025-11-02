@@ -1,6 +1,6 @@
 import { UserService } from '../services/userService.js';
 import { mainKeyboard, backToMainKeyboard } from '../utils/keyboards/mainKeyboard.js';
-import { escapeMarkdownV2 } from '../utils/messageHelper.js';
+import { escapeMarkdownV2, safeEditMessageText } from '../utils/messageHelper.js';
 
 export default (bot) => {
   // Settings menu
@@ -22,7 +22,7 @@ export default (bot) => {
         'Click the buttons below to change settings:'
       ].join('\n'));
 
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         reply_markup: {
           inline_keyboard: [
@@ -115,7 +115,7 @@ export default (bot) => {
         '• *Percentage:* Alert when price drops by a certain percentage'
       ].join('\n'));
 
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         reply_markup: {
           inline_keyboard: [

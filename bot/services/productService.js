@@ -167,41 +167,4 @@ export class ProductService {
       );
     }
   }
-
-  static async toggleMute(asin, chatId) {
-    try {
-      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
-      if (!product) {
-        throw new BotError(
-          'Product not found',
-          ErrorCodes.PRODUCT_NOT_FOUND,
-          'Product not found or not tracked by you'
-        );
-      }
-
-      const tracker = product.trackedBy.find(t => t.chatId === chatId);
-      if (!tracker) {
-        throw new BotError(
-          'Product not tracked',
-          ErrorCodes.PRODUCT_NOT_FOUND,
-          'You are not tracking this product'
-        );
-      }
-
-      tracker.muted = !tracker.muted;
-      await product.save();
-      
-      return product;
-
-    } catch (error) {
-      if (error instanceof BotError) throw error;
-      
-      console.error('Error toggling mute:', error);
-      throw new BotError(
-        'Failed to toggle mute',
-        ErrorCodes.DATABASE_ERROR,
-        'Failed to toggle mute. Please try again later.'
-      );
-    }
-  }
 }

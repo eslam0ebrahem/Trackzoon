@@ -22,10 +22,6 @@ async function updateAllProductPrices(botInstance = null) {
       // Alerting logic (only if botInstance is provided)
       if (botInstance) {
         for (const tracked of product.trackedBy) {
-          if (tracked.muteUntil && new Date() < tracked.muteUntil) {
-            continue; // Skip if muted
-          }
-
           let shouldAlert = false;
           let alertMessage = '';
 

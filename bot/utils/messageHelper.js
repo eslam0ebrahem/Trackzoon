@@ -245,6 +245,21 @@ const buildSettingsMessage = (user) => {
     return message;
 };
 
+// Helper function to safely edit messages without throwing errors when content is the same
+const safeEditMessageText = async (ctx, text, options = {}) => {
+    try {
+        await ctx.editMessageText(text, options);
+    } catch (error) {
+        // If message content is the same, just acknowledge it silently
+        if (error.description && error.description.includes('message is not modified')) {
+            await ctx.answerCbQuery().catch(() => {}); // Silent acknowledgment
+        } else {
+            // Re-throw other errors
+            throw error;
+        }
+    }
+};
+
 export {
     escapeMarkdownV2,
     formatProductLine,
@@ -253,5 +268,6 @@ export {
     buildProductListMessage,
     buildWelcomeMessage,
     buildHelpMessage,
-    buildSettingsMessage
+    buildSettingsMessage,
+    safeEditMessageText
 };

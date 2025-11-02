@@ -33,14 +33,12 @@ export const addPriceTracker = async ({ asin, url, chatId, threshold, currentPri
         existingTracker.alertType = 'drop';
       }
       existingTracker.lastAlertedAt = null; // Reset alert state for new threshold
-      existingTracker.muteUntil = null;
     } else {
       product.trackedBy.push({
         chatId,
         thresholdPrice: threshold,
         percentageThreshold: isPercentage ? threshold : null,
         alertType: isPercentage ? 'percentage_drop' : 'drop',
-        muteUntil: null,
         lastAlertedAt: null
       });
     }

@@ -1,5 +1,5 @@
 import { mainKeyboard, backToMainKeyboard } from '../utils/keyboards/mainKeyboard.js';
-import { escapeMarkdownV2 } from '../utils/messageHelper.js';
+import { escapeMarkdownV2, safeEditMessageText } from '../utils/messageHelper.js';
 import { ProductService } from '../services/productService.js';
 
 export default (bot) => {
@@ -40,7 +40,7 @@ export default (bot) => {
           'Start tracking products to see your statistics\\!'
         ].join('\n'));
 
-        await ctx.editMessageText(message, {
+        await safeEditMessageText(ctx, message, {
           parse_mode: 'MarkdownV2',
           ...backToMainKeyboard()
         });
@@ -77,7 +77,7 @@ export default (bot) => {
         'Keep tracking to maximize your savings\\!'
       ].join('\n'));
 
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
       });
@@ -111,7 +111,7 @@ export default (bot) => {
       ].join('\n'));
 
       if (ctx.update.callback_query.message.text !== helpMessage) {
-        await ctx.editMessageText(helpMessage, {
+        await safeEditMessageText(ctx, helpMessage, {
           parse_mode: 'MarkdownV2',
           ...backToMainKeyboard()
         });

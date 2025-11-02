@@ -27,7 +27,6 @@ export const productActionsKeyboard = (asin) => {
           { text: '🎯 Set Threshold', callback_data: `action_threshold_${asin}` }
         ],
         [
-          { text: '🔕 Mute Alerts', callback_data: `action_mute_${asin}` },
           { text: '❌ Stop Tracking', callback_data: `action_remove_${asin}` }
         ],
         [{ text: '🔙 Back to Products', callback_data: 'action_list_products' }]

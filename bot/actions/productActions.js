@@ -5,7 +5,7 @@ import {
   confirmationKeyboard,
   backToMainKeyboard 
 } from '../utils/keyboards/mainKeyboard.js';
-import { buildProductListMessage, formatProductDetails, escapeMarkdownV2 } from '../utils/messageHelper.js';
+import { buildProductListMessage, formatProductDetails, escapeMarkdownV2, safeEditMessageText } from '../utils/messageHelper.js';
 import { stateManager, BotStates } from '../utils/stateManager.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 
@@ -30,7 +30,7 @@ export default (bot) => {
         escapeMarkdownV2('Click the link above to see the full price history chart.')
       ].join('\n');
 
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: false,
         reply_markup: {
@@ -51,7 +51,7 @@ export default (bot) => {
       const products = await ProductService.getUserProducts(ctx.chat.id);
       
       if (products.length === 0) {
-        return await ctx.editMessageText(
+        return await safeEditMessageText(ctx, 
           escapeMarkdownV2([
             '📭 *No Products Being Tracked*',
             '',
@@ -78,7 +78,7 @@ export default (bot) => {
         }
       ]);
 
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: true,
         reply_markup: {
@@ -97,22 +97,23 @@ export default (bot) => {
   // Add product action
   bot.action('action_add_product', async (ctx) => {
     try {
-      stateManager.setState(ctx.chat.id, BotStates.WAITING_FOR_URL);
-      const message = escapeMarkdownV2([
-        '🛍️ *Add Product to Track*',
+      stateManager.setState(ctx.chat.id, BotStates.WAITING_FOR_URL_AND_PRICE);
+      const message = [
+        '🛍️ *Track a New Product*',
         '',
-        'Please send me the Amazon product URL\.',
+        '📝 *Send me the Amazon link and your target price in one message:*',
         '',
-        '💡 *Tips:*',
-        '• Copy URL from your browser',
-        '• Make sure it\'s a product page',
-        '• URL should contain product ID',
+        '💡 *Format:*',
+        '`<Amazon URL> <price>`',
         '',
-        '📝 *Example:*',
-        'https://www\.amazon\.com/dp/B08N5XSG8Z'
-      ].join('\n'));
+        '📌 *Examples:*',
+        '`https://amzn\\.to/xxx 99\\.99`',
+        '`https://www\\.amazon\\.com/dp/B08N5XSG8Z 149`',
+        '',
+        '⚡ *Quick \\& Easy:* Just paste the link, add a space, then type your target price\\!'
+      ].join('\n');
 
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
       });
@@ -130,7 +131,8 @@ export default (bot) => {
       const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
       
       const message = formatProductDetails(product, tracker);
-      await ctx.editMessageText(message, {
+      
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: false,
         ...productActionsKeyboard(asin)
@@ -149,7 +151,7 @@ export default (bot) => {
       
       if (!product.currentPrice) {
         stateManager.setState(ctx.chat.id, BotStates.SETTING_THRESHOLD, { asin });
-        return await ctx.editMessageText(
+        return await safeEditMessageText(ctx, 
           'Enter your desired price alert threshold:',
           {
             parse_mode: 'MarkdownV2',
@@ -158,7 +160,7 @@ export default (bot) => {
         );
       }
 
-      await ctx.editMessageText(
+      await safeEditMessageText(ctx, 
         `Current price: £${product.currentPrice.toFixed(2)}
 Choose a threshold or set a custom one:`,
         {
@@ -187,7 +189,7 @@ Choose a threshold or set a custom one:`,
         'You won\'t receive any more price alerts\.'
       ].join('\n'));
 
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: true,
         ...confirmationKeyboard(asin, 'remove')
@@ -214,7 +216,7 @@ Choose a threshold or set a custom one:`,
         'You can add it back anytime\!'
       ].join('\n'));
 
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: true,
         ...backToMainKeyboard()
@@ -248,7 +250,7 @@ Choose a threshold or set a custom one:`,
       await ProductService.updateThreshold(asin, ctx.chat.id, price);
 
       const message = escapeMarkdownV2(`✅ Threshold updated to £${price.toFixed(2)}`);
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
       });
@@ -265,7 +267,7 @@ Choose a threshold or set a custom one:`,
       stateManager.setState(ctx.chat.id, BotStates.SETTING_THRESHOLD, { asin });
 
       const message = escapeMarkdownV2('Enter your desired price alert threshold:');
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
       });
@@ -291,7 +293,7 @@ Choose a threshold or set a custom one:`,
       stateManager.clearState(ctx.chat.id);
 
       const message = escapeMarkdownV2(`✅ Alert price updated successfully to £${newThreshold.toFixed(2)}!`);
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
       });
@@ -309,7 +311,7 @@ Choose a threshold or set a custom one:`,
       stateManager.clearState(ctx.chat.id);
 
       const message = escapeMarkdownV2('❌ Update cancelled. Your old alert price remains unchanged.');
-      await ctx.editMessageText(message, {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
       });
@@ -319,32 +321,5 @@ Choose a threshold or set a custom one:`,
       await ctx.answerCbQuery('⚠️ Error cancelling update. Please try again.');
     }
   });
-
-  // Mute/Unmute alerts for product
-  bot.action(/action_mute_(\w+)/, async (ctx) => {
-    try {
-      const asin = ctx.match[1];
-      const product = await ProductService.getProduct(asin, ctx.chat.id);
-      const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-      
-      // Toggle mute status
-      const isMuted = tracker.muted || false;
-      await ProductService.toggleMute(asin, ctx.chat.id);
-      
-      const message = escapeMarkdownV2(
-        isMuted 
-          ? `🔔 Alerts enabled for ${product.name}`
-          : `🔕 Alerts muted for ${product.name}`
-      );
-
-      await ctx.answerCbQuery(message);
-      
-      // Return to product view
-      ctx.update.callback_query.data = `action_view_${asin}`;
-      return bot.handleUpdate(ctx.update);
-    } catch (error) {
-      console.error('Error in mute action:', error);
-      await ctx.answerCbQuery('⚠️ Error toggling alerts. Please try again.');
-    }
-  });
 };
+
