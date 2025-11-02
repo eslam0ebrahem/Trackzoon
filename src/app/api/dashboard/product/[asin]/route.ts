@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import Product from '@/lib/models/Product';
 import mongoose from 'mongoose';
 
-export async function GET(request: Request, { params }: { params: { asin: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ asin: string }> }) {
   try {
     if (mongoose.connection.readyState !== 1) {
       if (!process.env.MONGODB_URI) {
