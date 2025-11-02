@@ -5,13 +5,12 @@ export const Messages = {
   productNotFound: '❌ Product not found.',
   productNotFoundOrNotTracked: '❌ Product not found or not being tracked.',
   removeProduct: '🗑️ Remove',
-  removeConfirmation: (name: string) => `🗑️ Are you sure you want to remove "${name}" from tracking?`,
+  removeConfirmation: (name) => `🗑️ Are you sure you want to remove "${name}" from tracking?`,
   yesRemove: '✅ Yes, remove it',
   noKeep: '❌ No, keep it',
   notTracked: '❌ This product is not being tracked.',
   invalidThreshold: '❌ Invalid threshold. Please enter a valid number.',
-  thresholdUpdated: ({ name, threshold }: { name: string; threshold: number }) => 
-    `✅ Threshold updated for "${name}" to ${threshold}`,
+  thresholdUpdated: ({ name, threshold }) => `✅ Threshold updated for "${name}" to ${threshold}`,
   setThreshold: '💰 Set Threshold',
   startMessage: '🚀 Welcome to Amazon Price Tracker! Let me help you track product prices.',
   addCommand: '➕ Add Product',
@@ -22,9 +21,9 @@ export const Messages = {
   priceNotAvailable: 'N/A',
   notAvailable: 'N/A',
   notEnoughData: '📊 Not enough price history data to generate a chart.',
-  historyCaption: ({ name }: { name: string }) => `📈 Price History for ${name}`,
+  historyCaption: ({ name }) => `📈 Price History for ${name}`,
   
-  welcome: (username: string) => [
+  welcome: (username) => [
     `👋 Welcome ${username} to Amazon Price Tracker!`,
     '',
     '🔍 I help you track Amazon product prices and notify you when they drop.',
@@ -41,7 +40,7 @@ export const Messages = {
     '3. Wait for price alerts!',
     '',
     'Need help? Use /help to see all commands'
-  ].join('\n'),
+  ].join('\\n'),
 
   help: [
     '📚 *Available Commands*',
@@ -65,7 +64,7 @@ export const Messages = {
     '• Send an Amazon link directly to add a product',
     '• Use inline buttons for quick actions',
     '• Check /list regularly for price updates'
-  ].join('\n'),
+  ].join('\\n'),
 
   addProduct: [
     '🛍️ *Add a Product to Track*',
@@ -79,7 +78,7 @@ export const Messages = {
     '',
     '📝 Example:',
     'https://www.amazon.eg/dp/B08N5XSG8Z'
-  ].join('\n'),
+  ].join('\\n'),
 
   processing: {
     url: '🔄 Processing URL... Please wait.',
@@ -91,82 +90,82 @@ export const Messages = {
     invalidUrl: [
       '❌ *Invalid Amazon URL*',
       '',
-      'Please make sure to provide a valid Amazon product URL.',
+      'Please make sure to provide a valid Amazon product URL\\.',
       '',
       'Supported formats:',
-      '• https://www.amazon.eg/dp/XXXXXXXXXX',
-      '• https://amzn.eu/d/XXXXXXX',
-      '• https://www.amazon.eg/gp/product/XXXXXXXXXX',
+      '• https://www\\.amazon\\.eg/dp/XXXXXXXXXX',
+      '• https://amzn\\.eu/d/XXXXXXX',
+      '• https://www\\.amazon\\.eg/gp/product/XXXXXXXXXX',
       '',
       '💡 Copy the URL directly from your browser'
-    ].join('\n'),
+    ].join('\\n'),
 
     invalidThreshold: [
       '❌ *Invalid Price Format*',
       '',
       '💡 Please follow these guidelines:',
-      '• Use only numbers (e.g. 299.99)',
+      '• Use only numbers \\(e\\.g\\. 299\\.99\\)',
       '• Don\'t include currency symbols',
       '• Price must be greater than 0'
-    ].join('\n'),
+    ].join('\\n'),
 
     productNotFound: [
       '❌ *Product Not Found*',
       '',
-      'Sorry, I couldn\'t find this product.',
-      'Please check the URL and try again.'
-    ].join('\n'),
+      'Sorry, I couldn\'t find this product\\.',
+      'Please check the URL and try again\\.'
+    ].join('\\n'),
 
     alreadyTracking: [
       '❌ *Already Tracking*',
       '',
-      'You\'re already tracking this product!',
-      'Use /list to see all your tracked products.'
-    ].join('\n'),
+      'You\'re already tracking this product\\!',
+      'Use /list to see all your tracked products\\.'
+    ].join('\\n'),
 
     scrapingError: [
       '❌ *Fetch Error*',
       '',
-      'Sorry, I couldn\'t fetch the product information.',
-      'Please try again later.'
-    ].join('\n'),
+      'Sorry, I couldn\'t fetch the product information\\.',
+      'Please try again later\\.'
+    ].join('\\n'),
 
     timeout: [
       '❌ *Operation Timed Out*',
       '',
-      'The operation took too long to complete.',
-      'Please try again.'
-    ].join('\n'),
+      'The operation took too long to complete\\.',
+      'Please try again\\.'
+    ].join('\\n'),
 
     stateError: [
       '❌ *Invalid Operation*',
       '',
-      'Can\'t perform this action right now.',
-      'Please start over.'
-    ].join('\n'),
+      'Can\'t perform this action right now\\.',
+      'Please start over\\.'
+    ].join('\\n'),
 
     networkError: [
       '❌ *Network Error*',
       '',
-      'Connection failed.',
-      'Please check your connection and try again.'
-    ].join('\n'),
+      'Connection failed\\.',
+      'Please check your connection and try again\\.'
+    ].join('\\n'),
 
     rateLimit: [
       '❌ *Too Many Requests*',
       '',
-      'Please wait a moment before trying again.'
-    ].join('\n'),
+      'Please wait a moment before trying again\\.'
+    ].join('\\n'),
 
     general: [
       '❌ *Error*',
       '',
-      'Something went wrong.',
-      'Please try again later.'
-    ].join('\n')
+      'Something went wrong\\.',
+      'Please try again later\\.'
+    ].join('\\n')
   },
 
-  setThresholdPrompt: [
+  setThreshold: [
     '💰 Set Price Alert Threshold',
     '',
     'Please enter your desired price threshold. I\'ll notify you when the price drops below this amount.',
@@ -177,12 +176,12 @@ export const Messages = {
     '• You can update this later with /setthreshold',
     '',
     'Note: Price alerts only work when the price drops below your threshold.'
-  ].join('\n'),
+  ].join('\\n'),
 
-  productAdded: (product: any, threshold: number, difference: number) => [
+  productAdded: (product, threshold, difference) => [
     '✅ *Product Added Successfully*',
     '',
-    `📦 Product: ${product.name}`,
+    `📦 Product: [${escapeMarkdownV2(product.name)}](${product.url})`,
     `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
     `🎯 Alert Price: £${threshold.toFixed(2)}`,
     '',
@@ -191,8 +190,8 @@ export const Messages = {
       : [
           `📈 Current price is ${difference.toFixed(1)}% above your threshold.`,
           '🔔 I\'ll notify you when the price drops below your threshold!'
-        ].join('\n')
-  ].join('\n'),
+        ].join('\\n')
+  ].join('\\n'),
 
   unknownCommand: '❓ I don\'t understand that command. Use /help to see available commands.',
   backToMain: '🔙 Back to main menu'
