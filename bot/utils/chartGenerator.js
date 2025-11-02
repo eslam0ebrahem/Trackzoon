@@ -1,7 +1,7 @@
 // bot/utils/chartGenerator.js
 import QuickChart from 'quickchart-js';
 
-async function generatePriceChart(productName, history) {
+async function generatePriceHistoryChart(productName, history) {
   const labels = history.map(h => new Date(h.date).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric'
@@ -35,4 +35,4 @@ async function generatePriceChart(productName, history) {
   return chart.getShortUrl();
 }
 
-export { generatePriceChart };
+export { generatePriceHistoryChart };

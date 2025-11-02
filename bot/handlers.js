@@ -168,13 +168,13 @@ const registerHandlers = (bot) => {
             stateManager.clearState(ctx.chat.id);
             return await ctx.reply('🔙 Back to main menu', {
               parse_mode: 'MarkdownV2',
-              reply_markup: ProductKeyboards.mainMenu(ctx)
+              ...mainKeyboard()
             });
           }
 
           await ctx.reply('❓ I don\'t understand that command\\. Use /help to see available commands\\.', {
             parse_mode: 'MarkdownV2',
-            reply_markup: ProductKeyboards.mainMenu(ctx)
+            ...mainKeyboard()
           });
       }
     } catch (error) {
@@ -407,10 +407,13 @@ async function handleThresholdInput(ctx) {
   stateManager.clearState(ctx.chat.id);
 
   const difference = ((product.currentPrice - threshold) / threshold) * 100;
-  const message = escapeMarkdownV2([
+  const productName = escapeMarkdownV2(product.name);
+  const productUrlEscaped = escapeMarkdownV2(product.url);
+
+  const message = [
     '✅ *Product Added Successfully*',
     '',
-    `📦 Product: [${product.name}](${product.url})`,
+    `📦 Product: [${productName}](${productUrlEscaped})`,
     `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
     `🎯 Alert Price: £${threshold.toFixed(2)}`,
     '',
@@ -420,7 +423,7 @@ async function handleThresholdInput(ctx) {
         `📈 Current price is ${difference.toFixed(1)}% above your threshold\\.`,
         '🔔 I\'ll notify you when the price drops below your threshold\\!'
       ].join('\n')
-  ].join('\n'));
+  ].join('\n');
 
   await ctx.reply(message, {
     parse_mode: 'MarkdownV2',
@@ -456,10 +459,13 @@ async function handleThresholdUpdate(ctx) {
   stateManager.clearState(ctx.chat.id);
 
   const difference = ((product.currentPrice - newThreshold) / newThreshold) * 100;
-  const message = escapeMarkdownV2([
+  const productName = escapeMarkdownV2(product.name);
+  const productUrlEscaped = escapeMarkdownV2(product.url);
+
+  const message = [
     '✅ *Price Alert Updated*',
     '',
-    `📦 Product: [${product.name}](${product.url})`,
+    `📦 Product: [${productName}](${productUrlEscaped})`,
     `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
     `🎯 New Alert Price: £${newThreshold.toFixed(2)}`,
     '',
@@ -469,11 +475,11 @@ async function handleThresholdUpdate(ctx) {
         `📈 Current price is ${difference.toFixed(1)}% above your threshold\\.`,
         '🔔 I\'ll notify you when the price drops below your new threshold\\!'
       ].join('\n')
-  ].join('\n'));
+  ].join('\n');
 
   await ctx.reply(message, {
     parse_mode: 'MarkdownV2',
-    reply_markup: ProductKeyboards.mainMenu(ctx),
+    ...mainKeyboard(),
     disable_web_page_preview: true
   });
 }

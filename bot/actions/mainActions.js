@@ -14,7 +14,8 @@ export default (bot) => {
         '✨ Choose an option from the menu below:'
       ].join('\n'));
 
-      await ctx.editMessageText(message, {
+      await ctx.deleteMessage();
+      await ctx.reply(message, {
         parse_mode: 'MarkdownV2',
         ...mainKeyboard()
       });

@@ -124,10 +124,10 @@ export default (bot) => {
         const message = isNew 
           ? `✅ Added price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
             `Current Price: £${currentPrice.toFixed(2)}\n` +
-            `Alert at: ${percentage}% drop (€${thresholdPrice.toFixed(2)})`
+            `Alert at: ${percentage}% drop (£${thresholdPrice.toFixed(2)})`
           : `✅ Updated price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
             `Current Price: £${currentPrice.toFixed(2)}\n` +
-            `New alert: ${percentage}% drop (€${thresholdPrice.toFixed(2)})`;
+            `New alert: ${percentage}% drop (£${thresholdPrice.toFixed(2)})`;
 
         await ctx.reply(message, { parse_mode: 'MarkdownV2' });
       } catch (error) {
@@ -184,10 +184,10 @@ export default (bot) => {
         const message = isNew 
           ? `✅ Added price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
             `Current Price: £${currentPrice.toFixed(2)}\n` +
-            `Alert at: ${percentage}% drop (€${thresholdPrice.toFixed(2)})`
+            `Alert at: ${percentage}% drop (£${thresholdPrice.toFixed(2)})`
           : `✅ Updated price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
             `Current Price: £${currentPrice.toFixed(2)}\n` +
-            `New alert: ${percentage}% drop (€${thresholdPrice.toFixed(2)})`;
+            `New alert: ${percentage}% drop (£${thresholdPrice.toFixed(2)})`;
 
         await ctx.reply(message, { parse_mode: 'MarkdownV2' });
       } catch (error) {

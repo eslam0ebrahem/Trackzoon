@@ -8,7 +8,7 @@ const escapeMarkdownV2 = (text = '') => {
     return preProcessed.replace(/([_*\[\]()~`>#+=|{}.!-])/g, '\\$1');
 };
 
-const formatPrice = (price, currency = '€', showTrend = false, oldPrice = null) => {
+const formatPrice = (price, currency = '£', showTrend = false, oldPrice = null) => {
     let formatted = `${currency}${price.toFixed(2)}`;
     
     if (showTrend && oldPrice !== null) {
@@ -44,7 +44,7 @@ const formatProductLine = (index, product, tracker, showCurrentPrice = true) => 
     let message = `${index}\\. 📦 [${name}](${url})`;
 
     if (showCurrentPrice && product.currentPrice) {
-        message += `\n   💰 Price: *${escapeMarkdownV2(formatPrice(product.currentPrice, '€', true, previousPrice))}*`;
+        message += `\n   💰 Price: *${escapeMarkdownV2(formatPrice(product.currentPrice, '£', true, previousPrice))}*`;
         message += `\n   🎯 Alert: ${escapeMarkdownV2(formatPrice(threshold))}`;
         
         // Add price difference from threshold

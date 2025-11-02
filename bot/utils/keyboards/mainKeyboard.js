@@ -33,7 +33,7 @@ export const thresholdKeyboard = (asin, currentPrice) => {
   const buttons = suggestedPercentages.map(percent => {
     const price = (currentPrice * (1 - percent/100)).toFixed(2);
     return Markup.button.callback(
-      `${percent}% (€${price})`,
+      `${percent}% (£${price})`,
       `action_set_threshold_${asin}_${price}`
     );
   });

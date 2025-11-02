@@ -27,7 +27,7 @@ export const ProductKeyboards = {
         const multiplier = 1 + parseFloat(percent) / 100;
         const price = (currentPrice * multiplier).toFixed(2);
         return Markup.button.callback(
-          `${percent} ($${price})`,
+          `${percent} (£${price})`,
           `setthreshold_value_${asin}_${price}`
         );
       })

@@ -31,7 +31,7 @@ export default (bot, settingThreshold) => {
       const suggestedThresholds = [0.05, 0.10, 0.20].map(percentage => {
         const threshold = (currentPrice * (1 - percentage)).toFixed(2);
         return {
-          text: `${(percentage * 100).toFixed(0)}% (€${threshold})`,
+          text: `${(percentage * 100).toFixed(0)}% (£${threshold})`,
           callback_data: `setthreshold_value_${asin}_${threshold}`
         };
       });
