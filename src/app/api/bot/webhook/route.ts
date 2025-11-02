@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 
 // Initialize bot
 const bot = new Telegraf(process.env.BOT_TOKEN || '');
+let botInitialized = false;
 
 // Simple MongoDB connection
 async function connectDB() {
@@ -19,17 +20,22 @@ async function connectDB() {
   }
 }
 
-// Import bot handlers
-// Note: You may need to adjust these imports based on your bot structure
+// Import bot handlers dynamically
 async function setupBotHandlers() {
+  if (botInitialized) return;
+  
   try {
-    // Import and register your bot handlers here
-    // This is a placeholder - adjust based on your actual bot setup
-    // @ts-ignore - Bot handlers are JavaScript files
-    const registerHandlers = (await import('../../../../../../bot/handlers.js')).default;
+    // Import the handlers module from the bot directory
+    const handlersModule = await import('@/../bot/handlers.js');
+    const registerHandlers = handlersModule.default;
+    
+    // Register all handlers
     registerHandlers(bot);
+    botInitialized = true;
+    console.log('Bot handlers registered successfully');
   } catch (error) {
     console.error('Error setting up bot handlers:', error);
+    // Don't throw - allow the bot to work with basic functionality
   }
 }
 
@@ -38,10 +44,8 @@ export async function POST(req: NextRequest) {
     // Connect to database
     await connectDB();
     
-    // Setup bot handlers if not already done
-    if (!bot.botInfo) {
-      await setupBotHandlers();
-    }
+    // Setup bot handlers on first request
+    await setupBotHandlers();
 
     // Parse the update from Telegram
     const body = await req.json();
