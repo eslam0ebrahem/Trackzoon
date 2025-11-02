@@ -1,0 +1,16 @@
+# Ignore Next.js specific directories
+.next/
+out/
+public/
+src/app/
+src/lib/
+src/types/
+
+# Ignore Next.js config files
+next.config.ts
+next-env.d.ts
+tsconfig.json
+postcss.config.mjs
+tailwind.config.js
+
+# Keep only bot files
