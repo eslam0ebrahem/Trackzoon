@@ -122,7 +122,41 @@ const registerHandlers = (bot) => {
         }
 
         // Add or update tracker
-        const { product, isNew } = await ProductService.addProduct(resolvedUrl, ctx.chat.id, threshold);
+        const { product, isNew, isAlreadyTracked } = await ProductService.addProduct(resolvedUrl, ctx.chat.id, threshold);
+
+        // Handle already tracked case
+        if (isAlreadyTracked) {
+          const oldThreshold = product.trackedBy.find(t => t.chatId === ctx.chat.id).thresholdPrice;
+          const productName = escapeMarkdownV2(product.name);
+
+          const message = [
+            `⚠️ *Product Already Tracked*`,
+            '',
+            `📦 Product: [${productName}](${escapeMarkdownV2(product.url)})`,
+            `💵 Current Price: £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+            `🎯 Your current alert price: £${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
+            `🆕 New proposed alert price: £${escapeMarkdownV2(threshold.toFixed(2))}`,
+            '',
+            escapeMarkdownV2('Do you want to update your alert price to the new proposed price?')
+          ].join('\n');
+
+          stateManager.setState(ctx.chat.id, BotStates.AWAITING_PRICE_UPDATE_CONFIRMATION, {
+            asin,
+            newThreshold: threshold,
+            oldThreshold
+          });
+
+          return await ctx.reply(message, {
+            parse_mode: 'MarkdownV2',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '✅ Yes, update', callback_data: `action_confirm_update_price_${asin}` }],
+                [{ text: '❌ No, keep old', callback_data: `action_cancel_update_price_${asin}` }]
+              ]
+            },
+            disable_web_page_preview: true
+          });
+        }
 
         // Show confirmation with current price context
         const message = isNew
@@ -198,18 +232,45 @@ const registerHandlers = (bot) => {
     try {
       const identifier = ctx.message.text.split(' ').slice(1).join(' ');
       if (!identifier) {
-        return await ctx.reply('Please provide a product ASIN or name to remove.');
+        return await ctx.reply(
+          escapeMarkdownV2('Please provide a product ASIN or name to remove.'),
+          { parse_mode: 'MarkdownV2' }
+        );
       }
 
       const products = await ProductService.getUserProducts(ctx.chat.id);
       const product = products.find(p => p.asin === identifier || p.name.toLowerCase().includes(identifier.toLowerCase()));
 
       if (!product) {
-        return await ctx.reply(`Could not find a product matching "${identifier}".`);
+        return await ctx.reply(
+          escapeMarkdownV2(`Could not find a product matching "${identifier}".`),
+          { parse_mode: 'MarkdownV2' }
+        );
       }
 
-      await ProductService.removeProduct(product.asin, ctx.chat.id);
-      await ctx.reply(`Successfully removed ${product.name}.`);
+      // Show confirmation before removing
+      const productName = escapeMarkdownV2(product.name);
+      const message = [
+        '❗️ *Confirm Removal*',
+        '',
+        'Are you sure you want to stop tracking:',
+        `📦 [${productName}](${escapeMarkdownV2(product.url)})?`,
+        '',
+        escapeMarkdownV2("You won't receive any more price alerts for this product.")
+      ].join('\n');
+
+      await ctx.reply(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Yes, Remove', callback_data: `action_confirm_remove_${product.asin}` },
+              { text: '❌ No, Keep', callback_data: `action_cancel_remove_${product.asin}` }
+            ]
+          ]
+        },
+        disable_web_page_preview: true
+      });
     } catch (error) {
       handleError(ctx, error);
     }
