@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import Product from '@/lib/models/Product';
 import mongoose from 'mongoose';
-import getPrice from '@/lib/scraper/getPrice'; // Import getPrice
-import getProductName from '@/lib/scraper/getProductName'; // Import getProductName
+import { getPrice } from '@/lib/scraper/getPrice'; // Import as named export
+import { getProductName } from '@/lib/scraper/getProductName'; // Import as named export
 
 // Helper function to ensure DB connection
 async function connectDb() {
