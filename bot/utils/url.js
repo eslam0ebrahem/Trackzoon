@@ -1,6 +1,26 @@
 import axios from 'axios';
 
 /**
+ * Cleans an Amazon URL by removing query parameters and tracking codes
+ * @param {string} url - The URL to clean
+ * @returns {string} The cleaned URL
+ */
+export function cleanAmazonUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    
+    // Keep only the pathname (removes all query parameters)
+    const cleanUrl = `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}`;
+    
+    // Remove trailing slash if present
+    return cleanUrl.endsWith('/') ? cleanUrl.slice(0, -1) : cleanUrl;
+  } catch (error) {
+    console.error('Error cleaning URL:', error);
+    return url; // Return original URL if parsing fails
+  }
+}
+
+/**
  * Resolves shortened Amazon URLs and extracts the ASIN.
  * @param {string} url - The URL to resolve.
  * @returns {Promise<{resolvedUrl: string, asin: string|null}>} The resolved URL and ASIN.
@@ -30,7 +50,7 @@ export async function resolveAmazonUrl(url) {
       const shortCode = shortCodeMatch[1].toUpperCase();
       console.log('Found Amazon short code:', shortCode);
       return {
-        resolvedUrl: cleanUrl,
+        resolvedUrl: cleanAmazonUrl(cleanUrl),
         asin: shortCode
       };
     }
@@ -47,7 +67,7 @@ export async function resolveAmazonUrl(url) {
         const asin = match[1].toUpperCase();
         console.log('Found standard ASIN:', asin);
         return {
-          resolvedUrl: cleanUrl,
+          resolvedUrl: cleanAmazonUrl(cleanUrl),
           asin: asin
         };
       }
@@ -78,7 +98,7 @@ export async function resolveAmazonUrl(url) {
             const asin = match[1].toUpperCase();
             console.log('Found ASIN from resolved URL:', asin);
             return {
-              resolvedUrl: resolvedUrl,
+              resolvedUrl: cleanAmazonUrl(resolvedUrl),
               asin: asin
             };
           }
@@ -91,13 +111,13 @@ export async function resolveAmazonUrl(url) {
     // If we got here, we couldn't find a valid ASIN
     console.log('No valid ASIN found');
     return {
-      resolvedUrl: cleanUrl,
+      resolvedUrl: cleanAmazonUrl(cleanUrl),
       asin: null
     };
   } catch (error) {
     console.error('Error in resolveAmazonUrl:', error);
     return {
-      resolvedUrl: url,
+      resolvedUrl: cleanAmazonUrl(url),
       asin: null
     };
   }

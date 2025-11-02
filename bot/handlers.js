@@ -215,7 +215,7 @@ const registerHandlers = (bot) => {
         const message = [
           isNew ? '✅ *Product Added Successfully\\!*' : '✅ *Product Updated\\!*',
           '',
-          `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
+          `📦 [${escapeMarkdownV2(product.name)}](${product.url})`,
           '',
           `💰 *Current Price:* £${escapeMarkdownV2(currentPrice.toFixed(2))}`,
           `🎯 *Alert Price:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
@@ -451,10 +451,6 @@ const registerHandlers = (bot) => {
           await handleThresholdUpdate(ctx);
           break;
 
-        case BotStates.SETTING_MIN_DROP:
-          await handleMinDropInput(ctx);
-          break;
-
         default:
           if (ctx.message.text === 'Back') {
             stateManager.clearState(ctx.chat.id);
@@ -509,7 +505,7 @@ const registerHandlers = (bot) => {
       const product = await ProductService.getProduct(asin, ctx.chat.id);
       const name = escapeMarkdownV2(product.name);
 
-      const message = `❗️ *Confirm Removal*\n\nAre you sure you want to stop tracking:\n📦 [${name}](${product.url})?\n\nYou won\'t receive any more price alerts for this product.`;
+      const message = `❗️ *Confirm Removal*\n\nAre you sure you want to stop tracking:\n📦 [${name}](${escapeMarkdownV2(product.url)})?\n\nYou won\'t receive any more price alerts for this product.`;
 
       await ctx.editMessageText(message, {
         parse_mode: 'MarkdownV2',
@@ -536,7 +532,7 @@ const registerHandlers = (bot) => {
 
       let message = `✅ *Product Removed*\n\n`;
       message += `Successfully stopped tracking:\n`;
-      message += `📦 [${name}](${product.url})\n\n`;
+      message += `📦 [${name}](${escapeMarkdownV2(product.url)})\n\n`;
       message += `You can add it back anytime using /add\\.`;
 
       await ctx.editMessageText(message, {
@@ -619,7 +615,7 @@ const registerHandlers = (bot) => {
       const message = [
         '✅ *Price Alert Updated*',
         '',
-        `📦 Product: [${productName}](${productUrl})`,
+        `📦 Product: [${productName}](${escapeMarkdownV2(productUrl)})`,
         `💵 Current Price: £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
         `🎯 Old Alert Price: £${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
         `🆕 New Alert Price: £${escapeMarkdownV2(newThreshold.toFixed(2))}`,
@@ -656,7 +652,7 @@ const registerHandlers = (bot) => {
       const message = [
         'ℹ️ *Price Update Canceled*',
         '',
-        `📦 Product: [${productName}](${productUrl})`,
+        `📦 Product: [${productName}](${escapeMarkdownV2(productUrl)})`,
         `🎯 Your alert price remains: £${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
         '',
         'No changes were made to your tracking settings.'
@@ -846,15 +842,17 @@ async function handleUrlAndPrice(ctx) {
 
     // Get product details
     const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
-    const currentPrice = await getPrice(resolvedUrl).catch(() => 0);
+    let currentPrice = await getPrice(resolvedUrl).catch((err) => {
+      console.error('Error fetching price:', err.message);
+      return 0;
+    });
 
+    // Allow adding product even without current price (it will be fetched later by scheduler)
+    let priceWarning = '';
     if (currentPrice <= 0) {
-      await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
-      throw new BotError(
-        'Price fetch error',
-        ErrorCodes.GENERAL_ERROR,
-        escapeMarkdownV2('❌ Unable to fetch the current price. Please try again later.')
-      );
+      console.log('Price not available now, will be checked by scheduler');
+      currentPrice = threshold; // Use threshold as placeholder
+      priceWarning = '\n\n⚠️ *Note:* Current price unavailable\\. We\'ll fetch it in the next update\\.';
     }
 
     // Delete processing message
@@ -904,17 +902,27 @@ async function handleUrlAndPrice(ctx) {
     const percentDiff = difference.toFixed(1);
     const productName = escapeMarkdownV2(product.name);
 
-    // Build success message
-    const priceStatus = product.currentPrice <= threshold
-      ? [
-          `🎉 *Great News\\!*`,
-          `The current price is already below your target\\!`,
-          `This is a good time to buy\\!`
-        ].join('\n')
-      : [
-          `📊 Current price is *${escapeMarkdownV2(percentDiff)}%* above your target\\.`,
-          `🔔 Don't worry\\! I'll notify you immediately when the price drops\\.`
-        ].join('\n');
+    // Build success message (check if price was actually fetched)
+    let priceStatus = '';
+    if (priceWarning) {
+      // Price wasn't available
+      priceStatus = [
+        `🔔 I'll check the price automatically`,
+        `and notify you when it drops to your target\\.`
+      ].join('\n');
+    } else {
+      // Normal price comparison
+      priceStatus = product.currentPrice <= threshold
+        ? [
+            `🎉 *Great News\\!*`,
+            `The current price is already below your target\\!`,
+            `This is a good time to buy\\!`
+          ].join('\n')
+        : [
+            `📊 Current price is *${escapeMarkdownV2(percentDiff)}%* above your target\\.`,
+            `🔔 Don't worry\\! I'll notify you immediately when the price drops\\.`
+          ].join('\n');
+    }
 
     const message = [
       '✅ *Tracking Started\\!*',
@@ -925,6 +933,7 @@ async function handleUrlAndPrice(ctx) {
       `🎯 *Alert Price:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
       '',
       priceStatus,
+      priceWarning,
       '',
       '✨ You can view all your tracked products anytime with /list'
     ].join('\n');
@@ -1045,7 +1054,7 @@ async function handleThresholdInput(ctx) {
   const message = [
     '✅ *Tracking Started\\!*',
     '',
-    `📦 [${productName}](${productUrlFromProduct})`,
+    `📦 [${productName}](${escapeMarkdownV2(productUrlFromProduct)})`,
     '',
     `� *Current Price:* £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
     `🎯 *Alert Price:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
@@ -1124,59 +1133,6 @@ async function handleThresholdUpdate(ctx) {
     ...mainKeyboard(),
     disable_web_page_preview: true
   });
-}
-
-async function handleMinDropInput(ctx) {
-  const input = ctx.message.text.trim();
-  const value = parseFloat(input);
-
-  if (isNaN(value) || value < 0 || value > 100) {
-    return await ctx.reply(
-      [
-        '❌ *Invalid Value*',
-        '',
-        '📝 Please enter a number between *0* and *100*',
-        '',
-        '*Examples:*',
-        '• `5` for 5%',
-        '• `15` for 15%',
-        '• `25` for 25%',
-        '',
-        'Try again:'
-      ].join('\n'),
-      { parse_mode: 'MarkdownV2' }
-    );
-  }
-
-  try {
-    const user = await UserService.getUserSettings(ctx.chat.id);
-    user.settings.minPriceDrop = Math.round(value);
-    await user.save();
-    
-    stateManager.clearState(ctx.chat.id);
-
-    const message = [
-      '✅ *Setting Updated\\!*',
-      '',
-      `📉 Minimum price drop set to *${escapeMarkdownV2(Math.round(value).toString())}%*`,
-      '',
-      '💡 You will only receive alerts for price drops',
-      `that are ${escapeMarkdownV2(Math.round(value).toString())}% or greater\\.`,
-      '',
-      'Use /settings to change this anytime\\!'
-    ].join('\n');
-
-    await ctx.reply(message, {
-      parse_mode: 'MarkdownV2',
-      ...mainKeyboard()
-    });
-  } catch (error) {
-    throw new BotError(
-      'Failed to update setting',
-      ErrorCodes.DATABASE_ERROR,
-      'Failed to update minimum price drop. Please try again.'
-    );
-  }
 }
 
 export default registerHandlers;

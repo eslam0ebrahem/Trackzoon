@@ -9,17 +9,6 @@ const userSettingsSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  defaultAlertType: {
-    type: String,
-    enum: ['fixed', 'percentage'],
-    default: 'fixed'
-  },
-  minPriceDrop: {
-    type: Number,
-    default: 5,
-    min: 0,
-    max: 100
-  },
   timezone: {
     type: String,
     default: 'UTC'

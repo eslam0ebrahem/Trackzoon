@@ -165,7 +165,7 @@ const buildProductListMessage = (products, chatId, options = { showCurrentPrice:
 
 const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
     const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
-    const url = escapeMarkdownV2(product.url || '');
+    const url = product.url || '';
     const change = ((newPrice - oldPrice) / oldPrice) * 100;
     const isDecrease = newPrice < oldPrice;
     const absChange = Math.abs(change);
@@ -189,7 +189,7 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
         message = `📈 *Price Increase Alert*\n\n`;
     }
     
-    message += `📦 [${name}](${url})\n\n`;
+    message += `📦 [${name}](${escapeMarkdownV2(url)})\n\n`;
     
     // Price comparison
     message += `� *Price Change:*\n`;
@@ -231,7 +231,7 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
         }
     }
     
-    message += `🔗 [View on Amazon](${url})`;
+    message += `🔗 [View on Amazon](${escapeMarkdownV2(url)})`;
 
     return message;
 };

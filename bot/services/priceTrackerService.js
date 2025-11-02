@@ -69,32 +69,21 @@ export class PriceTrackerService {
       }
     }
     
-    // Get user's minimum price drop setting
-    let minPriceDrop = 10; // Default 10%
-    try {
-      const user = await User.findOne({ chatId: tracker.chatId.toString() });
-      if (user && user.settings && user.settings.minPriceDrop !== undefined) {
-        minPriceDrop = user.settings.minPriceDrop;
-      }
-    } catch (error) {
-      console.error('Error getting user settings:', error);
-    }
-    
-    // Always notify if threshold is met (regardless of minimum drop)
+    // Always notify if threshold is met
     if (tracker.thresholdPrice && oldPrice > tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
       return true;
     }
     
-    // Check if price drop meets minimum threshold
-    if (isDecrease && Math.abs(priceChange) >= minPriceDrop) {
+    // Check if price drop is significant (>= 10%)
+    if (isDecrease && Math.abs(priceChange) >= 10) {
       return true;
     }
     
     // Notify on any price drop if close to threshold (within 5%)
     if (tracker.thresholdPrice && isDecrease) {
       const percentFromThreshold = ((newPrice - tracker.thresholdPrice) / tracker.thresholdPrice) * 100;
-      if (percentFromThreshold <= 5 && Math.abs(priceChange) >= (minPriceDrop / 2)) {
-        // Lower threshold when close to target (half of minPriceDrop)
+      if (percentFromThreshold <= 5 && Math.abs(priceChange) >= 5) {
+        // Lower threshold when close to target (5% minimum)
         return true;
       }
     }

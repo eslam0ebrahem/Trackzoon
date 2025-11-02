@@ -178,16 +178,15 @@ Choose a threshold or set a custom one:`,
     try {
       const asin = ctx.match[1];
       const product = await ProductService.getProduct(asin, ctx.chat.id);
-      const name = escapeMarkdownV2(product.name);
 
-      const message = escapeMarkdownV2([
+      const message = [
         '❗️ *Confirm Removal*',
         '',
         'Are you sure you want to stop tracking:',
-        `📦 [${name}](${product.url})?`,
+        `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
         '',
-        'You won\'t receive any more price alerts\.'
-      ].join('\n'));
+        'You won\'t receive any more price alerts\\.'
+      ].join('\n');
 
       await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
@@ -205,16 +204,15 @@ Choose a threshold or set a custom one:`,
     try {
       const asin = ctx.match[1];
       const product = await ProductService.removeProduct(asin, ctx.chat.id);
-      const name = escapeMarkdownV2(product.name);
 
-      const message = escapeMarkdownV2([
+      const message = [
         '✅ *Product Removed*',
         '',
         'Successfully stopped tracking:',
-        `📦 [${name}](${product.url})`,
+        `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
         '',
-        'You can add it back anytime\!'
-      ].join('\n'));
+        'You can add it back anytime\\!'
+      ].join('\n');
 
       await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
