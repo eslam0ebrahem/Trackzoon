@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Telegraf } from 'telegraf';
 
-// This route is used to set up the Telegram webhook
-// Call it once after deployment to configure your bot
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const bot = new Telegraf(process.env.BOT_TOKEN || '');
-    
-    // Get the host from the request
-    const host = req.headers.get('host') || '';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const webhookUrl = `${protocol}://${host}/api/bot/webhook`;
+    const webhookUrl = process.env.WEBHOOK_URL || '';
+
+    if (!webhookUrl) {
+      return NextResponse.json(
+        { error: 'WEBHOOK_URL environment variable is not set' },
+        { status: 400 }
+      );
+    }
 
     // Set the webhook
     await bot.telegram.setWebhook(webhookUrl);
@@ -20,10 +21,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Webhook set successfully! Your bot is now ready to receive messages.',
-      webhookUrl,
-      webhookInfo,
-      instructions: 'Your bot should now respond to messages on Telegram!'
+      message: 'Webhook set successfully',
+      webhookInfo
     });
   } catch (error) {
     console.error('Error setting webhook:', error);
@@ -34,7 +33,19 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  // Same as GET for convenience
-  return GET(req);
+export async function GET() {
+  try {
+    const bot = new Telegraf(process.env.BOT_TOKEN || '');
+    const webhookInfo = await bot.telegram.getWebhookInfo();
+
+    return NextResponse.json({
+      webhookInfo
+    });
+  } catch (error) {
+    console.error('Error getting webhook info:', error);
+    return NextResponse.json(
+      { error: 'Failed to get webhook info', details: String(error) },
+      { status: 500 }
+    );
+  }
 }

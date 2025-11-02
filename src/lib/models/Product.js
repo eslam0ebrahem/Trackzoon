@@ -18,18 +18,6 @@ const ProductSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  currentPrice: {
-    type: Number,
-    default: 0,
-  },
-  lastChecked: {
-    type: Date,
-    default: Date.now,
-  },
-  lastUpdated: {
-    type: Date,
-    default: Date.now,
-  },
   trackedBy: [
     {
       chatId: {
@@ -46,10 +34,6 @@ const ProductSchema = new mongoose.Schema({
         enum: ['drop', 'change', 'rise', 'percentage_drop'],
         default: 'drop',
       },
-      thresholdPrice: {
-        type: Number,
-        min: 0,
-      },
       percentageThreshold: {
         type: Number,
         default: null,
@@ -59,6 +43,7 @@ const ProductSchema = new mongoose.Schema({
   ],
   thresholdPrice: {
     type: Number,
+    required: true,
     min: 0,
   },
   priceHistory: [

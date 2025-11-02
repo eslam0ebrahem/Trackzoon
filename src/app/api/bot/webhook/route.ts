@@ -4,7 +4,6 @@ import mongoose from 'mongoose';
 
 // Initialize bot
 const bot = new Telegraf(process.env.BOT_TOKEN || '');
-let botInitialized = false;
 
 // Simple MongoDB connection
 async function connectDB() {
@@ -14,77 +13,47 @@ async function connectDB() {
 
   try {
     await mongoose.connect(process.env.MONGODB_URI || '');
-    console.log('MongoDB connected successfully');
   } catch (error) {
     console.error('MongoDB connection error:', error);
     throw error;
   }
 }
 
-// Import bot handlers dynamically
+// Import bot handlers
+// Note: You may need to adjust these imports based on your bot structure
 async function setupBotHandlers() {
-  if (botInitialized) return;
-  
   try {
-    console.log('Attempting to load bot handlers...');
-    
-    // Dynamically import all the required modules
-    const { default: registerHandlers } = await import('../../../../../bot/handlers.js');
-    
-    // Register all handlers
+    // Import and register your bot handlers here
+    // This is a placeholder - adjust based on your actual bot setup
+    // @ts-ignore - Bot handlers are JavaScript files
+    const registerHandlers = (await import('../../../../../../bot/handlers.js')).default;
     registerHandlers(bot);
-    botInitialized = true;
-    console.log('Bot handlers registered successfully');
   } catch (error) {
     console.error('Error setting up bot handlers:', error);
-    console.error('Error details:', error instanceof Error ? error.message : String(error));
-    
-    // Fallback: Register basic handlers if full handlers fail
-    if (!botInitialized) {
-      bot.command('start', async (ctx) => {
-        await ctx.reply('⚠️ Bot is running in basic mode. Full features are loading...');
-      });
-      bot.on('text', async (ctx) => {
-        await ctx.reply('Bot is running but some features may not be available. Please contact support.');
-      });
-      botInitialized = true;
-      console.log('Fallback handlers registered');
-    }
   }
 }
 
 export async function POST(req: NextRequest) {
-  const startTime = Date.now();
-  
   try {
-    console.log('Webhook received request');
-    
     // Connect to database
     await connectDB();
-    console.log('Database connected');
     
-    // Setup bot handlers on first request
-    await setupBotHandlers();
-    console.log('Handlers setup attempted');
+    // Setup bot handlers if not already done
+    if (!bot.botInfo) {
+      await setupBotHandlers();
+    }
 
     // Parse the update from Telegram
     const body = await req.json();
-    console.log('Received update:', JSON.stringify(body).substring(0, 100));
     
     // Process the update
     await bot.handleUpdate(body);
     
-    const duration = Date.now() - startTime;
-    console.log(`Webhook processed successfully in ${duration}ms`);
-    
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`Webhook error after ${duration}ms:`, error);
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    
+    console.error('Webhook error:', error);
     return NextResponse.json(
-      { ok: false, error: 'Internal server error', details: String(error) },
+      { ok: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -93,8 +62,6 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({ 
     message: 'Telegram Bot Webhook Endpoint',
-    status: 'active',
-    botInitialized,
-    timestamp: new Date().toISOString()
+    status: 'active' 
   });
 }
