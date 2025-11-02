@@ -183,15 +183,21 @@ bot.on('text', async (ctx) => {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('=== Webhook called ===');
     const body = await req.json();
+    console.log('Update received:', JSON.stringify(body).substring(0, 200));
+    
     await bot.handleUpdate(body);
+    console.log('Update handled successfully');
+    
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Webhook error:', error);
-    return NextResponse.json(
-      { ok: false, error: String(error) },
-      { status: 500 }
-    );
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('Stack:', error instanceof Error ? error.stack : 'No stack');
+    
+    // Return 200 OK even on error to prevent Telegram from retrying
+    return NextResponse.json({ ok: true });
   }
 }
 
