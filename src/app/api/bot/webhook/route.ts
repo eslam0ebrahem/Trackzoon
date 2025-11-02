@@ -28,10 +28,8 @@ async function setupBotHandlers() {
   try {
     console.log('Attempting to load bot handlers...');
     
-    // Try to import the handlers module from the bot directory
-    // Use absolute path from project root
-    const handlersModule = await import('../../../../../bot/handlers.js');
-    const registerHandlers = handlersModule.default;
+    // Dynamically import all the required modules
+    const { default: registerHandlers } = await import('../../../../../bot/handlers.js');
     
     // Register all handlers
     registerHandlers(bot);
@@ -40,7 +38,18 @@ async function setupBotHandlers() {
   } catch (error) {
     console.error('Error setting up bot handlers:', error);
     console.error('Error details:', error instanceof Error ? error.message : String(error));
-    // Don't throw - allow basic webhook to respond
+    
+    // Fallback: Register basic handlers if full handlers fail
+    if (!botInitialized) {
+      bot.command('start', async (ctx) => {
+        await ctx.reply('⚠️ Bot is running in basic mode. Full features are loading...');
+      });
+      bot.on('text', async (ctx) => {
+        await ctx.reply('Bot is running but some features may not be available. Please contact support.');
+      });
+      botInitialized = true;
+      console.log('Fallback handlers registered');
+    }
   }
 }
 

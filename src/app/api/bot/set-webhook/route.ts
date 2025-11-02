@@ -6,14 +6,11 @@ import { Telegraf } from 'telegraf';
 export async function GET(req: NextRequest) {
   try {
     const bot = new Telegraf(process.env.BOT_TOKEN || '');
-    const webhookUrl = process.env.WEBHOOK_URL || '';
-
-    if (!webhookUrl) {
-      return NextResponse.json(
-        { error: 'WEBHOOK_URL environment variable is not set' },
-        { status: 400 }
-      );
-    }
+    
+    // Get the host from the request
+    const host = req.headers.get('host') || '';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const webhookUrl = `${protocol}://${host}/api/bot/webhook`;
 
     // Set the webhook
     await bot.telegram.setWebhook(webhookUrl);
@@ -24,6 +21,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Webhook set successfully! Your bot is now ready to receive messages.',
+      webhookUrl,
       webhookInfo,
       instructions: 'Your bot should now respond to messages on Telegram!'
     });
