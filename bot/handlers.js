@@ -1,44 +1,37 @@
 import { ProductService } from './services/productService.js';
 import { UserService } from './services/userService.js';
 import { stateManager, BotStates } from './utils/stateManager.js';
-import { ProductKeyboards, removeKeyboard } from './utils/keyboards.js';
+import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
 import { BotError, ErrorCodes, handleError } from './utils/errorHandler.js';
 import { resolveAmazonUrl } from './utils/url.js';
-import {
-  buildProductListMessage,
-  formatProductDetails,
-  escapeMarkdownV2
-} from './utils/messageHelper.js';
+import { escapeMarkdownV2, buildProductListMessage, formatProductDetails } from './utils/messageHelper.js';
 import { Messages } from './utils/messages.js';
+import { Markup } from 'telegraf';
+import mainActions from './actions/mainActions.js';
+import productActions from './actions/productActions.js';
+import settingsActions from './actions/settingsActions.js';
 
 const registerHandlers = (bot) => {
-  // Start command
+  // Register all action handlers
+  mainActions(bot);
+  productActions(bot);
+  settingsActions(bot);
+
+  // Start command - entry point
   bot.command('start', async (ctx) => {
     try {
       const username = ctx.from?.first_name || ctx.from?.username;
       const welcomeMessage = escapeMarkdownV2([
         `👋 Welcome ${username} to Amazon Price Tracker!`,
         '',
-        '🔍 I help you track Amazon product prices and notify you when they drop.',
+        '🔍 Track Amazon prices and get instant alerts when they drop.',
         '',
-        '✨ Features:',
-        '• Track multiple products simultaneously',
-        '• Get instant alerts when prices drop',
-        '• View price history and trends',
-        '• Get recommendations for similar products',
-        '',
-        '🚀 Getting Started:',
-        '1. Use /add to start tracking a product',
-        '2. Set your desired price threshold',
-        '3. Wait for price alerts!',
-        '',
-        'Need help? Use /help to see all commands'
+        '✨ Choose an option from the menu below:'
       ].join('\n'));
 
       await ctx.reply(welcomeMessage, {
         parse_mode: 'MarkdownV2',
-        reply_markup: ProductKeyboards.mainMenu(),
-        disable_web_page_preview: true
+        ...mainKeyboard()
       });
     } catch (error) {
       handleError(ctx, error);
@@ -102,7 +95,9 @@ const registerHandlers = (bot) => {
 
       await ctx.reply(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: ProductKeyboards.backButton(),
+        reply_markup: Markup.inlineKeyboard([[
+        Markup.button.callback('🔙 Back to Main Menu', 'action_main_menu')
+      ]]),
         disable_web_page_preview: true
       });
     } catch (error) {
@@ -134,7 +129,9 @@ const registerHandlers = (bot) => {
 
       await ctx.reply(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: ProductKeyboards.settings()
+        reply_markup: Markup.inlineKeyboard([
+        [Markup.button.callback('⚙️ Settings', 'action_settings')]
+      ])
       });
     } catch (error) {
       handleError(ctx, error);
@@ -196,7 +193,17 @@ const registerHandlers = (bot) => {
       await ctx.editMessageText(message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: false,
-        reply_markup: ProductKeyboards.productActions(asin)
+        reply_markup: Markup.inlineKeyboard([
+          [
+            Markup.button.callback('📈 Price History', `action_history_${asin}`),
+            Markup.button.callback('🎯 Set Threshold', `action_threshold_${asin}`)
+          ],
+          [
+            Markup.button.callback('🔕 Mute Alerts', `action_mute_${asin}`),
+            Markup.button.callback('❌ Stop Tracking', `action_remove_${asin}`)
+          ],
+          [Markup.button.callback('🔙 Back to Products', 'action_list_products')]
+        ])
       });
     } catch (error) {
       handleError(ctx, error);
@@ -331,7 +338,7 @@ async function handleProductUrl(ctx) {
 
     await ctx.reply(message, {
       parse_mode: 'MarkdownV2',
-      reply_markup: removeKeyboard()
+      reply_markup: Markup.removeKeyboard()
     });
   } catch (error) {
     console.error('Error in handleProductUrl:', error);
@@ -400,7 +407,7 @@ async function handleThresholdInput(ctx) {
 
   await ctx.reply(message, {
     parse_mode: 'MarkdownV2',
-    reply_markup: ProductKeyboards.mainMenu(ctx),
+      ...mainKeyboard(),
     disable_web_page_preview: true
   });
 }

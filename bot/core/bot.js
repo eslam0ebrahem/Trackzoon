@@ -1,5 +1,5 @@
 import { Telegraf } from 'telegraf';
-import User from '../../src/lib/models/User.js';
+import User from '../models/User.js';
 
 const initializeBot = (commands) => {
   let bot;
@@ -19,10 +19,20 @@ const initializeBot = (commands) => {
 
     bot.use(async (ctx, next) => {
       if (ctx.chat && ctx.chat.id) {
-        let user = await User.findOne({ chatId: ctx.chat.id });
-        if (!user) {
-          user = new User({ chatId: ctx.chat.id });
-          await user.save();
+        try {
+          let user = await User.findOne({ chatId: ctx.chat.id });
+          if (!user) {
+            user = new User({
+              chatId: ctx.chat.id,
+              username: ctx.from?.username,
+              firstName: ctx.from?.first_name,
+              lastName: ctx.from?.last_name
+            });
+            await user.save();
+          }
+          ctx.user = user;
+        } catch (error) {
+          console.error('Error in user middleware:', error);
         }
       }
       return next();

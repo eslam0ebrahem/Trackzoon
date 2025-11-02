@@ -1,10 +1,12 @@
 import { initializeConfig } from './config/init.js';
-import commands from './commands/commandList.js';
+import commands from './config/commands.js';
 import initializeBot from './core/bot.js';
 import registerHandlers from './handlers.js';
 import startScheduler from './scheduler/index.js';
 import { attachUser, attachState, errorHandler, timeoutHandler } from './middleware/index.js';
 import { stateManager } from './utils/stateManager.js';
+import { escapeMarkdownV2 } from './utils/messageHelper.js';
+import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
 
 // Initialize configurations
 initializeConfig();
@@ -29,8 +31,11 @@ stateManager.on('stateTimeout', async ({ chatId, state }) => {
   try {
     await bot.telegram.sendMessage(
       chatId,
-      'Your session has timed out. Please start over.',
-      { parse_mode: 'MarkdownV2' }
+      escapeMarkdownV2('⏰ Your session has timed out\\. Please use the menu to start over\\.'),
+      { 
+        parse_mode: 'MarkdownV2',
+        ...mainKeyboard()
+      }
     );
   } catch (error) {
     console.error('Error sending timeout message:', error);
