@@ -1,1 +1,1 @@
-bot: node bot/index.js
+bot: npm run start:prod

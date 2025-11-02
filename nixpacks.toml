@@ -2,7 +2,10 @@
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["npm ci --omit=dev"]
+cmds = ["npm ci --only=production"]
+
+[phases.build]
+cmds = ["npm run build"]
 
 [start]
-cmd = "node bot/index.js"
+cmd = "node dist/main"

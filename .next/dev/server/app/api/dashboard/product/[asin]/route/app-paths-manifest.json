@@ -1,0 +1,3 @@
+{
+  "/api/dashboard/product/[asin]/route": "app/api/dashboard/product/[asin]/route.js"
+}

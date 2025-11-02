@@ -1,0 +1,3 @@
+{
+  "/api/admin/trigger-price-update/route": "app/api/admin/trigger-price-update/route.js"
+}
