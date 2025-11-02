@@ -220,7 +220,12 @@ const registerHandlers = (bot) => {
 
       await ctx.editMessageText(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: ProductKeyboards.confirmRemove(asin),
+        reply_markup: Markup.inlineKeyboard([
+          [
+            Markup.button.callback('✅ Yes, Remove', `action_confirm_remove_${asin}`),
+            Markup.button.callback('❌ No, Keep', `action_cancel_remove_${asin}`)
+          ]
+        ]),
         disable_web_page_preview: true
       });
     } catch (error) {
@@ -278,7 +283,19 @@ const registerHandlers = (bot) => {
 
       await ctx.editMessageText(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: ProductKeyboards.thresholdOptions(asin, product.currentPrice)
+        reply_markup: Markup.inlineKeyboard([
+          [
+            Markup.button.callback('5% off', `action_threshold_${asin}_5`),
+            Markup.button.callback('10% off', `action_threshold_${asin}_10`),
+            Markup.button.callback('20% off', `action_threshold_${asin}_20`)
+          ],
+          [
+            Markup.button.callback('💭 Custom Threshold', `action_custom_threshold_${asin}`)
+          ],
+          [
+            Markup.button.callback('🔙 Back', `action_view_${asin}`)
+          ]
+        ])
       });
     } catch (error) {
       handleError(ctx, error);

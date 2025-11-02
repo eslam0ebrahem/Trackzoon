@@ -90,22 +90,79 @@ export const Messages = {
     invalidUrl: [
       '❌ *Invalid Amazon URL*',
       '',
-      'Please make sure to provide a valid Amazon product URL. Supported formats:',
-      '• https://www.amazon.eg/dp/XXXXXXXXXX',
-      '• https://amzn.eu/d/XXXXXXX',
-      '• https://www.amazon.eg/gp/product/XXXXXXXXXX'
+      'Please make sure to provide a valid Amazon product URL\\.',
+      '',
+      'Supported formats:',
+      '• https://www\\.amazon\\.eg/dp/XXXXXXXXXX',
+      '• https://amzn\\.eu/d/XXXXXXX',
+      '• https://www\\.amazon\\.eg/gp/product/XXXXXXXXXX',
+      '',
+      '💡 Copy the URL directly from your browser'
     ].join('\\n'),
 
     invalidThreshold: [
-      '❌ Invalid Price Format',
+      '❌ *Invalid Price Format*',
       '',
       '💡 Please follow these guidelines:',
-      '• Use only numbers (e.g. 299.99)',
+      '• Use only numbers \\(e\\.g\\. 299\\.99\\)',
       '• Don\'t include currency symbols',
       '• Price must be greater than 0'
     ].join('\\n'),
 
-    general: '❌ An error occurred. Please try again later.'
+    productNotFound: [
+      '❌ *Product Not Found*',
+      '',
+      'Sorry, I couldn\'t find this product\\.',
+      'Please check the URL and try again\\.'
+    ].join('\\n'),
+
+    alreadyTracking: [
+      '❌ *Already Tracking*',
+      '',
+      'You\'re already tracking this product\\!',
+      'Use /list to see all your tracked products\\.'
+    ].join('\\n'),
+
+    scrapingError: [
+      '❌ *Fetch Error*',
+      '',
+      'Sorry, I couldn\'t fetch the product information\\.',
+      'Please try again later\\.'
+    ].join('\\n'),
+
+    timeout: [
+      '❌ *Operation Timed Out*',
+      '',
+      'The operation took too long to complete\\.',
+      'Please try again\\.'
+    ].join('\\n'),
+
+    stateError: [
+      '❌ *Invalid Operation*',
+      '',
+      'Can\'t perform this action right now\\.',
+      'Please start over\\.'
+    ].join('\\n'),
+
+    networkError: [
+      '❌ *Network Error*',
+      '',
+      'Connection failed\\.',
+      'Please check your connection and try again\\.'
+    ].join('\\n'),
+
+    rateLimit: [
+      '❌ *Too Many Requests*',
+      '',
+      'Please wait a moment before trying again\\.'
+    ].join('\\n'),
+
+    general: [
+      '❌ *Error*',
+      '',
+      'Something went wrong\\.',
+      'Please try again later\\.'
+    ].join('\\n')
   },
 
   setThreshold: [
