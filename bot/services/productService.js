@@ -13,21 +13,22 @@ export class ProductService {
         throw new BotError('Invalid Amazon URL', ErrorCodes.INVALID_URL);
       }
 
+      let isNew = false;
+      let isAlreadyTracked = false;
       // Check if product exists and is already tracked by user
       let product = await Product.findOne({ asin });
       if (product) {
         const isTracking = product.trackedBy.some(t => t.chatId === chatId);
         if (isTracking) {
-          throw new BotError(
-            'Product already tracked',
-            ErrorCodes.PRODUCT_ALREADY_TRACKED,
-            'You are already tracking this product'
-          );
+          isAlreadyTracked = true;
+          // No error thrown, just return the product and the flag
+          return { product, isNew, isAlreadyTracked };
         }
       }
 
       // Product doesn't exist or not tracked by user
       if (!product) {
+        isNew = true;
         const [name, currentPrice] = await Promise.all([
           getProductName(resolvedUrl),
           getPrice(resolvedUrl)
@@ -42,11 +43,12 @@ export class ProductService {
           trackedBy: [{ chatId, thresholdPrice: threshold }]
         });
       } else {
+        // If product exists but not tracked by user, add the new tracker
         product.trackedBy.push({ chatId, thresholdPrice: threshold });
       }
 
       await product.save();
-      return product;
+      return { product, isNew, isAlreadyTracked };
 
     } catch (error) {
       if (error instanceof BotError) throw error;

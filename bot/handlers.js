@@ -138,9 +138,15 @@ const registerHandlers = (bot) => {
           { parse_mode: 'MarkdownV2' }
         );
       } catch (error) {
+        if (error.code === ErrorCodes.PRODUCT_ALREADY_TRACKED) {
+          return await ctx.reply(
+            escapeMarkdownV2('You are already tracking this product.'),
+            { parse_mode: 'MarkdownV2' }
+          );
+        }
         console.error('Error in add command:', error);
         await ctx.reply(
-          'Error adding the product\\. Please try again\\.',
+          'Error adding the product\. Please try again\.',
           { parse_mode: 'MarkdownV2' }
         );
       }
@@ -374,7 +380,7 @@ const registerHandlers = (bot) => {
         '💰 Update Price Alert',
         '',
         `Current price for ${product.name}: £${product.currentPrice.toFixed(2)}`,
-        'Enter your new desired price threshold\\.'
+        'Enter your new desired price threshold\.'
       ].join('\n'));
 
       await ctx.editMessageText(message, {
@@ -392,6 +398,79 @@ const registerHandlers = (bot) => {
             Markup.button.callback('🔙 Back', `action_view_${asin}`)
           ]
         ])
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  bot.action(/action_confirm_update_price_(.+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const state = stateManager.getState(ctx.chat.id);
+
+      if (!state || state.state !== BotStates.AWAITING_PRICE_UPDATE_CONFIRMATION || state.data.asin !== asin) {
+        return await ctx.reply(escapeMarkdownV2('❌ Invalid action or session expired. Please try again.'), { parse_mode: 'MarkdownV2' });
+      }
+
+      const { newThreshold, oldThreshold } = state.data;
+
+      const product = await ProductService.updateThreshold(asin, ctx.chat.id, newThreshold);
+      stateManager.clearState(ctx.chat.id);
+
+      const productName = escapeMarkdownV2(product.name);
+      const productUrlEscaped = escapeMarkdownV2(product.url);
+
+      const message = [
+        '✅ *Price Alert Updated*',
+        '',
+        `📦 Product: [${productName}](${productUrlEscaped})`,
+        `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
+        `🎯 Old Alert Price: £${oldThreshold.toFixed(2)}`,
+        `🆕 New Alert Price: £${newThreshold.toFixed(2)}`,
+        '',
+        'You will now receive alerts based on the new threshold.'
+      ].join('\n');
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: { inline_keyboard: [] },
+        disable_web_page_preview: true
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  bot.action(/action_cancel_update_price_(.+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const state = stateManager.getState(ctx.chat.id);
+
+      if (!state || state.state !== BotStates.AWAITING_PRICE_UPDATE_CONFIRMATION || state.data.asin !== asin) {
+        return await ctx.reply(escapeMarkdownV2('❌ Invalid action or session expired. Please try again.'), { parse_mode: 'MarkdownV2' });
+      }
+
+      const { oldThreshold } = state.data;
+      stateManager.clearState(ctx.chat.id);
+
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
+      const productName = escapeMarkdownV2(product.name);
+      const productUrlEscaped = escapeMarkdownV2(product.url);
+
+      const message = [
+        'ℹ️ *Price Update Canceled*',
+        '',
+        `📦 Product: [${productName}](${productUrlEscaped})`,
+        `🎯 Your alert price remains: £${oldThreshold.toFixed(2)}`,
+        '',
+        'No changes were made to your tracking settings.'
+      ].join('\n');
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: { inline_keyboard: [] },
+        disable_web_page_preview: true
       });
     } catch (error) {
       handleError(ctx, error);
@@ -499,8 +578,41 @@ async function handleThresholdInput(ctx) {
     parse_mode: 'MarkdownV2'
   });
 
-  const product = await ProductService.addProduct(productUrl, ctx.chat.id, threshold);
+  const { product, isNew, isAlreadyTracked } = await ProductService.addProduct(productUrl, ctx.chat.id, threshold);
   stateManager.clearState(ctx.chat.id);
+
+  if (isAlreadyTracked) {
+    const oldThreshold = product.trackedBy.find(t => t.chatId === ctx.chat.id).thresholdPrice;
+    const productName = escapeMarkdownV2(product.name);
+    const productUrlEscaped = escapeMarkdownV2(product.url);
+
+    const message = [
+      `⚠️ *Product Already Tracked*`,
+      '',
+      `📦 Product: [${productName}](${productUrlEscaped})`,
+      `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
+      `🎯 Your current alert price: £${oldThreshold.toFixed(2)}`,
+      `🆕 New proposed alert price: £${threshold.toFixed(2)}`,
+      '',
+      'Do you want to update your alert price to the new proposed price?'
+    ].join('\n');
+
+    stateManager.setState(ctx.chat.id, BotStates.AWAITING_PRICE_UPDATE_CONFIRMATION, {
+      asin,
+      newThreshold: threshold,
+      oldThreshold
+    });
+
+    await ctx.reply(message, {
+      parse_mode: 'MarkdownV2',
+      reply_markup: Markup.inlineKeyboard([
+        [Markup.button.callback('✅ Yes, update', `action_confirm_update_price_${asin}`)],
+        [Markup.button.callback('❌ No, keep old', `action_cancel_update_price_${asin}`)]
+      ]),
+      disable_web_page_preview: true
+    });
+    return;
+  }
 
   const difference = ((product.currentPrice - threshold) / threshold) * 100;
   const productName = escapeMarkdownV2(product.name);
