@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 30, "column": 0}, "map": {"version":3,"sources":["file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/app/dashboard/admin/page.tsx"],"sourcesContent":["export default function AdminDashboardPage() {\n  return (\n    <main className=\"flex min-h-screen flex-col items-center justify-between p-24\">\n      <h1 className=\"text-4xl font-bold mb-8\">Admin Dashboard</h1>\n      <div className=\"w-full max-w-4xl\">\n        <p>Welcome to the Admin Dashboard. Select a feature from the navigation.</p>\n        {/* Admin features will be listed here */}\n      </div>\n    </main>\n  );\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBACE,8OAAC;QAAK,WAAU;;0BACd,8OAAC;gBAAG,WAAU;0BAA0B;;;;;;0BACxC,8OAAC;gBAAI,WAAU;0BACb,cAAA,8OAAC;8BAAE;;;;;;;;;;;;;;;;;AAKX","debugId":null}}]
-}

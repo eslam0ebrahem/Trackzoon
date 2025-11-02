@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 52, "column": 0}, "map": {"version":3,"sources":["file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/app/api/products/route.ts"],"sourcesContent":["import { NextResponse } from 'next/server';\nimport Product from '@/bot/models/Product';\nimport mongoose from 'mongoose';\n\nexport async function GET() {\n  if (mongoose.connection.readyState !== 1) {\n    await mongoose.connect(process.env.MONGODB_URI as string);\n  }\n  const products = await Product.find({});\n  return NextResponse.json(products);\n}\n"],"names":[],"mappings":";;;;AAAA;;;;;;AAEA;;;;AAEO,eAAe;IACpB,IAAI,oHAAQ,CAAC,UAAU,CAAC,UAAU,KAAK,GAAG;QACxC,MAAM,oHAAQ,CAAC,OAAO,CAAC,QAAQ,GAAG,CAAC,WAAW;IAChD;IACA,MAAM,WAAW,MAAM,QAAQ,IAAI,CAAC,CAAC;IACrC,OAAO,gJAAY,CAAC,IAAI,CAAC;AAC3B","debugId":null}}]
-}

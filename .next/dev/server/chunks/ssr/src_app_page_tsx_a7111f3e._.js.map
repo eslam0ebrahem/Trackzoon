@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/app/page.tsx"],"sourcesContent":["'use client';\n\nimport Link from 'next/link';\n\nexport default function Home() {\n  return (\n    <main className=\"flex min-h-screen flex-col items-center justify-center p-24\">\n      <h1 className=\"text-4xl font-bold mb-8\">Welcome to Trackzoon!</h1>\n      <p className=\"text-lg mb-8\">Your personal product price tracker.</p>\n      <Link href=\"/dashboard\" className=\"px-6 py-3 bg-blue-600 text-white rounded-lg text-xl hover:bg-blue-700 transition-colors\">\n        Go to Dashboard\n      </Link>\n    </main>\n  );\n}"],"names":[],"mappings":";;;;;AAEA;AAFA;;;AAIe,SAAS;IACtB,qBACE,8OAAC;QAAK,WAAU;;0BACd,8OAAC;gBAAG,WAAU;0BAA0B;;;;;;0BACxC,8OAAC;gBAAE,WAAU;0BAAe;;;;;;0BAC5B,8OAAC,uKAAI;gBAAC,MAAK;gBAAa,WAAU;0BAA0F;;;;;;;;;;;;AAKlI","debugId":null}}]
-}
