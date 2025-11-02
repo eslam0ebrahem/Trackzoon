@@ -182,8 +182,8 @@ export const Messages = {
     '✅ *Product Added Successfully*',
     '',
     `📦 Product: [${product.name}](${product.url})`,
-    `💵 Current Price: $${product.currentPrice.toFixed(2)}`,
-    `🎯 Alert Price: $${threshold.toFixed(2)}`,
+    `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
+    `🎯 Alert Price: £${threshold.toFixed(2)}`,
     '',
     product.currentPrice <= threshold
       ? '🎉 Good news! The current price is already below your alert threshold!'

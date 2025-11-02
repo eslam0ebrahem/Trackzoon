@@ -26,7 +26,7 @@ const userSettingsSchema = new mongoose.Schema({
   },
   currency: {
     type: String,
-    default: 'EUR'
+    default: 'EGP'
   },
   language: {
     type: String,

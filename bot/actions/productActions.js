@@ -111,7 +111,7 @@ export default (bot) => {
       }
 
       await ctx.editMessageText(
-        `Current price: €${product.currentPrice.toFixed(2)}\nChoose a threshold or set a custom one:`,
+        `Current price: £${product.currentPrice.toFixed(2)}\nChoose a threshold or set a custom one:`,
         {
           ...thresholdKeyboard(asin, product.currentPrice)
         }

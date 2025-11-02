@@ -277,7 +277,7 @@ const registerHandlers = (bot) => {
       const message = escapeMarkdownV2([
         '💰 Update Price Alert',
         '',
-        `Current price for ${product.name}: $${product.currentPrice.toFixed(2)}`,
+        `Current price for ${product.name}: £${product.currentPrice.toFixed(2)}`,
         'Enter your new desired price threshold\\.'
       ].join('\n'));
 
@@ -411,8 +411,8 @@ async function handleThresholdInput(ctx) {
     '✅ *Product Added Successfully*',
     '',
     `📦 Product: [${product.name}](${product.url})`,
-    `💵 Current Price: $${product.currentPrice.toFixed(2)}`,
-    `🎯 Alert Price: $${threshold.toFixed(2)}`,
+    `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
+    `🎯 Alert Price: £${threshold.toFixed(2)}`,
     '',
     product.currentPrice <= threshold
       ? '🎉 Good news\\! The current price is already below your alert threshold\\!'
@@ -460,8 +460,8 @@ async function handleThresholdUpdate(ctx) {
     '✅ *Price Alert Updated*',
     '',
     `📦 Product: [${product.name}](${product.url})`,
-    `💵 Current Price: $${product.currentPrice.toFixed(2)}`,
-    `🎯 New Alert Price: $${newThreshold.toFixed(2)}`,
+    `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
+    `🎯 New Alert Price: £${newThreshold.toFixed(2)}`,
     '',
     product.currentPrice <= newThreshold
       ? '🎉 Good news\\! The current price is already below your new alert threshold\\!'

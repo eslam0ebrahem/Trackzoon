@@ -27,7 +27,7 @@ async function generatePriceChart(productName, history) {
     options: {
       title: {
         display: true,
-        text: `Average: €${avgPrice.toFixed(2)} • High: €${highPrice.toFixed(2)} • Low: €${lowPrice.toFixed(2)}`
+        text: `Average: £${avgPrice.toFixed(2)} • High: £${highPrice.toFixed(2)} • Low: £${lowPrice.toFixed(2)}`
       }
     }
   }).setWidth(550).setHeight(300);
