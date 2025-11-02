@@ -1,4 +1,5 @@
 import Product from '../models/Product.js';
+import User from '../models/User.js';
 import { getPrice } from '../../src/lib/scraper/getPrice.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { buildPriceAlertMessage } from '../utils/messageHelper.js';
@@ -23,17 +24,23 @@ export class PriceTrackerService {
         date: new Date()
       });
       product.currentPrice = currentPrice;
+      product.lastChecked = new Date();
       await product.save();
 
       // Check thresholds and notify users
       for (const tracker of product.trackedBy) {
-        if (
-          (previousPrice > tracker.thresholdPrice && currentPrice <= tracker.thresholdPrice) ||
-          (Math.abs((currentPrice - previousPrice) / previousPrice) >= 0.1) // 10% change
-        ) {
+        const shouldNotify = await this.shouldNotifyUser(tracker, previousPrice, currentPrice);
+        
+        if (shouldNotify) {
           await this.notifyUser(tracker.chatId, product, previousPrice, currentPrice);
+          
+          // Update last alerted time to prevent spam
+          tracker.lastAlertedAt = new Date();
         }
       }
+      
+      // Save updated tracker info
+      await product.save();
 
       return {
         product,
@@ -48,6 +55,51 @@ export class PriceTrackerService {
         'Failed to check product price'
       );
     }
+  }
+
+  async shouldNotifyUser(tracker, oldPrice, newPrice) {
+    const priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
+    const isDecrease = newPrice < oldPrice;
+    
+    // Don't spam - wait at least 3 hours between alerts for the same product
+    if (tracker.lastAlertedAt) {
+      const hoursSinceLastAlert = (Date.now() - tracker.lastAlertedAt.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastAlert < 3) {
+        return false;
+      }
+    }
+    
+    // Get user's minimum price drop setting
+    let minPriceDrop = 10; // Default 10%
+    try {
+      const user = await User.findOne({ chatId: tracker.chatId.toString() });
+      if (user && user.settings && user.settings.minPriceDrop !== undefined) {
+        minPriceDrop = user.settings.minPriceDrop;
+      }
+    } catch (error) {
+      console.error('Error getting user settings:', error);
+    }
+    
+    // Always notify if threshold is met (regardless of minimum drop)
+    if (tracker.thresholdPrice && oldPrice > tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
+      return true;
+    }
+    
+    // Check if price drop meets minimum threshold
+    if (isDecrease && Math.abs(priceChange) >= minPriceDrop) {
+      return true;
+    }
+    
+    // Notify on any price drop if close to threshold (within 5%)
+    if (tracker.thresholdPrice && isDecrease) {
+      const percentFromThreshold = ((newPrice - tracker.thresholdPrice) / tracker.thresholdPrice) * 100;
+      if (percentFromThreshold <= 5 && Math.abs(priceChange) >= (minPriceDrop / 2)) {
+        // Lower threshold when close to target (half of minPriceDrop)
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   async notifyUser(chatId, product, oldPrice, newPrice) {

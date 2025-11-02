@@ -6,7 +6,7 @@ import { BotError, ErrorCodes, handleError } from './utils/errorHandler.js';
 import { resolveAmazonUrl } from './utils/url.js';
 import { getProductName } from '../src/lib/scraper/getProductName.js';
 import { getPrice } from '../src/lib/scraper/getPrice.js';
-import { escapeMarkdownV2, buildProductListMessage, formatProductDetails } from './utils/messageHelper.js';
+import { escapeMarkdownV2, buildProductListMessage, formatProductDetails, buildDailyReportMessage, buildSettingsMessage } from './utils/messageHelper.js';
 import { Messages } from './utils/messages.js';
 import { Markup } from 'telegraf';
 import mainActions from './actions/mainActions.js';
@@ -69,6 +69,7 @@ const registerHandlers = (bot) => {
         '/start \\- Restart the bot',
         '/help \\- Show this help',
         '/list \\- View all tracked products',
+        '/report \\- Get your daily price report',
         '',
         '*Product Management:*',
         '/add <URL> <price> \\- Track a product',
@@ -81,8 +82,9 @@ const registerHandlers = (bot) => {
         '💡 *Pro Tips:*',
         '• Set realistic price alerts',
         '• Check /list daily for deals',
+        '• Enable daily reports in /settings',
         '• Products are checked automatically',
-        '• You will get instant notifications',
+        '• You get instant notifications',
         '',
         '❓ Need more help? Just ask\\!'
       ].join('\n');
@@ -396,6 +398,30 @@ const registerHandlers = (bot) => {
     }
   });
 
+  // Daily report command
+  bot.command('report', async (ctx) => {
+    try {
+      const user = await UserService.getOrCreateUser(ctx.chat.id, ctx.from?.first_name || ctx.from?.username);
+      const products = await ProductService.getUserProducts(ctx.chat.id);
+      
+      const reportMessage = buildDailyReportMessage(
+        products.map(p => ({
+          ...p.toObject(),
+          trackedBy: p.trackedBy.filter(t => t.chatId === ctx.chat.id)
+        })),
+        user.firstName || user.username || 'there'
+      );
+      
+      await ctx.reply(reportMessage, {
+        parse_mode: 'MarkdownV2',
+        disable_web_page_preview: true,
+        ...mainKeyboard()
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
   // Handle text messages
   bot.on('text', async (ctx) => {
     try {
@@ -423,6 +449,10 @@ const registerHandlers = (bot) => {
 
         case BotStates.SETTING_THRESHOLD:
           await handleThresholdUpdate(ctx);
+          break;
+
+        case BotStates.SETTING_MIN_DROP:
+          await handleMinDropInput(ctx);
           break;
 
         default:
@@ -1094,6 +1124,59 @@ async function handleThresholdUpdate(ctx) {
     ...mainKeyboard(),
     disable_web_page_preview: true
   });
+}
+
+async function handleMinDropInput(ctx) {
+  const input = ctx.message.text.trim();
+  const value = parseFloat(input);
+
+  if (isNaN(value) || value < 0 || value > 100) {
+    return await ctx.reply(
+      [
+        '❌ *Invalid Value*',
+        '',
+        '📝 Please enter a number between *0* and *100*',
+        '',
+        '*Examples:*',
+        '• `5` for 5%',
+        '• `15` for 15%',
+        '• `25` for 25%',
+        '',
+        'Try again:'
+      ].join('\n'),
+      { parse_mode: 'MarkdownV2' }
+    );
+  }
+
+  try {
+    const user = await UserService.getUserSettings(ctx.chat.id);
+    user.settings.minPriceDrop = Math.round(value);
+    await user.save();
+    
+    stateManager.clearState(ctx.chat.id);
+
+    const message = [
+      '✅ *Setting Updated\\!*',
+      '',
+      `📉 Minimum price drop set to *${escapeMarkdownV2(Math.round(value).toString())}%*`,
+      '',
+      '💡 You will only receive alerts for price drops',
+      `that are ${escapeMarkdownV2(Math.round(value).toString())}% or greater\\.`,
+      '',
+      'Use /settings to change this anytime\\!'
+    ].join('\n');
+
+    await ctx.reply(message, {
+      parse_mode: 'MarkdownV2',
+      ...mainKeyboard()
+    });
+  } catch (error) {
+    throw new BotError(
+      'Failed to update setting',
+      ErrorCodes.DATABASE_ERROR,
+      'Failed to update minimum price drop. Please try again.'
+    );
+  }
 }
 
 export default registerHandlers;
