@@ -1,14 +1,14 @@
 // bot/commands/remove.js
 import axios from 'axios';
-import { i18next } from '../config/i18n.js';
 import Product from '../models/Product.js';
+import { Messages } from '../utils/messages.js';
 
-export default (bot, i18next) => {
+export default (bot) => {
   bot.command('remove', async (ctx) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
       const products = await Product.find({ 'trackedBy.chatId': ctx.chat.id });
-      if (products.length === 0) return ctx.reply(ctx.i18n('noTrackedProducts'));
+      if (products.length === 0) return ctx.reply(Messages.noTrackedProducts);
 
       for (const p of products) {
         const tracker = p.trackedBy.find(t => t.chatId === ctx.chat.id);
@@ -19,7 +19,7 @@ export default (bot, i18next) => {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: ctx.i18n('removeProduct'), callback_data: `remove_${p.asin}` },
+                  { text: Messages.removeProduct, callback_data: `remove_${p.asin}` },
                 ],
               ],
             },
@@ -51,24 +51,24 @@ export default (bot, i18next) => {
       product = await Product.findOne({ asin });
     }
 
-    if (!product) return ctx.reply(ctx.i18n('productNotFound'));
+    if (!product) return ctx.reply(Messages.productNotFound);
 
     if (product.trackedBy.includes(ctx.chat.id)) {
       ctx.reply(
-        ctx.i18n('removeConfirmation', { name: product.name }),
+        Messages.removeConfirmation(product.name),
         {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: ctx.i18n('yesRemove'), callback_data: `remove_${product.asin}` },
-                { text: ctx.i18n('noKeep'), callback_data: 'cancel_remove' },
+                { text: Messages.yesRemove, callback_data: `remove_${product.asin}` },
+                { text: Messages.noKeep, callback_data: 'cancel_remove' },
               ],
             ],
           },
         }
       );
     } else {
-      ctx.reply(ctx.i18n('notTracked'));
+      ctx.reply(Messages.notTracked);
     }
   });
 };

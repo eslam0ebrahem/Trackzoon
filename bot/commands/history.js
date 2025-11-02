@@ -1,27 +1,31 @@
 // bot/commands/history.js
 import axios from 'axios';
-import { i18next } from '../config/i18n.js';
 import Product from '../models/Product.js';
 import { generatePriceChart } from '../utils/chartGenerator.js';
+import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
-export default (bot, i18next) => {
+export default (bot) => {
   bot.command('history', async (ctx) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
       const products = await Product.find({ 'trackedBy.chatId': ctx.chat.id });
-      if (products.length === 0) return ctx.reply(ctx.i18n('noTrackedProducts'));
+      if (products.length === 0) {
+        return ctx.reply(
+          'You are not tracking any products\\. Use /add to start tracking\\.',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
 
       for (const p of products) {
         const tracker = p.trackedBy.find(t => t.chatId === ctx.chat.id);
         if (tracker) {
-          const message = `[${p.name}](${p.url})`;
-          await ctx.replyWithMarkdown(message, {
+          const message = `[${escapeMarkdownV2(p.name)}](${p.url})`;
+          await ctx.reply(message, {
+            parse_mode: 'MarkdownV2',
             disable_web_page_preview: true,
             reply_markup: {
               inline_keyboard: [
-                [
-                  { text: ctx.i18n('viewHistory'), callback_data: `history_${p.asin}` },
-                ],
+                [{ text: 'View Price History', callback_data: `history_${p.asin}` }],
               ],
             },
           });
@@ -53,7 +57,12 @@ export default (bot, i18next) => {
       product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
     }
 
-    if (!product) return ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
+    if (!product) {
+      return ctx.reply(
+        'Product not found or you are not tracking it\\.',
+        { parse_mode: 'MarkdownV2' }
+      );
+    }
 
     let history = product.priceHistory;
     const now = new Date();
@@ -63,10 +72,19 @@ export default (bot, i18next) => {
       history = history.filter(h => (now - new Date(h.date)) / (1000 * 60 * 60 * 24) <= 30);
     }
 
-    if (history.length < 2) return ctx.reply(ctx.i18n('notEnoughData'));
+    if (history.length < 2) {
+      return ctx.reply(
+        'Not enough price history data available yet\\.',
+        { parse_mode: 'MarkdownV2' }
+      );
+    }
 
-    const chartUrl = await generatePriceChart(product.name, history, ctx.i18n);
+    const chartUrl = await generatePriceChart(product.name, history);
+    const caption = `📊 Price History for ${escapeMarkdownV2(product.name)}`;
 
-    return ctx.replyWithPhoto(chartUrl, { caption: ctx.i18n('historyCaption', { name: product.name }) });
+    return ctx.replyWithPhoto(chartUrl, {
+      caption,
+      parse_mode: 'MarkdownV2'
+    });
   });
 };

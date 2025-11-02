@@ -1,6 +1,5 @@
 import { Telegraf } from 'telegraf';
 import User from '../../src/lib/models/User.js';
-import { i18next } from '../config/i18n.js';
 
 const initializeBot = (commands) => {
   let bot;
@@ -11,23 +10,19 @@ const initializeBot = (commands) => {
     bot = new Telegraf(process.env.BOT_TOKEN);
     console.log('Telegram bot initialized.');
 
-    const translatedCommands = commands.map(cmd => ({
+    // Set bot commands with direct English descriptions
+    const botCommands = commands.map(cmd => ({
       command: cmd.command,
-      description: i18next.t(cmd.descriptionKey)
+      description: cmd.description || cmd.command
     }));
-    bot.telegram.setMyCommands(translatedCommands);
+    bot.telegram.setMyCommands(botCommands);
 
     bot.use(async (ctx, next) => {
       if (ctx.chat && ctx.chat.id) {
         let user = await User.findOne({ chatId: ctx.chat.id });
         if (!user) {
-          user = new User({ chatId: ctx.chat.id, locale: 'en' });
+          user = new User({ chatId: ctx.chat.id });
           await user.save();
-        }
-        if (user.locale) {
-          ctx.i18n = i18next.getFixedT(user.locale);
-        } else {
-          ctx.i18n = i18next.getFixedT('en'); // Default to English if no locale is set
         }
       }
       return next();

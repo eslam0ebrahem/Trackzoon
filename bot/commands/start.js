@@ -1,11 +1,15 @@
+import { escapeMarkdownV2 } from '../utils/messageHelper.js';
+import { Messages } from '../utils/messages.js';
+
 export default (bot) => {
   bot.command('start', (ctx) => {
-    ctx.reply(ctx.i18n('startMessage'), {
+    const text = escapeMarkdownV2(Messages.startMessage);
+    ctx.replyWithMarkdownV2(text, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: ctx.i18n('addCommand'), callback_data: 'add_product' }],
-          [{ text: ctx.i18n('listCommand'), callback_data: 'list_products' }],
-          [{ text: ctx.i18n('helpCommand'), callback_data: 'show_help' }],
+          [{ text: Messages.addCommand, callback_data: 'add_product' }],
+          [{ text: Messages.listCommand, callback_data: 'list_products' }],
+          [{ text: Messages.helpCommand, callback_data: 'show_help' }],
         ],
       },
     });

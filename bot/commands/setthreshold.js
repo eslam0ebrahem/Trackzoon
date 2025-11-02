@@ -1,14 +1,14 @@
 // bot/commands/setthreshold.js
 import axios from 'axios';
-import { i18next } from '../config/i18n.js';
 import Product from '../models/Product.js';
+import { Messages } from '../utils/messages.js';
 
-export default (bot, i18next) => {
+export default (bot) => {
   bot.command('setthreshold', async (ctx) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 3) {
       const products = await Product.find({ 'trackedBy.chatId': ctx.chat.id });
-      if (products.length === 0) return ctx.reply(ctx.i18n('noTrackedProducts'));
+      if (products.length === 0) return ctx.reply(Messages.noTrackedProducts);
 
       for (const p of products) {
         const tracker = p.trackedBy.find(t => t.chatId === ctx.chat.id);
@@ -19,7 +19,7 @@ export default (bot, i18next) => {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: ctx.i18n('setThreshold'), callback_data: `setthreshold_${p.asin}` },
+                  { text: Messages.setThreshold, callback_data: `setthreshold_${p.asin}` },
                 ],
               ],
             },
@@ -32,7 +32,7 @@ export default (bot, i18next) => {
 
     const newThreshold = parseFloat(newThresholdStr);
     if (isNaN(newThreshold) || newThreshold <= 0) {
-      return ctx.reply(ctx.i18n('invalidThreshold'));
+      return ctx.reply(Messages.invalidThreshold);
     }
 
     let product;
@@ -56,15 +56,15 @@ export default (bot, i18next) => {
       product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
     }
 
-    if (!product) return ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
+    if (!product) return ctx.reply(Messages.productNotFoundOrNotTracked);
 
     const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
     if (tracker) {
       tracker.thresholdPrice = newThreshold;
       await product.save();
-      ctx.reply(ctx.i18n('thresholdUpdated', { name: product.name, threshold: newThreshold }));
+      ctx.reply(Messages.thresholdUpdated({ name: product.name, threshold: newThreshold }));
     } else {
-      ctx.reply(ctx.i18n('productNotFoundOrNotTracked')); // Should not happen if product is found with chatId
+      ctx.reply(Messages.productNotFoundOrNotTracked); // Should not happen if product is found with chatId
     }
   });
 };

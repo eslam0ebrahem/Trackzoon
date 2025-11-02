@@ -1,26 +1,30 @@
 // bot/commands/view.js
 import axios from 'axios';
-import { i18next } from '../config/i18n.js';
 import Product from '../models/Product.js';
+import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
-export default (bot, i18next) => {
+export default (bot) => {
   bot.command('view', async (ctx) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
       const products = await Product.find({ 'trackedBy.chatId': ctx.chat.id });
-      if (products.length === 0) return ctx.reply(ctx.i18n('noTrackedProducts'));
+      if (products.length === 0) {
+        return ctx.reply(
+          'You are not tracking any products\\. Use /add to start tracking\\.',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
 
       for (const p of products) {
         const tracker = p.trackedBy.find(t => t.chatId === ctx.chat.id);
         if (tracker) {
-          const message = `[${p.name}](${p.url})`;
-          await ctx.replyWithMarkdown(message, {
+          const message = `[${escapeMarkdownV2(p.name)}](${p.url})`;
+          await ctx.reply(message, {
+            parse_mode: 'MarkdownV2',
             disable_web_page_preview: true,
             reply_markup: {
               inline_keyboard: [
-                [
-                  { text: ctx.i18n('viewProduct'), callback_data: `view_${p.asin}` },
-                ],
+                [{ text: 'View Details', callback_data: `view_${p.asin}` }],
               ],
             },
           });
@@ -51,17 +55,33 @@ export default (bot, i18next) => {
       product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
     }
 
-    if (!product) return ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
+    if (!product) {
+      return ctx.reply(
+        'Product not found or you are not tracking it\\.',
+        { parse_mode: 'MarkdownV2' }
+      );
+    }
 
-    const currentPrice = product.priceHistory.length > 0 ? product.priceHistory.slice(-1)[0].price : ctx.i18n('priceNotAvailable');
-    const lastUpdated = product.priceHistory.length > 0 ? new Date(product.priceHistory.slice(-1)[0].date).toLocaleString() : ctx.i18n('notAvailable');
+    const currentPrice = product.priceHistory.length > 0 
+      ? product.priceHistory[product.priceHistory.length - 1].price 
+      : 'Not available';
 
-    let message = `<b>${product.name}</b>\n\n`;
-    message += `Current Price: ${currentPrice} EGP\n`;
-    message += `Threshold Price: ${product.thresholdPrice} EGP\n`;
-    message += `Last Updated: ${lastUpdated}\n`;
-    message += `URL: ${product.url}\n`;
+    const lastUpdated = product.priceHistory.length > 0 
+      ? new Date(product.priceHistory[product.priceHistory.length - 1].date).toLocaleString() 
+      : 'Not available';
 
-    ctx.replyWithHTML(message, { disable_web_page_preview: true });
+    const message = escapeMarkdownV2([
+      `*${product.name}*`,
+      '',
+      `💰 Current Price: €${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : currentPrice}`,
+      `🎯 Alert Price: €${product.thresholdPrice.toFixed(2)}`,
+      `🕒 Last Updated: ${lastUpdated}`,
+      `🔗 [View on Amazon](${product.url})`
+    ].join('\n'));
+
+    await ctx.reply(message, {
+      parse_mode: 'MarkdownV2',
+      disable_web_page_preview: true
+    });
   });
 };

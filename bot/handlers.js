@@ -1,192 +1,457 @@
-import { i18next } from './config/i18n.js';
-
-import registerStartCommand from './commands/start.js';
-import registerAddCommand from './commands/add.js';
-import registerAddPercentageCommand from './commands/add_percentage.js';
-import registerRemoveCommand from './commands/remove.js';
-import registerListCommand from './commands/list.js';
-import registerViewCommand from './commands/view.js';
-import registerHistoryCommand from './commands/history.js';
-import registerSetThresholdCommand from './commands/setthreshold.js';
-import registerLangCommand from './commands/lang.js';
-import registerSettingsCommand from './commands/settings.js';
-import registerHelpCommand from './commands/help.js';
-
-import registerAddProductAction from './actions/add_product.js';
-import registerListProductsAction from './actions/list_products.js';
-import registerShowHelpAction from './actions/show_help.js';
-import registerRemoveProductAction from './actions/remove_product_action.js';
-import registerCancelRemoveAction from './actions/cancel_remove_action.js';
-import registerViewProductAction from './actions/view_product_action.js';
-import registerHistoryAction from './actions/history_action.js';
-import registerSetThresholdAction from './actions/setthreshold_action.js';
-import registerSettingsLanguageAction from './actions/settings_language_action.js';
-import registerSetLangAction from './actions/set_lang_action.js';
-
-import Product from './models/Product.js'; // Keep for the text handler
-import User from './models/User.js'; // Keep for the text handler
-import axios from 'axios';
-import { getProductName } from '../src/lib/scraper/getProductName.js';
-import { getPrice } from '../src/lib/scraper/getPrice.js';
+import { ProductService } from './services/productService.js';
+import { UserService } from './services/userService.js';
+import { stateManager, BotStates } from './utils/stateManager.js';
+import { ProductKeyboards, removeKeyboard } from './utils/keyboards.js';
+import { BotError, ErrorCodes, handleError } from './utils/errorHandler.js';
 import { resolveAmazonUrl } from './utils/url.js';
-
-const settingThreshold = new Map(); // To store asin for chatIds that are setting a threshold
-const addingProductState = new Map(); // To store state for chatIds that are adding a product
+import {
+  buildProductListMessage,
+  formatProductDetails,
+  escapeMarkdownV2
+} from './utils/messageHelper.js';
+import { Messages } from './utils/messages.js';
 
 const registerHandlers = (bot) => {
-  registerStartCommand(bot);
-  registerAddCommand(bot, addingProductState);
-  registerAddPercentageCommand(bot);
-  registerRemoveCommand(bot);
-  registerListCommand(bot);
-  registerViewCommand(bot);
-  registerHistoryCommand(bot);
-  registerSetThresholdCommand(bot);
-  registerLangCommand(bot);
-  registerSettingsCommand(bot);
-  registerHelpCommand(bot);
+  // Start command
+  bot.command('start', async (ctx) => {
+    try {
+      const username = ctx.from?.first_name || ctx.from?.username;
+      const welcomeMessage = escapeMarkdownV2([
+        `👋 Welcome ${username} to Amazon Price Tracker!`,
+        '',
+        '🔍 I help you track Amazon product prices and notify you when they drop.',
+        '',
+        '✨ Features:',
+        '• Track multiple products simultaneously',
+        '• Get instant alerts when prices drop',
+        '• View price history and trends',
+        '• Get recommendations for similar products',
+        '',
+        '🚀 Getting Started:',
+        '1. Use /add to start tracking a product',
+        '2. Set your desired price threshold',
+        '3. Wait for price alerts!',
+        '',
+        'Need help? Use /help to see all commands'
+      ].join('\n'));
 
-  registerAddProductAction(bot, addingProductState);
-  registerListProductsAction(bot);
-  registerShowHelpAction(bot);
-  registerRemoveProductAction(bot);
-  registerCancelRemoveAction(bot);
-  registerViewProductAction(bot);
-  registerHistoryAction(bot);
-  registerSetThresholdAction(bot, settingThreshold);
-  registerSettingsLanguageAction(bot);
-  registerSetLangAction(bot);
-
-  bot.action(/setthreshold_value_(.+?)_(.+)/, async (ctx) => {
-    const asin = ctx.match[1];
-    const newThreshold = parseFloat(ctx.match[2]);
-
-    const product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
-
-    if (!product) {
-      return ctx.editMessageText(ctx.i18n('productNotFoundOrNotTracked'));
+      await ctx.reply(welcomeMessage, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: ProductKeyboards.mainMenu(),
+        disable_web_page_preview: true
+      });
+    } catch (error) {
+      handleError(ctx, error);
     }
-
-    const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-    if (tracker) {
-      tracker.thresholdPrice = newThreshold;
-      await product.save();
-      ctx.editMessageText(ctx.i18n('thresholdUpdated', { name: product.name, threshold: newThreshold }));
-    } else {
-      ctx.editMessageText(ctx.i18n('productNotFoundOrNotTracked'));
-    }
-    ctx.editMessageReplyMarkup({}); // Remove inline keyboard
   });
 
-  bot.action(/setthreshold_custom_(.+)/, async (ctx) => {
-    const asin = ctx.match[1];
-    settingThreshold.set(ctx.chat.id, asin);
-    ctx.editMessageText(ctx.i18n('promptNewThreshold'), { reply_markup: { remove_keyboard: true } });
+  // Help command
+  bot.command('help', async (ctx) => {
+    try {
+      const helpMessage = escapeMarkdownV2([
+        '📚 *Available Commands*',
+        '',
+        '🔰 Basic Commands:',
+        '/start \\- Start the bot and see welcome message',
+        '/help \\- Show this help message',
+        '/settings \\- Configure your preferences',
+        '',
+        '📦 Product Management:',
+        '/add \\- Add a new product to track',
+        '/list \\- View all tracked products',
+        '/view \\- View details of a specific product',
+        '/remove \\- Stop tracking a product',
+        '',
+        '⚡️ Price Alerts:',
+        '/setthreshold \\- Set price alert threshold',
+        '/history \\- View price history',
+        '',
+        '💡 Pro Tips:',
+        '• Send an Amazon link directly to add a product',
+        '• Use inline buttons for quick actions',
+        '• Check /list regularly for price updates'
+      ].join('\n'));
+
+      await ctx.reply(helpMessage, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: ProductKeyboards.mainMenu()
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
   });
 
+  // Add product command and flow
+  bot.command('add', async (ctx) => {
+    try {
+      stateManager.setState(ctx.chat.id, BotStates.WAITING_FOR_URL);
+
+      const message = escapeMarkdownV2([
+        '🛍️ *Add a Product to Track*',
+        '',
+        'Please send me the Amazon product URL you want to track\\.',
+        '',
+        '💡 Tips:',
+        '• Make sure it\'s a valid Amazon product URL',
+        '• You can copy the URL directly from your browser',
+        '• The URL should contain a product ID \\(ASIN\\)',
+        '',
+        '📝 Example:',
+        'https://www\\.amazon\\.eg/dp/B08N5XSG8Z'
+      ].join('\n'));
+
+      await ctx.reply(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: ProductKeyboards.backButton(),
+        disable_web_page_preview: true
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  // List products command
+  bot.command('list', async (ctx) => {
+    try {
+      const products = await ProductService.getUserProducts(ctx.chat.id);
+      const message = buildProductListMessage(products, ctx.chat.id);
+
+      await ctx.reply(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: ProductKeyboards.mainMenu(),
+        disable_web_page_preview: true
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  // Settings command
+  bot.command('settings', async (ctx) => {
+    try {
+      const user = await UserService.getUserSettings(ctx.chat.id);
+      const message = buildSettingsMessage(user);
+
+      await ctx.reply(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: ProductKeyboards.settings()
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  // Handle text messages
   bot.on('text', async (ctx) => {
-    const chatId = ctx.chat.id;
+    try {
+      const state = stateManager.getState(ctx.chat.id);
 
-    if (addingProductState.has(chatId)) {
-      const state = addingProductState.get(chatId);
+      if (!state) {
+        return await ctx.reply('❓ I don\'t understand that command\\. Use /help to see available commands\\.', {
+          parse_mode: 'MarkdownV2',
+          reply_markup: ProductKeyboards.mainMenu(ctx)
+        });
+      }
 
-      if (state.step === 'waiting_for_url') {
-        const productUrl = ctx.message.text;
-        if (!productUrl) {
-          return ctx.reply(ctx.i18n('promptForUrl'));
-        }
+      switch (state.state) {
+        case BotStates.WAITING_FOR_URL:
+          await handleProductUrl(ctx);
+          break;
 
-        try {
-          await ctx.reply(ctx.i18n('processing'));
-          const { resolvedUrl, asin } = await resolveAmazonUrl(productUrl);
+        case BotStates.WAITING_FOR_THRESHOLD:
+          await handleThresholdInput(ctx);
+          break;
 
-          if (!asin) {
-            return ctx.reply(ctx.i18n('invalidUrl'));
-          }
+        case BotStates.SETTING_THRESHOLD:
+          await handleThresholdUpdate(ctx);
+          break;
 
-          state.data.productUrl = resolvedUrl;
-          state.data.asin = asin;
-          state.step = 'waiting_for_threshold';
-          addingProductState.set(chatId, state);
-          return ctx.reply(ctx.i18n('promptForThreshold'));
-        } catch (error) {
-          console.error('Error resolving URL:', error);
-          return ctx.reply(ctx.i18n('invalidUrl'));
-        }
-      } else if (state.step === 'waiting_for_threshold') {
-        const thresholdStr = ctx.message.text;
-        const threshold = parseFloat(thresholdStr);
-
-        if (isNaN(threshold) || threshold <= 0) {
-          return ctx.reply(ctx.i18n('invalidThreshold'));
-        }
-
-        const productUrl = state.data.productUrl;
-        const asin = state.data.asin;
-        addingProductState.delete(chatId); // Clear state
-
-        try {
-          await ctx.reply(ctx.i18n('processing'));
-
-          // ASIN is already extracted in the previous step
-          let product = await Product.findOne({ asin });
-
-          if (product) {
-            const isTracking = product.trackedBy.some(t => t.chatId === chatId);
-            if (isTracking) {
-              return ctx.reply(ctx.i18n('alreadyTracking', { name: product.name }));
-            }
-            product.trackedBy.push({ chatId, thresholdPrice: threshold });
-            await product.save();
-          } else {
-            const name = await getProductName(productUrl);
-            const currentPrice = await getPrice(productUrl);
-
-            product = new Product({
-              asin,
-              name,
-              url: productUrl,
-              currentPrice,
-              priceHistory: [{ price: currentPrice, date: new Date() }],
-              trackedBy: [{ chatId, thresholdPrice: threshold }],
+        default:
+          if (ctx.message.text === 'Back') {
+            stateManager.clearState(ctx.chat.id);
+            return await ctx.reply('🔙 Back to main menu', {
+              parse_mode: 'MarkdownV2',
+              reply_markup: ProductKeyboards.mainMenu(ctx)
             });
-            await product.save();
           }
-          return ctx.reply(ctx.i18n('added', { name: product.name, threshold }));
 
-        } catch (error) {
-          console.error('Error adding product:', error);
-          return ctx.reply(ctx.i18n('errorAddingProduct'));
-        }
+          await ctx.reply('❓ I don\'t understand that command\\. Use /help to see available commands\\.', {
+            parse_mode: 'MarkdownV2',
+            reply_markup: ProductKeyboards.mainMenu(ctx)
+          });
       }
-    } else if (settingThreshold.has(chatId)) {
-      const asin = settingThreshold.get(chatId);
-      const newThresholdStr = ctx.message.text;
-      const newThreshold = parseFloat(newThresholdStr);
-
-      if (isNaN(newThreshold) || newThreshold <= 0) {
-        settingThreshold.delete(chatId);
-        return ctx.reply(ctx.i18n('invalidThreshold'));
-      }
-
-      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
-
-      if (!product) {
-        settingThreshold.delete(chatId);
-        return ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
-      }
-
-      const tracker = product.trackedBy.find(t => t.chatId === chatId);
-      if (tracker) {
-        tracker.thresholdPrice = newThreshold;
-        await product.save();
-        ctx.reply(ctx.i18n('thresholdUpdated', { name: product.name, threshold: newThreshold }));
-      } else {
-        ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
-      }
-      settingThreshold.delete(chatId);
+    } catch (error) {
+      handleError(ctx, error);
     }
   });
+
+  // Handle actions
+  bot.action(/view_(.+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
+      const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+
+      const message = formatProductDetails(product, tracker);
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        disable_web_page_preview: false,
+        reply_markup: ProductKeyboards.productActions(asin)
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  bot.action(/remove_(.+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
+      const name = escapeMarkdownV2(product.name);
+
+      const message = escapeMarkdownV2(`❗️ *Confirm Removal*\n\nAre you sure you want to stop tracking:\n📦 [${name}](${product.url})?\n\nYou won't receive any more price alerts for this product.`);
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: ProductKeyboards.confirmRemove(asin),
+        disable_web_page_preview: true
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  bot.action(/confirm_remove_(.+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const product = await ProductService.removeProduct(asin, ctx.chat.id);
+      const name = escapeMarkdownV2(product.name);
+
+      let message = `✅ *Product Removed*\n\n`;
+      message += `Successfully stopped tracking:\n`;
+      message += `📦 [${name}](${product.url})\n\n`;
+      message += `You can add it back anytime using /add\\.`;
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: { inline_keyboard: [] },
+        disable_web_page_preview: true
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  bot.action('cancel_remove', async (ctx) => {
+    try {
+      const message = escapeMarkdownV2('✨ *Removal Cancelled*\n\nGreat! I\'ll continue tracking this product for you.');
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: { inline_keyboard: [] }
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  bot.action(/setthreshold_(.+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
+
+      stateManager.setState(ctx.chat.id, BotStates.SETTING_THRESHOLD, { asin });
+
+      const message = escapeMarkdownV2([
+        '💰 Update Price Alert',
+        '',
+        `Current price for ${product.name}: $${product.currentPrice.toFixed(2)}`,
+        'Enter your new desired price threshold\\.'
+      ].join('\n'));
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: ProductKeyboards.thresholdOptions(asin, product.currentPrice)
+      });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  // Settings menu removed
 };
+
+// Helper functions for handling user input
+async function handleProductUrl(ctx) {
+  try {
+    const productUrl = ctx.message.text.trim();
+    console.log('\nProcessing new URL request:', productUrl);
+
+    // Basic URL validation first
+    if (!productUrl.match(/^https?:\/\/(www\.)?(amazon\.|amzn\.)/i)) {
+      throw new BotError('Invalid URL format', ErrorCodes.INVALID_URL);
+    }
+
+    await ctx.reply(escapeMarkdownV2('🔄 Processing URL... Please wait.'), {
+      parse_mode: 'MarkdownV2'
+    });
+
+    console.log('URL passed validation, attempting to resolve...');
+    const { resolvedUrl, asin } = await resolveAmazonUrl(productUrl);
+
+    console.log('Resolution results:', {
+      originalUrl: productUrl,
+      resolvedUrl: resolvedUrl,
+      asin: asin
+    });
+
+    // Only throw error if we couldn't get either a resolved URL or ASIN
+    if (!resolvedUrl || !asin) {
+      throw new BotError('Invalid URL', ErrorCodes.INVALID_URL);
+    }
+
+    stateManager.setState(ctx.chat.id, BotStates.WAITING_FOR_THRESHOLD, {
+      productUrl: resolvedUrl,
+      asin
+    });
+
+    // Format the text for MarkdownV2
+    const message = escapeMarkdownV2([
+      '💰 Set Price Alert Threshold',
+      '',
+      'Please enter your desired price threshold\\. I\'ll notify you when the price drops below this amount\\.',
+      '',
+      '💡 Tips:',
+      '• Enter the price in numbers \\(e\\.g\\. 299\\.99\\)',
+      '• Set a realistic threshold \\- not too low\\!',
+      '• You can update this later with /setthreshold',
+      '',
+      'Note: Price alerts only work when the price drops below your threshold\\.'
+    ].join('\n'));
+
+    await ctx.reply(message, {
+      parse_mode: 'MarkdownV2',
+      reply_markup: removeKeyboard()
+    });
+  } catch (error) {
+    console.error('Error in handleProductUrl:', error);
+    if (error instanceof BotError) throw error;
+    // Only throw URL format error if it's actually a URL format issue
+    if (error.message.includes('Invalid URL') || error.message.includes('INVALID_URL')) {
+      throw new BotError(
+        'Invalid URL format',
+        ErrorCodes.INVALID_URL,
+        escapeMarkdownV2(Messages.errors.invalidUrl)
+      );
+    }
+    // For other errors, rethrow with a generic error message
+    throw new BotError(
+      'Error processing URL',
+      ErrorCodes.GENERAL_ERROR,
+      escapeMarkdownV2(Messages.errors.general)
+    );
+  }
+}
+
+async function handleThresholdInput(ctx) {
+  const thresholdStr = ctx.message.text.trim();
+  const threshold = parseFloat(thresholdStr);
+
+  if (isNaN(threshold) || threshold <= 0) {
+    throw new BotError(
+      'Invalid threshold format',
+      ErrorCodes.INVALID_THRESHOLD,
+      escapeMarkdownV2([
+        '❌ Invalid Price Format',
+        '',
+        '💡 Please follow these guidelines:',
+        '• Use only numbers \\(e\\.g\\. 299\\.99\\)',
+        '• Don\'t include currency symbols',
+        '• Price must be greater than 0'
+      ].join('\n'))
+    );
+  }
+
+  const state = stateManager.getState(ctx.chat.id);
+  const { productUrl, asin } = state.data;
+
+  await ctx.reply(escapeMarkdownV2('🔄 Setting up price tracking\\.\\.\\. Please wait\\.'), {
+    parse_mode: 'MarkdownV2'
+  });
+
+  const product = await ProductService.addProduct(productUrl, ctx.chat.id, threshold);
+  stateManager.clearState(ctx.chat.id);
+
+  const difference = ((product.currentPrice - threshold) / threshold) * 100;
+  const message = escapeMarkdownV2([
+    '✅ *Product Added Successfully*',
+    '',
+    `📦 Product: [${product.name}](${product.url})`,
+    `💵 Current Price: $${product.currentPrice.toFixed(2)}`,
+    `🎯 Alert Price: $${threshold.toFixed(2)}`,
+    '',
+    product.currentPrice <= threshold
+      ? '🎉 Good news\\! The current price is already below your alert threshold\\!'
+      : [
+        `📈 Current price is ${difference.toFixed(1)}% above your threshold\\.`,
+        '🔔 I\'ll notify you when the price drops below your threshold\\!'
+      ].join('\n')
+  ].join('\n'));
+
+  await ctx.reply(message, {
+    parse_mode: 'MarkdownV2',
+    reply_markup: ProductKeyboards.mainMenu(ctx),
+    disable_web_page_preview: true
+  });
+}
+
+async function handleThresholdUpdate(ctx) {
+  const newThresholdStr = ctx.message.text.trim();
+  const newThreshold = parseFloat(newThresholdStr);
+
+  if (isNaN(newThreshold) || newThreshold <= 0) {
+    throw new BotError(
+      'Invalid threshold format',
+      ErrorCodes.INVALID_THRESHOLD,
+      '❌ Please enter a valid price number \\(e\\.g\\. 29\\.99\\)\\.\n\n' +
+      '💡 Make sure to:\n' +
+      '• Use only numbers and a decimal point\n' +
+      '• Don\'t include currency symbols\n' +
+      '• Enter a price greater than 0'
+    );
+  }
+
+  const state = stateManager.getState(ctx.chat.id);
+  const { asin } = state.data;
+
+  await ctx.reply(escapeMarkdownV2(Messages.processing.updating), {
+    parse_mode: 'MarkdownV2'
+  });
+
+  const product = await ProductService.updateThreshold(asin, ctx.chat.id, newThreshold);
+  stateManager.clearState(ctx.chat.id);
+
+  const difference = ((product.currentPrice - newThreshold) / newThreshold) * 100;
+  const message = escapeMarkdownV2([
+    '✅ *Price Alert Updated*',
+    '',
+    `📦 Product: [${product.name}](${product.url})`,
+    `💵 Current Price: $${product.currentPrice.toFixed(2)}`,
+    `🎯 New Alert Price: $${newThreshold.toFixed(2)}`,
+    '',
+    product.currentPrice <= newThreshold
+      ? '🎉 Good news\\! The current price is already below your new alert threshold\\!'
+      : [
+        `📈 Current price is ${difference.toFixed(1)}% above your threshold\\.`,
+        '🔔 I\'ll notify you when the price drops below your new threshold\\!'
+      ].join('\n')
+  ].join('\n'));
+
+  await ctx.reply(message, {
+    parse_mode: 'MarkdownV2',
+    reply_markup: ProductKeyboards.mainMenu(ctx),
+    disable_web_page_preview: true
+  });
+}
 
 export default registerHandlers;

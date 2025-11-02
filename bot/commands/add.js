@@ -1,107 +1,95 @@
-// bot/commands/add.js
-import { i18next } from '../config/i18n.js';
 import { resolveAmazonUrl } from '../utils/url.js';
-import Product from '../models/Product.js';
-import User from '../models/User.js';
 import { getProductName } from '../../src/lib/scraper/getProductName.js';
 import { getPrice } from '../../src/lib/scraper/getPrice.js';
+import { addPriceTracker, validateThreshold } from '../utils/productTracker.js';
+import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
 export default (bot, addingProductState) => {
   bot.command('add', async (ctx) => {
-    const parts = ctx.message.text.split(' ');
-    if (parts.length < 3) {
-      addingProductState.set(ctx.chat.id, { step: 'waiting_for_url', data: {} });
-      return ctx.reply(ctx.i18n('promptForUrl'));
-    }
-    let [, url, thresholdStr] = parts;
-
-    const threshold = parseFloat(thresholdStr);
-    if (isNaN(threshold) || threshold <= 0) {
-      return ctx.reply(ctx.i18n('invalidThreshold'));
-    }
-
-    ctx.reply(ctx.i18n('processing'));
-
-    // Extract URL from markdown link if present
-    const markdownLinkMatch = url.match(/\[.*\]\((.*?)\)/);
-    if (markdownLinkMatch && markdownLinkMatch[1]) {
-      url = markdownLinkMatch[1];
-    }
-
-    // Resolve short links
-    url = await resolveAmazonUrl(url);
-
-    const asinMatch = url.match(/dp\/([A-Za-z0-9]{10})/);
-    if (!asinMatch) return ctx.reply(ctx.i18n('invalidUrl'));
-
-    const asin = asinMatch[1];
-    let product = await Product.findOne({ asin });
-    let name;
     try {
-      name = await getProductName(url);
-    } catch (err) {
-      name = `ASIN:${asin}`;
-    }
+      const parts = ctx.message.text.split(' ');
+      if (parts.length < 3) {
+        addingProductState.set(ctx.chat.id, { step: 'waiting_for_url', data: {} });
+        return await ctx.reply(
+          'Please provide the Amazon product URL and your desired price alert threshold\\.\n\n' +
+          'Usage: /add <Amazon URL> <price threshold>\n' +
+          'Example: /add https://amazon\\.com/dp/XXXXXX 299\\.99',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
 
-    if (!product) {
-      let currentPrice;
+      let [, url, thresholdStr] = parts;
+      const threshold = validateThreshold(thresholdStr);
+      if (!threshold) {
+        return await ctx.reply(
+          'Please provide a valid price threshold \\(a positive number\\)\\.',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
+
+      await ctx.reply(
+        'Processing your request\\.\\.\\.',
+        { parse_mode: 'MarkdownV2' }
+      );
+
       try {
-        currentPrice = await getPrice(url);
-      } catch (err) {
-        console.error("Error fetching initial price:", err);
-        currentPrice = 0; // Default to 0 or handle as appropriate
-      }
-
-      product = new Product({
-        asin,
-        url,
-        name,
-        trackedBy: [{ chatId: ctx.chat.id, muteUntil: null, lastAlertedAt: null, alertType: 'drop', percentageThreshold: null }],
-        thresholdPrice: parseFloat(threshold),
-        priceHistory: [{ price: currentPrice, date: new Date() }]
-      });
-      await product.save();
-      // Add product to user's tracked products
-      const user = await User.findOne({ chatId: ctx.chat.id });
-      if (user && !user.products.includes(product._id)) {
-        user.products.push(product._id);
-        await user.save();
-      }
-      ctx.reply(ctx.i18n('added', { name, threshold }));
-    } else {
-      // Add chatId if not already present
-      if (!product.trackedBy || !Array.isArray(product.trackedBy)) {
-        product.trackedBy = []; // Initialize if undefined or not an array
-      }
-      const existingTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-      if (!existingTracker) {
-        product.trackedBy.push({ chatId: ctx.chat.id, muteUntil: null, lastAlertedAt: null, alertType: 'drop', percentageThreshold: null });
-        await product.save();
-        // Add product to user's tracked products
-        const user = await User.findOne({ chatId: ctx.chat.id });
-        if (user && !user.products.includes(product._id)) {
-          user.products.push(product._id);
-          await user.save();
+        // Clean and validate URL
+        const { resolvedUrl, asin } = await resolveAmazonUrl(url);
+        if (!asin) {
+          return await ctx.reply(
+            'Please provide a valid Amazon product URL\\.',
+            { parse_mode: 'MarkdownV2' }
+          );
         }
-        ctx.reply(ctx.i18n('added', { name, threshold }));
-      } else {
-        ctx.reply(ctx.i18n('alreadyTracking', { name }));
+
+        // Get product details
+        const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
+        const currentPrice = await getPrice(resolvedUrl).catch(() => 0);
+
+        if (currentPrice <= 0) {
+          return await ctx.reply(
+            'Unable to fetch the current price\\. Please try again later\\.',
+            { parse_mode: 'MarkdownV2' }
+          );
+        }
+
+        // Add or update tracker
+        const { product, isNew } = await addPriceTracker({
+          asin,
+          url: resolvedUrl,
+          chatId: ctx.chat.id,
+          threshold,
+          currentPrice,
+          name,
+          isPercentage: false
+        });
+
+        // Show confirmation with current price context
+        const message = isNew
+          ? `✅ Added price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
+            `Current Price: €${currentPrice.toFixed(2)}\n` +
+            `Alert Price: €${threshold.toFixed(2)}`
+          : `✅ Updated price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
+            `Current Price: €${currentPrice.toFixed(2)}\n` +
+            `New Alert Price: €${threshold.toFixed(2)}`;
+
+        await ctx.reply(
+          escapeMarkdownV2(message),
+          { parse_mode: 'MarkdownV2' }
+        );
+      } catch (error) {
+        console.error('Error in add command:', error);
+        await ctx.reply(
+          'Error adding the product\\. Please try again\\.',
+          { parse_mode: 'MarkdownV2' }
+        );
       }
-      // Update threshold for the current user (simple logic)
-      const currentUserTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-      if (currentUserTracker) {
-        currentUserTracker.thresholdPrice = parseFloat(threshold);
-        currentUserTracker.alertType = 'drop';
-        currentUserTracker.percentageThreshold = null;
-      }
-      product.name = name; // Update product name in case it changed
-      await product.save();
-      // Add product to user's tracked products if not already there (in case it was just updated)
-      const user = await User.findOne({ chatId: ctx.chat.id });
-      if (user && !user.products.includes(product._id)) {
-        user.products.push(product._id);
-        await user.save();
-      }
+    } catch (error) {
+      console.error('Unexpected error in add command:', error);
+      await ctx.reply(
+        'An unexpected error occurred\\. Please try again\\.',
+        { parse_mode: 'MarkdownV2' }
+      );
     }
   });
 };

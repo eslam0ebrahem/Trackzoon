@@ -1,8 +1,11 @@
 // bot/utils/chartGenerator.js
 import QuickChart from 'quickchart-js';
 
-async function generatePriceChart(productName, history, i18n) {
-  const labels = history.map(h => new Date(h.date).toLocaleDateString());
+async function generatePriceChart(productName, history) {
+  const labels = history.map(h => new Date(h.date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  }));
   const data = history.map(h => h.price);
 
   const avgPrice = data.reduce((a, b) => a + b, 0) / data.length;
@@ -15,7 +18,7 @@ async function generatePriceChart(productName, history, i18n) {
     data: {
       labels,
       datasets: [{
-        label: i18n('priceHistory', { name: productName }),
+        label: `Price History for ${productName}`,
         data,
         borderColor: 'rgb(54, 162, 235)',
         fill: false
@@ -24,7 +27,7 @@ async function generatePriceChart(productName, history, i18n) {
     options: {
       title: {
         display: true,
-        text: i18n('chartTitle', { avgPrice: avgPrice.toFixed(2), highPrice, lowPrice })
+        text: `Average: €${avgPrice.toFixed(2)} • High: €${highPrice.toFixed(2)} • Low: €${lowPrice.toFixed(2)}`
       }
     }
   }).setWidth(550).setHeight(300);

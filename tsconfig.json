@@ -21,8 +21,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@/lib/scraper/*": ["./src/lib/scraper/*"],
-      "@/lib/locales/*": ["./src/lib/locales/*"]
+      "@/lib/scraper/*": ["./src/lib/scraper/*"]
     }
   },
   "include": [

@@ -1,12 +1,34 @@
 // bot/actions/show_help.js
-import commands from '../commands/commandList.js';
+import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
-export default (bot, i18next) => {
+export default (bot) => {
   bot.action('show_help', (ctx) => {
-    let msg = ctx.i18n('help') + '\n';
-    commands.forEach(c => {
-      msg += `/${c.command} — ${ctx.i18n(c.descriptionKey)}\n`;
+    const helpMessage = [
+      '*Available Commands:*',
+      '',
+      '*Basic Commands:*',
+      '/start \\- Start the bot',
+      '/help \\- Show this help message',
+      '/settings \\- Configure your preferences',
+      '',
+      '*Product Management:*',
+      '/add \\- Add a new product to track',
+      '/list \\- View all tracked products',
+      '/view \\- View details of a specific product',
+      '/remove \\- Stop tracking a product',
+      '',
+      '*Price Alerts:*',
+      '/setthreshold \\- Set price alert threshold',
+      '/history \\- View price history',
+      '',
+      '*Tips:*',
+      '• Send an Amazon link directly to add a product',
+      '• Use inline buttons for quick actions',
+      '• Check /list regularly for price updates'
+    ].join('\n');
+
+    ctx.reply(escapeMarkdownV2(helpMessage), {
+      parse_mode: 'MarkdownV2'
     });
-    ctx.reply(msg);
   });
 };

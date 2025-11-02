@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 interface User {
   _id: string;
   chatId: number;
-  locale: string;
   // Add other user properties as needed
 }
 
@@ -112,7 +111,6 @@ export default function ManageUsersPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chat ID</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Locale</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -122,15 +120,6 @@ export default function ManageUsersPage() {
                   {editingUserId === user._id ? (
                     <>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.chatId}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <input
-                          type="text"
-                          name="locale"
-                          value={editedUser?.locale || ''}
-                          onChange={handleInputChange}
-                          className="w-full p-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button onClick={handleSaveEdit} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-sm mr-2 transition-colors duration-200">Save</button>
                         <button onClick={handleCancelEdit} className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-sm transition-colors duration-200">Cancel</button>
@@ -139,7 +128,6 @@ export default function ManageUsersPage() {
                   ) : (
                     <>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.chatId}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.locale}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button onClick={() => handleEditClick(user)} className="text-indigo-600 hover:text-indigo-900 mr-2">Edit</button>
                         <button onClick={() => handleDeleteUser(user._id)} className="text-red-600 hover:text-red-900">Delete</button>

@@ -1,189 +1,82 @@
-// bot/actions/add_percentage_action.js
-import { i18next } from '../config/i18n.js';
 import { resolveAmazonUrl } from '../utils/url.js';
-import Product from '../models/Product.js';
-import User from '../models/User.js';
 import { getProductName } from '../../src/lib/scraper/getProductName.js';
 import { getPrice } from '../../src/lib/scraper/getPrice.js';
+import { addPriceTracker, validatePercentage } from '../utils/productTracker.js';
+import { parseAmazonUrl } from '../utils/urlParser.js';
+import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
-export default (bot, i18next) => {
-
+export default (bot) => {
   bot.command('add_percentage', async (ctx) => {
-
-    const parts = ctx.message.text.split(' ');
-
-    if (parts.length < 3) return ctx.reply(ctx.i18n('addPercentageUsage'));
-
-    let [, url, percentageStr] = parts;
-
-
-
-    const percentage = parseFloat(percentageStr);
-
-    if (isNaN(percentage) || percentage <= 0 || percentage > 100) {
-
-      return ctx.reply(ctx.i18n('invalidPercentage'));
-
-    }
-
-
-
-    ctx.reply(ctx.i18n('processing'));
-
-
-
-    const markdownLinkMatch = url.match(/\[.*\]\((.*?)\)/);
-
-    if (markdownLinkMatch && markdownLinkMatch[1]) {
-
-      url = markdownLinkMatch[1];
-
-    }
-
-
-
-    url = await resolveAmazonUrl(url);
-
-
-
-    const asinMatch = url.match(/dp\/([A-Za-z0-9]{10})/);
-
-    if (!asinMatch) return ctx.reply(ctx.i18n('invalidUrl'));
-
-
-
-    const asin = asinMatch[1];
-
-    let product = await Product.findOne({ asin });
-
-    let name;
-
     try {
+      const parts = ctx.message.text.split(' ');
+      if (parts.length < 3) {
+        return await ctx.reply(
+          'Usage: /add\\_percentage <Amazon product URL> <percentage>\n\n' +
+          'Example: /add\\_percentage https://amazon.com/dp/XXXXXX 20',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
 
-      name = await getProductName(url);
+      let [, url, percentageStr] = parts;
+      
+      // Validate and parse percentage first
+      const percentage = validatePercentage(percentageStr);
+      if (!percentage) {
+        return await ctx.reply('Please provide a valid percentage between 1 and 99.');
+      }
 
-    } catch (err) {
-
-      name = `ASIN:${asin}`;
-
-    }
-
-
-
-    if (!product) {
-
-      let currentPrice;
+      await ctx.reply('Processing your request...');
 
       try {
-
-        currentPrice = await getPrice(url);
-
-      } catch (err) {
-
-        console.error("Error fetching initial price:", err);
-
-        currentPrice = 0;
-
-      }
-
-
-
-      product = new Product({
-
-        asin,
-
-        url,
-
-        name,
-
-        trackedBy: [{ chatId: ctx.chat.id, muteUntil: null, lastAlertedAt: null, alertType: 'percentage_drop', percentageThreshold: percentage }],
-
-        thresholdPrice: currentPrice * (1 - percentage / 100), // Calculate initial threshold based on current price
-
-        priceHistory: [{ price: currentPrice, date: new Date() }]
-
-      });
-
-      await product.save();
-
-      // Add product to user's tracked products
-
-      const user = await User.findOne({ chatId: ctx.chat.id });
-
-      if (user && !user.products.includes(product._id)) {
-
-        user.products.push(product._id);
-
-        await user.save();
-
-      }
-
-      ctx.reply(ctx.i18n('addedPercentage', { name, percentage }));
-
-    } else {
-
-      const existingTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-
-      if (!existingTracker) {
-
-        product.trackedBy.push({ chatId: ctx.chat.id, muteUntil: null, lastAlertedAt: null, alertType: 'percentage_drop', percentageThreshold: percentage });
-
-        await product.save();
-
-        // Add product to user's tracked products
-
-        const user = await User.findOne({ chatId: ctx.chat.id });
-
-        if (user && !user.products.includes(product._id)) {
-
-          user.products.push(product._id);
-
-          await user.save();
-
+        // Parse and validate URL first
+        const parsedUrl = parseAmazonUrl(url);
+        if (!parsedUrl) {
+          return await ctx.reply('Please provide a valid Amazon product URL.');
         }
 
-        ctx.reply(ctx.i18n('addedPercentage', { name, percentage }));
+        // Then resolve it (handle redirects etc)
+        const { resolvedUrl, asin } = await resolveAmazonUrl(parsedUrl.url);
+        if (!asin) {
+          return await ctx.reply('Please provide a valid Amazon product URL.');
+        }
 
-      } else {
+        // Get product details
+        const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
+        const currentPrice = await getPrice(resolvedUrl).catch(() => 0);
 
-        ctx.reply(ctx.i18n('alreadyTracking', { name }));
+        if (currentPrice <= 0) {
+          return await ctx.reply('Unable to fetch the current price. Please try again later.');
+        }
 
+        // Add or update tracker
+        const { product, isNew } = await addPriceTracker({
+          asin,
+          url: resolvedUrl,
+          chatId: ctx.chat.id,
+          threshold: percentage,
+          currentPrice,
+          name,
+          isPercentage: true
+        });
+
+        const thresholdPrice = currentPrice * (1 - percentage / 100);
+        
+        const message = isNew 
+          ? `✅ Added price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
+            `Current Price: €${currentPrice.toFixed(2)}\n` +
+            `Alert at: ${percentage}% drop (€${thresholdPrice.toFixed(2)})`
+          : `✅ Updated price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
+            `Current Price: €${currentPrice.toFixed(2)}\n` +
+            `New alert: ${percentage}% drop (€${thresholdPrice.toFixed(2)})`;
+
+        await ctx.reply(message, { parse_mode: 'MarkdownV2' });
+      } catch (error) {
+        console.error('Error in add_percentage command:', error);
+        await ctx.reply('Error adding the product. Please try again.');
       }
-
-      const currentUserTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-
-      if (currentUserTracker) {
-
-        currentUserTracker.percentageThreshold = percentage;
-
-        currentUserTracker.alertType = 'percentage_drop';
-
-        // Recalculate thresholdPrice based on current price if alertType is percentage_drop
-
-        const latestPrice = product.priceHistory.length > 0 ? product.priceHistory.slice(-1)[0].price : 0;
-
-        currentUserTracker.thresholdPrice = latestPrice * (1 - percentage / 100);
-
-      }
-
-      product.name = name;
-
-      await product.save();
-
-      // Add product to user's tracked products if not already there (in case it was just updated)
-
-      const user = await User.findOne({ chatId: ctx.chat.id });
-
-      if (user && !user.products.includes(product._id)) {
-
-        user.products.push(product._id);
-
-        await user.save();
-
-      }
-
+    } catch (error) {
+      console.error('Unexpected error in add_percentage command:', error);
+      await ctx.reply('An unexpected error occurred. Please try again.');
     }
-
   });
-
 };

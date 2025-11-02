@@ -1,14 +1,17 @@
 // bot/commands/settings.js
-import { i18next } from '../config/i18n.js';
 
-export default (bot, i18next) => {
+export default (bot) => {
   bot.command('settings', (ctx) => {
-    ctx.reply(ctx.i18n('settingsMessage'), {
+    const message = '⚙️ Your Settings\n\n' +
+      'Use the buttons below to manage your notification preferences.';
+
+    ctx.reply(message, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: ctx.i18n('languageSetting'), callback_data: 'settings_language' }],
+          [{ text: '🔔 Notification Settings', callback_data: 'toggle_notifications' }],
         ],
       },
+      parse_mode: 'Markdown'
     });
   });
 };

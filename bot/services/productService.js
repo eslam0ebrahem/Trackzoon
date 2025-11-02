@@ -1,0 +1,168 @@
+import Product from '../models/Product.js';
+import { BotError, ErrorCodes } from '../utils/errorHandler.js';
+import { getProductName } from '../../src/lib/scraper/getProductName.js';
+import { getPrice } from '../../src/lib/scraper/getPrice.js';
+import { resolveAmazonUrl } from '../utils/url.js';
+
+export class ProductService {
+  static async addProduct(productUrl, chatId, threshold) {
+    try {
+      const { resolvedUrl, asin } = await resolveAmazonUrl(productUrl);
+      
+      if (!asin) {
+        throw new BotError('Invalid Amazon URL', ErrorCodes.INVALID_URL);
+      }
+
+      // Check if product exists and is already tracked by user
+      let product = await Product.findOne({ asin });
+      if (product) {
+        const isTracking = product.trackedBy.some(t => t.chatId === chatId);
+        if (isTracking) {
+          throw new BotError(
+            'Product already tracked',
+            ErrorCodes.PRODUCT_ALREADY_TRACKED,
+            'You are already tracking this product'
+          );
+        }
+      }
+
+      // Product doesn't exist or not tracked by user
+      if (!product) {
+        const [name, currentPrice] = await Promise.all([
+          getProductName(resolvedUrl),
+          getPrice(resolvedUrl)
+        ]);
+
+        product = new Product({
+          asin,
+          name,
+          url: resolvedUrl,
+          currentPrice,
+          priceHistory: [{ price: currentPrice, date: new Date() }],
+          trackedBy: [{ chatId, thresholdPrice: threshold }]
+        });
+      } else {
+        product.trackedBy.push({ chatId, thresholdPrice: threshold });
+      }
+
+      await product.save();
+      return product;
+
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+      
+      console.error('Error adding product:', error);
+      throw new BotError(
+        'Failed to add product',
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to add the product. Please try again later.'
+      );
+    }
+  }
+
+  static async removeProduct(asin, chatId) {
+    try {
+      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
+      if (!product) {
+        throw new BotError(
+          'Product not found',
+          ErrorCodes.PRODUCT_NOT_FOUND,
+          'Product not found or not tracked by you'
+        );
+      }
+
+      product.trackedBy = product.trackedBy.filter(t => t.chatId !== chatId);
+      
+      if (product.trackedBy.length === 0) {
+        await Product.deleteOne({ _id: product._id });
+      } else {
+        await product.save();
+      }
+
+      return product;
+
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+      
+      console.error('Error removing product:', error);
+      throw new BotError(
+        'Failed to remove product',
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to remove the product. Please try again later.'
+      );
+    }
+  }
+
+  static async updateThreshold(asin, chatId, newThreshold) {
+    try {
+      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
+      if (!product) {
+        throw new BotError(
+          'Product not found',
+          ErrorCodes.PRODUCT_NOT_FOUND,
+          'Product not found or not tracked by you'
+        );
+      }
+
+      const tracker = product.trackedBy.find(t => t.chatId === chatId);
+      if (!tracker) {
+        throw new BotError(
+          'Product not tracked',
+          ErrorCodes.PRODUCT_NOT_FOUND,
+          'You are not tracking this product'
+        );
+      }
+
+      tracker.thresholdPrice = newThreshold;
+      await product.save();
+      
+      return product;
+
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+      
+      console.error('Error updating threshold:', error);
+      throw new BotError(
+        'Failed to update threshold',
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to update the threshold. Please try again later.'
+      );
+    }
+  }
+
+  static async getUserProducts(chatId) {
+    try {
+      return await Product.find({ 'trackedBy.chatId': chatId });
+    } catch (error) {
+      console.error('Error fetching user products:', error);
+      throw new BotError(
+        'Failed to fetch products',
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to fetch your products. Please try again later.'
+      );
+    }
+  }
+
+  static async getProduct(asin, chatId) {
+    try {
+      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
+      if (!product) {
+        throw new BotError(
+          'Product not found',
+          ErrorCodes.PRODUCT_NOT_FOUND,
+          'Product not found or not tracked by you'
+        );
+      }
+      return product;
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+      
+      console.error('Error fetching product:', error);
+      throw new BotError(
+        'Failed to fetch product',
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to fetch the product. Please try again later.'
+      );
+    }
+  }
+}

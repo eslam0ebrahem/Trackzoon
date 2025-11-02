@@ -1,29 +1,58 @@
-// src/index.js
 import { initializeConfig } from './config/init.js';
+import commands from './commands/commandList.js';
+import initializeBot from './core/bot.js';
+import registerHandlers from './handlers.js';
+import startScheduler from './scheduler/index.js';
+import { attachUser, attachState, errorHandler, timeoutHandler } from './middleware/index.js';
+import { stateManager } from './utils/stateManager.js';
+
+// Initialize configurations
 initializeConfig();
 
-import commands from './commands/commandList.js';
-
-import initializeBot from './core/bot.js';
+// Initialize the bot
 const bot = initializeBot(commands);
 
-import registerHandlers from './handlers.js';
+// Register global middleware
+bot.use(errorHandler);
+bot.use(timeoutHandler);
+bot.use(attachUser);
+bot.use(attachState);
+
+// Register command and action handlers
 registerHandlers(bot);
 
-import startScheduler from './scheduler/index.js';
+// Start the scheduler
 startScheduler(bot);
 
+// Handle state timeouts
+stateManager.on('stateTimeout', async ({ chatId, state }) => {
+  try {
+    await bot.telegram.sendMessage(
+      chatId,
+      'Your session has timed out. Please start over.',
+      { parse_mode: 'MarkdownV2' }
+    );
+  } catch (error) {
+    console.error('Error sending timeout message:', error);
+  }
+});
+
 // Launch the bot
-console.log('Attempting to launch bot...');
-bot.launch();
-
-// Enable graceful stop
-process.once('SIGINT', () => {
-  console.log('Received SIGINT. Stopping bot...');
-  bot.stop('SIGINT');
+console.log('Launching Trackzoon bot...');
+bot.launch().then(() => {
+  console.log('Bot successfully launched!');
+}).catch(error => {
+  console.error('Failed to launch bot:', error);
+  process.exit(1);
 });
 
-process.once('SIGTERM', () => {
-  console.log('Received SIGTERM. Stopping bot...');
-  bot.stop('SIGTERM');
-});
+// Enable graceful shutdown
+const shutdown = (signal) => {
+  console.log(`Received ${signal}. Stopping bot...`);
+  bot.stop(signal);
+  stateManager.clearAllStates?.();
+  process.exit(0);
+};
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));

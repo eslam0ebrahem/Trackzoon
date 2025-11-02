@@ -5,18 +5,100 @@ import axios from 'axios';
  * @param {string} url - The URL to resolve.
  * @returns {Promise<{resolvedUrl: string, asin: string|null}>} The resolved URL and ASIN.
  */
-async function resolveAmazonUrl(url) {
-  let resolvedUrl = url;
-  if (url.includes('amzn.eu') || url.includes('amzn.to')) {
-    const res = await axios.get(url);
-    resolvedUrl = res.request.res.responseUrl;
+export async function resolveAmazonUrl(url) {
+  try {
+    console.log('\nProcessing URL:', url);
+
+    // Clean the URL first
+    let cleanUrl = url.trim();
+    console.log('Cleaned URL:', cleanUrl);
+    
+    // Handle mobile URLs
+    if (cleanUrl.startsWith('m.')) {
+      cleanUrl = cleanUrl.replace('m.', 'www.');
+    }
+
+    // Add https if protocol is missing
+    if (!cleanUrl.startsWith('http')) {
+      cleanUrl = 'https://' + cleanUrl;
+    }
+    console.log('Normalized URL:', cleanUrl);
+
+    // For amzn.eu URLs, handle directly without resolving
+    const shortCodeMatch = cleanUrl.match(/amzn\.eu\/d\/([a-zA-Z0-9]{10})/i);
+    if (shortCodeMatch) {
+      const shortCode = shortCodeMatch[1].toUpperCase();
+      console.log('Found Amazon short code:', shortCode);
+      return {
+        resolvedUrl: cleanUrl,
+        asin: shortCode
+      };
+    }
+
+    // For standard URLs, try to extract ASIN
+    const standardPatterns = [
+      /(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})/i,  // Standard product URLs
+      /\/([A-Z0-9]{10})(?:\/|\?|$)/i,                   // URLs ending with ASIN
+    ];
+
+    for (const pattern of standardPatterns) {
+      const match = cleanUrl.match(pattern);
+      if (match && match[1].length === 10) {
+        const asin = match[1].toUpperCase();
+        console.log('Found standard ASIN:', asin);
+        return {
+          resolvedUrl: cleanUrl,
+          asin: asin
+        };
+      }
+    }
+
+    // If no patterns matched, try to resolve shortened URL
+    if (cleanUrl.includes('amzn.') || cleanUrl.includes('amazon.')) {
+      try {
+        console.log('Attempting to resolve URL...');
+        const res = await axios.get(cleanUrl, {
+          maxRedirects: 5,
+          timeout: 5000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+          },
+          validateStatus: function (status) {
+            return status >= 200 && status < 400;
+          }
+        });
+        
+        const resolvedUrl = res.request.res.responseUrl;
+        console.log('Resolved to:', resolvedUrl);
+
+        // Try to extract ASIN from resolved URL
+        for (const pattern of standardPatterns) {
+          const match = resolvedUrl.match(pattern);
+          if (match && match[1].length === 10) {
+            const asin = match[1].toUpperCase();
+            console.log('Found ASIN from resolved URL:', asin);
+            return {
+              resolvedUrl: resolvedUrl,
+              asin: asin
+            };
+          }
+        }
+      } catch (error) {
+        console.log('Failed to resolve URL:', error.message);
+      }
+    }
+
+    // If we got here, we couldn't find a valid ASIN
+    console.log('No valid ASIN found');
+    return {
+      resolvedUrl: cleanUrl,
+      asin: null
+    };
+  } catch (error) {
+    console.error('Error in resolveAmazonUrl:', error);
+    return {
+      resolvedUrl: url,
+      asin: null
+    };
   }
-
-  // Extract ASIN from the resolved URL
-  const asinMatch = resolvedUrl.match(/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
-  const asin = asinMatch ? asinMatch[1] : null;
-
-  return { resolvedUrl, asin };
 }
-
-export { resolveAmazonUrl };
