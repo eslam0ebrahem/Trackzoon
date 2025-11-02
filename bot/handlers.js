@@ -28,6 +28,7 @@ import User from './models/User.js'; // Keep for the text handler
 import axios from 'axios';
 import { getProductName } from '../src/lib/scraper/getProductName.js';
 import { getPrice } from '../src/lib/scraper/getPrice.js';
+import { resolveAmazonUrl } from './utils/url.js';
 
 const settingThreshold = new Map(); // To store asin for chatIds that are setting a threshold
 const addingProductState = new Map(); // To store state for chatIds that are adding a product
@@ -91,13 +92,27 @@ const registerHandlers = (bot) => {
 
       if (state.step === 'waiting_for_url') {
         const productUrl = ctx.message.text;
-        if (!productUrl || (!productUrl.includes('amazon.eg') && !productUrl.includes('amazon.com'))) {
+        if (!productUrl) {
+          return ctx.reply(ctx.i18n('promptForUrl'));
+        }
+
+        try {
+          await ctx.reply(ctx.i18n('processing'));
+          const { resolvedUrl, asin } = await resolveAmazonUrl(productUrl);
+
+          if (!asin) {
+            return ctx.reply(ctx.i18n('invalidUrl'));
+          }
+
+          state.data.productUrl = resolvedUrl;
+          state.data.asin = asin;
+          state.step = 'waiting_for_threshold';
+          addingProductState.set(chatId, state);
+          return ctx.reply(ctx.i18n('promptForThreshold'));
+        } catch (error) {
+          console.error('Error resolving URL:', error);
           return ctx.reply(ctx.i18n('invalidUrl'));
         }
-        state.data.productUrl = productUrl;
-        state.step = 'waiting_for_threshold';
-        addingProductState.set(chatId, state);
-        return ctx.reply(ctx.i18n('promptForThreshold'));
       } else if (state.step === 'waiting_for_threshold') {
         const thresholdStr = ctx.message.text;
         const threshold = parseFloat(thresholdStr);
@@ -107,26 +122,13 @@ const registerHandlers = (bot) => {
         }
 
         const productUrl = state.data.productUrl;
+        const asin = state.data.asin;
         addingProductState.delete(chatId); // Clear state
 
         try {
           await ctx.reply(ctx.i18n('processing'));
-          const asinMatch = productUrl.match(/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
-          let asin = asinMatch ? asinMatch[1] : null;
 
-          if (!asin) {
-            const response = await axios.get(productUrl);
-            const finalUrl = response.request.res.responseUrl;
-            const finalAsinMatch = finalUrl.match(/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
-            if (finalAsinMatch) {
-              asin = finalAsinMatch[1];
-            }
-          }
-
-          if (!asin) {
-            return ctx.reply(ctx.i18n('invalidUrl'));
-          }
-
+          // ASIN is already extracted in the previous step
           let product = await Product.findOne({ asin });
 
           if (product) {
