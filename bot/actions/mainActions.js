@@ -1,4 +1,4 @@
-import { mainKeyboard } from '../utils/keyboards/mainKeyboard.js';
+import { mainKeyboard, backToMainKeyboard } from '../utils/keyboards/mainKeyboard.js';
 import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
 export default (bot) => {
@@ -28,31 +28,34 @@ export default (bot) => {
   // Help action
   bot.action('action_help', async (ctx) => {
     try {
-      const message = escapeMarkdownV2([
-        '📚 *Help & Features*',
+      const helpMessage = escapeMarkdownV2([
+        '📚 *Available Commands*',
         '',
-        '1️⃣ *Track Products*',
-        '• Send Amazon product URL',
-        '• Set your desired price',
-        '• Get instant alerts',
+        '🔰 *Basic Commands:*',
+        '/start \\- Start the bot and see welcome message',
+        '/help \\- Show this help message',
+        '/settings \\- Configure your preferences',
         '',
-        '2️⃣ *Manage Tracking*',
-        '• View tracked products',
-        '• Update price thresholds',
-        '• Mute/unmute alerts',
+        '📦 *Product Management:*',
+        '/add <URL> <price> \\- Add a new product to track',
+        '/list \\- View all tracked products',
+        '/removeone <ASIN or name> \\- Remove a tracked product',
+        '/updateprice <ASIN or name> <new_price> \\- Update a product\'s alert price',
         '',
-        '3️⃣ *Price Analytics*',
-        '• View price history',
-        '• Check statistics',
-        '• Get insights',
-        '',
-        'Need more help? Send us a message at @trackzoon\\_support'
+        '💡 *Pro Tips:*',
+        '• Send an Amazon link directly to add a product',
+        '• Use inline buttons for quick actions',
+        '• Check /list regularly for price updates'
       ].join('\n'));
 
-      await ctx.editMessageText(message, {
-        parse_mode: 'MarkdownV2',
-        ...mainKeyboard()
-      });
+      if (ctx.update.callback_query.message.text !== helpMessage) {
+        await ctx.editMessageText(helpMessage, {
+          parse_mode: 'MarkdownV2',
+          ...backToMainKeyboard()
+        });
+      } else {
+        await ctx.answerCbQuery('You are already on the help page.');
+      }
     } catch (error) {
       console.error('Error in help action:', error);
       await ctx.answerCbQuery('⚠️ Error showing help. Please try again.');

@@ -4,6 +4,8 @@ import { stateManager, BotStates } from './utils/stateManager.js';
 import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
 import { BotError, ErrorCodes, handleError } from './utils/errorHandler.js';
 import { resolveAmazonUrl } from './utils/url.js';
+import { getProductName } from '../src/lib/scraper/getProductName.js';
+import { getPrice } from '../src/lib/scraper/getPrice.js';
 import { escapeMarkdownV2, buildProductListMessage, formatProductDetails } from './utils/messageHelper.js';
 import { Messages } from './utils/messages.js';
 import { Markup } from 'telegraf';
@@ -44,22 +46,18 @@ const registerHandlers = (bot) => {
       const helpMessage = escapeMarkdownV2([
         '📚 *Available Commands*',
         '',
-        '🔰 Basic Commands:',
+        '🔰 *Basic Commands:*',
         '/start \\- Start the bot and see welcome message',
         '/help \\- Show this help message',
         '/settings \\- Configure your preferences',
         '',
-        '📦 Product Management:',
-        '/add \\- Add a new product to track',
+        '📦 *Product Management:*',
+        '/add <URL> <price> \\- Add a new product to track',
         '/list \\- View all tracked products',
-        '/view \\- View details of a specific product',
-        '/remove \\- Stop tracking a product',
+        '/removeone <ASIN or name> \\- Remove a tracked product',
+        '/updateprice <ASIN or name> <new_price> \\- Update a product\'s alert price',
         '',
-        '⚡️ Price Alerts:',
-        '/setthreshold \\- Set price alert threshold',
-        '/history \\- View price history',
-        '',
-        '💡 Pro Tips:',
+        '💡 *Pro Tips:*',
         '• Send an Amazon link directly to add a product',
         '• Use inline buttons for quick actions',
         '• Check /list regularly for price updates'
@@ -67,7 +65,7 @@ const registerHandlers = (bot) => {
 
       await ctx.reply(helpMessage, {
         parse_mode: 'MarkdownV2',
-        reply_markup: ProductKeyboards.mainMenu()
+        ...mainKeyboard()
       });
     } catch (error) {
       handleError(ctx, error);
@@ -77,31 +75,81 @@ const registerHandlers = (bot) => {
   // Add product command and flow
   bot.command('add', async (ctx) => {
     try {
-      stateManager.setState(ctx.chat.id, BotStates.WAITING_FOR_URL);
+      const parts = ctx.message.text.split(' ');
+      if (parts.length < 3) {
+        stateManager.setState(ctx.chat.id, BotStates.WAITING_FOR_URL);
+        return await ctx.reply(
+          'Please provide the Amazon product URL and your desired price alert threshold\\.\n\n' +
+          'Usage: /add <Amazon URL> <price threshold>\n' +
+          'Example: /add https://amazon\\.com/dp/XXXXXX 299\\.99',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
 
-      const message = escapeMarkdownV2([
-        '🛍️ *Add a Product to Track*',
-        '',
-        'Please send me the Amazon product URL you want to track\\.',
-        '',
-        '💡 Tips:',
-        '• Make sure it\'s a valid Amazon product URL',
-        '• You can copy the URL directly from your browser',
-        '• The URL should contain a product ID \\(ASIN\\)',
-        '',
-        '📝 Example:',
-        'https://www\\.amazon\\.eg/dp/B08N5XSG8Z'
-      ].join('\n'));
+      let [, url, thresholdStr] = parts;
+      const threshold = parseFloat(thresholdStr);
+      if (isNaN(threshold) || threshold <= 0) {
+        return await ctx.reply(
+          'Please provide a valid price threshold \\(a positive number\\)\\.',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
 
-      await ctx.reply(message, {
-        parse_mode: 'MarkdownV2',
-        reply_markup: Markup.inlineKeyboard([[
-        Markup.button.callback('🔙 Back to Main Menu', 'action_main_menu')
-      ]]),
-        disable_web_page_preview: true
-      });
+      await ctx.reply(
+        'Processing your request\\.\\.\\.',
+        { parse_mode: 'MarkdownV2' }
+      );
+
+      try {
+        // Clean and validate URL
+        const { resolvedUrl, asin } = await resolveAmazonUrl(url);
+        if (!asin) {
+          return await ctx.reply(
+            'Please provide a valid Amazon product URL\\.',
+            { parse_mode: 'MarkdownV2' }
+          );
+        }
+
+        // Get product details
+        const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
+        const currentPrice = await getPrice(resolvedUrl).catch(() => 0);
+
+        if (currentPrice <= 0) {
+          return await ctx.reply(
+            'Unable to fetch the current price\\. Please try again later\\.',
+            { parse_mode: 'MarkdownV2' }
+          );
+        }
+
+        // Add or update tracker
+        const { product, isNew } = await ProductService.addProduct(resolvedUrl, ctx.chat.id, threshold);
+
+        // Show confirmation with current price context
+        const message = isNew
+          ? `✅ Added price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
+            `Current Price: £${currentPrice.toFixed(2)}\n` +
+            `Alert Price: £${threshold.toFixed(2)}`
+          : `✅ Updated price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
+            `Current Price: £${currentPrice.toFixed(2)}\n` +
+            `New Alert Price: £${threshold.toFixed(2)}`;
+
+        await ctx.reply(
+          escapeMarkdownV2(message),
+          { parse_mode: 'MarkdownV2' }
+        );
+      } catch (error) {
+        console.error('Error in add command:', error);
+        await ctx.reply(
+          'Error adding the product\\. Please try again\\.',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
     } catch (error) {
-      handleError(ctx, error);
+      console.error('Unexpected error in add command:', error);
+      await ctx.reply(
+        'An unexpected error occurred\\. Please try again\\.',
+        { parse_mode: 'MarkdownV2' }
+      );
     }
   });
 
@@ -113,7 +161,7 @@ const registerHandlers = (bot) => {
 
       await ctx.reply(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: ProductKeyboards.mainMenu(),
+        ...mainKeyboard(),
         disable_web_page_preview: true
       });
     } catch (error) {
@@ -129,10 +177,58 @@ const registerHandlers = (bot) => {
 
       await ctx.reply(message, {
         parse_mode: 'MarkdownV2',
-        reply_markup: Markup.inlineKeyboard([
-        [Markup.button.callback('⚙️ Settings', 'action_settings')]
-      ])
+        reply_markup: Markup.inlineKeyboard([[
+        Markup.button.callback('⚙️ Settings', 'action_settings')]])
       });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  bot.command('removeone', async (ctx) => {
+    try {
+      const identifier = ctx.message.text.split(' ').slice(1).join(' ');
+      if (!identifier) {
+        return await ctx.reply('Please provide a product ASIN or name to remove.');
+      }
+
+      const products = await ProductService.getUserProducts(ctx.chat.id);
+      const product = products.find(p => p.asin === identifier || p.name.toLowerCase().includes(identifier.toLowerCase()));
+
+      if (!product) {
+        return await ctx.reply(`Could not find a product matching "${identifier}".`);
+      }
+
+      await ProductService.removeProduct(product.asin, ctx.chat.id);
+      await ctx.reply(`Successfully removed ${product.name}.`);
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  bot.command('updateprice', async (ctx) => {
+    try {
+      const parts = ctx.message.text.split(' ');
+      if (parts.length < 3) {
+        return await ctx.reply('Usage: /updateprice <ASIN or name> <new_price>');
+      }
+
+      const newPrice = parseFloat(parts.pop());
+      const identifier = parts.slice(1).join(' ');
+
+      if (isNaN(newPrice) || newPrice <= 0) {
+        return await ctx.reply('Please provide a valid price.');
+      }
+
+      const products = await ProductService.getUserProducts(ctx.chat.id);
+      const product = products.find(p => p.asin === identifier || p.name.toLowerCase().includes(identifier.toLowerCase()));
+
+      if (!product) {
+        return await ctx.reply(`Could not find a product matching "${identifier}".`);
+      }
+
+      await ProductService.updateThreshold(product.asin, ctx.chat.id, newPrice);
+      await ctx.reply(`Successfully updated the alert price for ${product.name} to £${newPrice.toFixed(2)}.`);
     } catch (error) {
       handleError(ctx, error);
     }
@@ -146,7 +242,7 @@ const registerHandlers = (bot) => {
       if (!state) {
         return await ctx.reply('❓ I don\'t understand that command\\. Use /help to see available commands\\.', {
           parse_mode: 'MarkdownV2',
-          reply_markup: ProductKeyboards.mainMenu(ctx)
+          ...mainKeyboard()
         });
       }
 
