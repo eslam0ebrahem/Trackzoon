@@ -6,20 +6,12 @@ import User from '../models/User.js';
 import { getProductName } from '../../src/lib/scraper/getProductName.js';
 import { getPrice } from '../../src/lib/scraper/getPrice.js';
 
-export default (bot, i18next) => {
+export default (bot, i18next, addingProductState) => {
   bot.command('add', async (ctx) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 3) {
-      // Initiate step-by-step add process
-      const user = await User.findOne({ chatId: ctx.chat.id });
-      if (user) {
-        user.state = { command: 'add', step: 'waitingForUrl' };
-        await user.save();
-        return ctx.reply(i18next.t('promptForUrl'));
-      } else {
-        // This case should ideally not happen if user interacts with bot
-        return ctx.reply(i18next.t('addUsage'));
-      }
+      addingProductState.set(ctx.chat.id, { step: 'waiting_for_url', data: {} });
+      return ctx.reply(i18next.t('promptForUrl'));
     }
     let [, url, thresholdStr] = parts;
 

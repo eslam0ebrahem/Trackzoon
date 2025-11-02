@@ -1,13 +1,13 @@
 // bot/commands/start.js
 
-export default (bot, i18next) => {
+export default (bot) => {
   bot.start((ctx) => {
-    ctx.reply(i18next.t('startMessage'), {
+    ctx.reply(ctx.i18n('startMessage'), {
       reply_markup: {
         inline_keyboard: [
-          [{ text: i18next.t('addCommand'), callback_data: 'add_product' }],
-          [{ text: i18next.t('listCommand'), callback_data: 'list_products' }],
-          [{ text: i18next.t('helpCommand'), callback_data: 'show_help' }],
+          [{ text: ctx.i18n('addCommand'), callback_data: 'add_product' }],
+          [{ text: ctx.i18n('listCommand'), callback_data: 'list_products' }],
+          [{ text: ctx.i18n('helpCommand'), callback_data: 'show_help' }],
         ],
       },
     });

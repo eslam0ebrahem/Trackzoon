@@ -21,6 +21,10 @@ export default (bot, i18next) => {
                   { text: i18next.t('viewProduct'), callback_data: `view_${p.asin}` },
                   { text: i18next.t('removeProduct'), callback_data: `remove_${p.asin}` },
                 ],
+                [
+                  { text: i18next.t('historyProduct'), callback_data: `history_${p.asin}` },
+                  { text: i18next.t('setThreshold'), callback_data: `setthreshold_${p.asin}` },
+                ],
               ],
             },
           });

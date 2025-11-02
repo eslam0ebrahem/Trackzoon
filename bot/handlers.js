@@ -25,60 +25,164 @@ import registerSetLangAction from './actions/set_lang_action.js';
 
 import Product from './models/Product.js'; // Keep for the text handler
 import User from './models/User.js'; // Keep for the text handler
+import axios from 'axios';
+import { getProductName } from '../src/lib/scraper/getProductName.js';
+import { getPrice } from '../src/lib/scraper/getPrice.js';
 
 const settingThreshold = new Map(); // To store asin for chatIds that are setting a threshold
+const addingProductState = new Map(); // To store state for chatIds that are adding a product
 
 const registerHandlers = (bot) => {
-  registerStartCommand(bot, i18next);
-  registerAddCommand(bot, i18next);
-  registerAddPercentageCommand(bot, i18next);
-  registerRemoveCommand(bot, i18next);
-  registerListCommand(bot, i18next);
-  registerViewCommand(bot, i18next);
-  registerHistoryCommand(bot, i18next);
-  registerSetThresholdCommand(bot, i18next);
-  registerLangCommand(bot, i18next);
-  registerSettingsCommand(bot, i18next);
-  registerHelpCommand(bot, i18next);
+  registerStartCommand(bot);
+  registerAddCommand(bot, addingProductState);
+  registerAddPercentageCommand(bot);
+  registerRemoveCommand(bot);
+  registerListCommand(bot);
+  registerViewCommand(bot);
+  registerHistoryCommand(bot);
+  registerSetThresholdCommand(bot);
+  registerLangCommand(bot);
+  registerSettingsCommand(bot);
+  registerHelpCommand(bot);
 
-  registerAddProductAction(bot, i18next);
-  registerListProductsAction(bot, i18next);
-  registerShowHelpAction(bot, i18next);
-  registerRemoveProductAction(bot, i18next);
-  registerCancelRemoveAction(bot, i18next);
-  registerViewProductAction(bot, i18next);
-  registerHistoryAction(bot, i18next);
-  registerSetThresholdAction(bot, i18next, settingThreshold);
-  registerSettingsLanguageAction(bot, i18next);
-  registerSetLangAction(bot, i18next);
+  registerAddProductAction(bot, addingProductState);
+  registerListProductsAction(bot);
+  registerShowHelpAction(bot);
+  registerRemoveProductAction(bot);
+  registerCancelRemoveAction(bot);
+  registerViewProductAction(bot);
+  registerHistoryAction(bot);
+  registerSetThresholdAction(bot, settingThreshold);
+  registerSettingsLanguageAction(bot);
+  registerSetLangAction(bot);
+
+  bot.action(/setthreshold_value_(.+?)_(.+)/, async (ctx) => {
+    const asin = ctx.match[1];
+    const newThreshold = parseFloat(ctx.match[2]);
+
+    const product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
+
+    if (!product) {
+      return ctx.editMessageText(ctx.i18n('productNotFoundOrNotTracked'));
+    }
+
+    const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+    if (tracker) {
+      tracker.thresholdPrice = newThreshold;
+      await product.save();
+      ctx.editMessageText(ctx.i18n('thresholdUpdated', { name: product.name, threshold: newThreshold }));
+    } else {
+      ctx.editMessageText(ctx.i18n('productNotFoundOrNotTracked'));
+    }
+    ctx.editMessageReplyMarkup({}); // Remove inline keyboard
+  });
+
+  bot.action(/setthreshold_custom_(.+)/, async (ctx) => {
+    const asin = ctx.match[1];
+    settingThreshold.set(ctx.chat.id, asin);
+    ctx.editMessageText(ctx.i18n('promptNewThreshold'), { reply_markup: { remove_keyboard: true } });
+  });
 
   bot.on('text', async (ctx) => {
-    if (settingThreshold.has(ctx.chat.id)) {
-      const asin = settingThreshold.get(ctx.chat.id);
+    const chatId = ctx.chat.id;
+
+    if (addingProductState.has(chatId)) {
+      const state = addingProductState.get(chatId);
+
+      if (state.step === 'waiting_for_url') {
+        const productUrl = ctx.message.text;
+        if (!productUrl || (!productUrl.includes('amazon.eg') && !productUrl.includes('amazon.com'))) {
+          return ctx.reply(ctx.i18n('invalidUrl'));
+        }
+        state.data.productUrl = productUrl;
+        state.step = 'waiting_for_threshold';
+        addingProductState.set(chatId, state);
+        return ctx.reply(ctx.i18n('promptForThreshold'));
+      } else if (state.step === 'waiting_for_threshold') {
+        const thresholdStr = ctx.message.text;
+        const threshold = parseFloat(thresholdStr);
+
+        if (isNaN(threshold) || threshold <= 0) {
+          return ctx.reply(ctx.i18n('invalidThreshold'));
+        }
+
+        const productUrl = state.data.productUrl;
+        addingProductState.delete(chatId); // Clear state
+
+        try {
+          await ctx.reply(ctx.i18n('processing'));
+          const asinMatch = productUrl.match(/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
+          let asin = asinMatch ? asinMatch[1] : null;
+
+          if (!asin) {
+            const response = await axios.get(productUrl);
+            const finalUrl = response.request.res.responseUrl;
+            const finalAsinMatch = finalUrl.match(/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
+            if (finalAsinMatch) {
+              asin = finalAsinMatch[1];
+            }
+          }
+
+          if (!asin) {
+            return ctx.reply(ctx.i18n('invalidUrl'));
+          }
+
+          let product = await Product.findOne({ asin });
+
+          if (product) {
+            const isTracking = product.trackedBy.some(t => t.chatId === chatId);
+            if (isTracking) {
+              return ctx.reply(ctx.i18n('alreadyTracking', { name: product.name }));
+            }
+            product.trackedBy.push({ chatId, thresholdPrice: threshold });
+            await product.save();
+          } else {
+            const name = await getProductName(productUrl);
+            const currentPrice = await getPrice(productUrl);
+
+            product = new Product({
+              asin,
+              name,
+              url: productUrl,
+              currentPrice,
+              priceHistory: [{ price: currentPrice, date: new Date() }],
+              trackedBy: [{ chatId, thresholdPrice: threshold }],
+            });
+            await product.save();
+          }
+          return ctx.reply(ctx.i18n('added', { name: product.name, threshold }));
+
+        } catch (error) {
+          console.error('Error adding product:', error);
+          return ctx.reply(ctx.i18n('errorAddingProduct'));
+        }
+      }
+    } else if (settingThreshold.has(chatId)) {
+      const asin = settingThreshold.get(chatId);
       const newThresholdStr = ctx.message.text;
       const newThreshold = parseFloat(newThresholdStr);
 
       if (isNaN(newThreshold) || newThreshold <= 0) {
-        settingThreshold.delete(ctx.chat.id);
-        return ctx.reply(i18next.t('invalidThreshold'));
+        settingThreshold.delete(chatId);
+        return ctx.reply(ctx.i18n('invalidThreshold'));
       }
 
-      const product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
+      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
 
       if (!product) {
-        settingThreshold.delete(ctx.chat.id);
-        return ctx.reply(i18next.t('productNotFoundOrNotTracked'));
+        settingThreshold.delete(chatId);
+        return ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
       }
 
-      const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+      const tracker = product.trackedBy.find(t => t.chatId === chatId);
       if (tracker) {
         tracker.thresholdPrice = newThreshold;
         await product.save();
-        ctx.reply(i18next.t('thresholdUpdated', { name: product.name, threshold: newThreshold }));
+        ctx.reply(ctx.i18n('thresholdUpdated', { name: product.name, threshold: newThreshold }));
       } else {
-        ctx.reply(i18next.t('productNotFoundOrNotTracked'));
+        ctx.reply(ctx.i18n('productNotFoundOrNotTracked'));
       }
-      settingThreshold.delete(ctx.chat.id);
+      settingThreshold.delete(chatId);
     }
   });
 };

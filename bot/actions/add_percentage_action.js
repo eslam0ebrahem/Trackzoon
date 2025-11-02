@@ -1,12 +1,11 @@
 // bot/actions/add_percentage_action.js
-import { i18next } from '../config/init.js';
 import { resolveAmazonUrl } from '../utils/url.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
 import { getProductName } from '../../src/lib/scraper/getProductName.js';
 import { getPrice } from '../../src/lib/scraper/getPrice.js';
 
-export default (bot, i18next) => {
+export default (bot) => {
   bot.action('add_percentage_action', async (ctx) => {
     // This action will likely be triggered by an inline keyboard button.
     // The URL and percentage will need to be passed as part of the callback_data
@@ -17,16 +16,16 @@ export default (bot, i18next) => {
     // For simplicity, let's assume the callback_data is 'add_percentage_action:url:percentage'
     const parts = ctx.match.input.split(':');
     if (parts.length < 3) {
-      return ctx.reply(i18next.t('addPercentageUsage'));
+      return ctx.reply(ctx.i18n('addPercentageUsage'));
     }
     let [, , url, percentageStr] = parts;
 
     const percentage = parseFloat(percentageStr);
     if (isNaN(percentage) || percentage <= 0 || percentage > 100) {
-      return ctx.reply(i18next.t('invalidPercentage'));
+      return ctx.reply(ctx.i18n('invalidPercentage'));
     }
 
-    ctx.reply(i18next.t('processing'));
+    ctx.reply(ctx.i18n('processing'));
 
     const markdownLinkMatch = url.match(/\[.*\]\((.*?)\)/);
     if (markdownLinkMatch && markdownLinkMatch[1]) {
@@ -36,7 +35,7 @@ export default (bot, i18next) => {
     url = await resolveAmazonUrl(url);
 
     const asinMatch = url.match(/dp\/([A-Za-z0-9]{10})/);
-    if (!asinMatch) return ctx.reply(i18next.t('invalidUrl'));
+    if (!asinMatch) return ctx.reply(ctx.i18n('invalidUrl'));
 
     const asin = asinMatch[1];
     let product = await Product.findOne({ asin });
@@ -71,7 +70,7 @@ export default (bot, i18next) => {
         user.products.push(product._id);
         await user.save();
       }
-      ctx.reply(i18next.t('addedPercentage', { name, percentage }));
+      ctx.reply(ctx.i18n('addedPercentage', { name, percentage }));
     } else {
       const existingTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
       if (!existingTracker) {
@@ -80,12 +79,11 @@ export default (bot, i18next) => {
         // Add product to user's tracked products
         const user = await User.findOne({ chatId: ctx.chat.id });
         if (user && !user.products.includes(product._id)) {
-          user.products.push(product._id);
-          await user.save();
-        }
-        ctx.reply(i18next.t('addedPercentage', { name, percentage }));
-      } else {
-        ctx.reply(i18next.t('alreadyTracking', { name }));
+                  user.products.push(product._id);
+                  await user.save();
+                }
+                ctx.reply(ctx.i18n('addedPercentage', { name, percentage }));      } else {
+        ctx.reply(ctx.i18n('alreadyTracking', { name }));
       }
       const currentUserTracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
       if (currentUserTracker) {
