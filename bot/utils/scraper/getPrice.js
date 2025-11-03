@@ -57,46 +57,60 @@ async function getPrice(url) {
       throw new Error('Product is currently out of stock or unavailable');
     }
 
-    // Try multiple price selectors (Amazon uses different ones across regions)
+    // Priority-ordered selectors - MOST SPECIFIC FIRST to avoid related products
+    // These selectors target the main product price area only
     const selectors = [
-      // Common selectors
-      '.a-price .a-offscreen',
+      // Highest priority - Main product price containers
+      '#corePriceDisplay_desktop_feature_div .a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
+      '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen',
+      '#corePrice_feature_div .a-price .a-offscreen',
+      
+      // Price to pay (new Amazon layout)
+      '.priceToPay .a-offscreen',
+      'span.priceToPay .a-offscreen',
+      
+      // Buy box price
+      '#price_inside_buybox',
+      
+      // Deal/Sale prices (specific to main product)
       '#priceblock_dealprice',
       '#priceblock_ourprice',
       '#priceblock_saleprice',
-      '.a-price-whole',
       
-      // New Amazon layout
-      '.a-price[data-a-size="xl"] .a-offscreen',
-      '.a-price[data-a-size="l"] .a-offscreen',
-      '.a-price[data-a-color="price"] .a-offscreen',
-      
-      // Alternative selectors
-      '#corePrice_feature_div .a-offscreen',
-      '#corePriceDisplay_desktop_feature_div .a-offscreen',
-      '.priceToPay .a-offscreen',
-      'span.a-price-whole',
-      
-      // Fallback selectors
-      '[data-action="show-all-offers-display"] .a-offscreen',
-      '.reinventPricePriceToPayMargin .a-offscreen'
+      // Alternative main product selectors
+      '#apex_desktop .a-price .a-offscreen',
+      '.a-box-inner .a-price .a-offscreen',
     ];
 
     let priceText = null;
+    let foundSelector = null;
     
-    // Try each selector
+    // Try each selector in order
     for (const selector of selectors) {
       const element = $(selector).first();
       if (element.length && element.text().trim()) {
-        priceText = element.text().trim();
-        console.log(`Found price with selector: ${selector} - ${priceText}`);
-        break;
+        // Additional validation: make sure we're not in a "related products" section
+        const parent = element.closest('html').html();
+        const isInSimilarProducts = element.closest('#similarities_feature_div, #sims-fbt, #sp_detail, [data-feature-name="aplus"]').length > 0;
+        
+        if (!isInSimilarProducts) {
+          priceText = element.text().trim();
+          foundSelector = selector;
+          console.log(`Found price with selector: ${selector} - ${priceText}`);
+          break;
+        } else {
+          console.log(`Skipping price from related products section for selector: ${selector}`);
+        }
       }
     }
 
     if (!priceText) {
       console.error('Price not found with any selector');
-      throw new Error('Price not found!');
+      console.log('Available price elements on page:');
+      $('.a-price .a-offscreen').each((i, el) => {
+        console.log(`  ${i}: ${$(el).text().trim()}`);
+      });
+      throw new Error('Price not found - product may be unavailable or page structure changed');
     }
     
     // Clean and convert price string
@@ -119,7 +133,7 @@ async function getPrice(url) {
       throw new Error('Invalid price format');
     }
     
-    console.log(`Successfully extracted price: ${price}`);
+    console.log(`Successfully extracted price: ${price} (using selector: ${foundSelector})`);
     return price;
     
   } catch (error) {
