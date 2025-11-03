@@ -151,27 +151,25 @@ const registerHandlers = (bot) => {
         // Get product details
         const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
         let currentPrice;
+        let isOutOfStock = false;
         
         try {
           currentPrice = await getPrice(resolvedUrl);
         } catch (priceError) {
-          await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
-          
           // Check if it's an out-of-stock error
           if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
+            isOutOfStock = true;
+            currentPrice = threshold; // Use threshold as placeholder
+          } else {
+            await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
             return await ctx.reply(
-              escapeMarkdownV2('⚠️ This product is currently out of stock or unavailable. Please try again when it\'s back in stock.'),
+              escapeMarkdownV2('❌ Unable to fetch the current price. Please try again later.'),
               { parse_mode: 'MarkdownV2', ...mainKeyboard() }
             );
           }
-          
-          return await ctx.reply(
-            escapeMarkdownV2('❌ Unable to fetch the current price. Please try again later.'),
-            { parse_mode: 'MarkdownV2', ...mainKeyboard() }
-          );
         }
 
-        if (currentPrice <= 0) {
+        if (currentPrice <= 0 && !isOutOfStock) {
           await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
           return await ctx.reply(
             escapeMarkdownV2('❌ Unable to fetch the current price. Please try again later.'),
@@ -220,31 +218,51 @@ const registerHandlers = (bot) => {
           });
         }
 
-        // Calculate savings/difference
-        const difference = currentPrice - threshold;
-        const percentDiff = ((difference / threshold) * 100).toFixed(1);
+        // Calculate savings/difference or show out-of-stock message
+        let message;
         
-        // Show confirmation with current price context
-        const priceComparison = difference > 0 
-          ? `📈 *${escapeMarkdownV2(percentDiff)}% above your alert*`
-          : difference < 0
-          ? `🎉 *Already ${escapeMarkdownV2(Math.abs(percentDiff))}% below target\\!*`
-          : `✅ *Price matches your target\\!*`;
+        if (isOutOfStock) {
+          // Special message for out-of-stock products
+          message = [
+            isNew ? '✅ *Product Added Successfully\\!*' : '✅ *Product Updated\\!*',
+            '',
+            `📦 [${escapeMarkdownV2(product.name)}](${product.url})`,
+            '',
+            `⚠️ *Currently Out of Stock*`,
+            `🎯 *Alert Price:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
+            '',
+            `🔔 *I'll notify you when:*`,
+            `• Product becomes available again`,
+            `• Price drops to or below £${escapeMarkdownV2(threshold.toFixed(2))}`,
+            '',
+            `💡 You'll be the first to know when it's back\\!`
+          ].join('\n');
+        } else {
+          // Normal price comparison message
+          const difference = currentPrice - threshold;
+          const percentDiff = ((difference / threshold) * 100).toFixed(1);
+          
+          const priceComparison = difference > 0 
+            ? `📈 *${escapeMarkdownV2(percentDiff)}% above your alert*`
+            : difference < 0
+            ? `🎉 *Already ${escapeMarkdownV2(Math.abs(percentDiff))}% below target\\!*`
+            : `✅ *Price matches your target\\!*`;
 
-        const message = [
-          isNew ? '✅ *Product Added Successfully\\!*' : '✅ *Product Updated\\!*',
-          '',
-          `📦 [${escapeMarkdownV2(product.name)}](${product.url})`,
-          '',
-          `💰 *Current Price:* £${escapeMarkdownV2(currentPrice.toFixed(2))}`,
-          `🎯 *Alert Price:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
-          '',
-          priceComparison,
-          '',
-          difference > 0 
-            ? `🔔 I'll notify you when the price drops\\!`
-            : `🎊 Great timing\\! This is a good deal\\!`
-        ].join('\n');
+          message = [
+            isNew ? '✅ *Product Added Successfully\\!*' : '✅ *Product Updated\\!*',
+            '',
+            `📦 [${escapeMarkdownV2(product.name)}](${product.url})`,
+            '',
+            `💰 *Current Price:* £${escapeMarkdownV2(currentPrice.toFixed(2))}`,
+            `🎯 *Alert Price:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
+            '',
+            priceComparison,
+            '',
+            difference > 0 
+              ? `🔔 I'll notify you when the price drops\\!`
+              : `🎊 Great timing\\! This is a good deal\\!`
+          ].join('\n');
+        }
 
         await ctx.reply(message, {
           parse_mode: 'MarkdownV2',
@@ -863,6 +881,7 @@ async function handleUrlAndPrice(ctx) {
     const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
     let currentPrice;
     let priceWarning = '';
+    let isOutOfStock = false;
     
     try {
       currentPrice = await getPrice(resolvedUrl);
@@ -871,22 +890,19 @@ async function handleUrlAndPrice(ctx) {
       
       // Check if it's an out-of-stock error
       if (err.message.includes('out of stock') || err.message.includes('unavailable')) {
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
-        throw new BotError(
-          'Product unavailable',
-          ErrorCodes.SCRAPING_ERROR,
-          '⚠️ This product is currently out of stock or unavailable\\. Please try again when it\'s back in stock\\.'
-        );
+        isOutOfStock = true;
+        currentPrice = threshold; // Use threshold as placeholder
+        priceWarning = '\n\n⚠️ *Currently Out of Stock* \\- I\'ll notify you when available\\!';
+      } else {
+        // Allow adding product even without current price (it will be fetched later by scheduler)
+        console.log('Price not available now, will be checked by scheduler');
+        currentPrice = threshold; // Use threshold as placeholder
+        priceWarning = '\n\n⚠️ *Note:* Current price unavailable\\. We\'ll fetch it in the next update\\.';
       }
-      
-      // Allow adding product even without current price (it will be fetched later by scheduler)
-      console.log('Price not available now, will be checked by scheduler');
-      currentPrice = threshold; // Use threshold as placeholder
-      priceWarning = '\n\n⚠️ *Note:* Current price unavailable\\. We\'ll fetch it in the next update\\.';
     }
 
-    // Additional check for invalid prices
-    if (currentPrice <= 0) {
+    // Additional check for invalid prices (only if not already out of stock)
+    if (currentPrice <= 0 && !isOutOfStock) {
       console.log('Price not available now, will be checked by scheduler');
       currentPrice = threshold; // Use threshold as placeholder
       priceWarning = '\n\n⚠️ *Note:* Current price unavailable\\. We\'ll fetch it in the next update\\.';

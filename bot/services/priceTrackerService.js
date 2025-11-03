@@ -12,6 +12,13 @@ export class PriceTrackerService {
   async checkPrice(product) {
     try {
       let currentPrice;
+      let wasOutOfStock = false;
+      
+      // Check if product was previously out of stock (current price equals threshold)
+      const trackers = product.trackedBy || [];
+      if (trackers.length > 0 && trackers.some(t => product.currentPrice === t.thresholdPrice)) {
+        wasOutOfStock = true;
+      }
       
       try {
         currentPrice = await getPrice(product.url);
@@ -28,6 +35,17 @@ export class PriceTrackerService {
       
       const previousPrice = product.currentPrice;
 
+      // Special case: Product was out of stock and now is available
+      if (wasOutOfStock && currentPrice > 0 && currentPrice !== previousPrice) {
+        console.log(`Product ${product.asin} is now back in stock!`);
+        
+        // Notify all users that product is back in stock
+        for (const tracker of product.trackedBy) {
+          await this.notifyBackInStock(tracker.chatId, product, currentPrice, tracker.thresholdPrice);
+          tracker.lastAlertedAt = new Date();
+        }
+      }
+
       if (currentPrice === previousPrice) {
         return null;
       }
@@ -41,15 +59,17 @@ export class PriceTrackerService {
       product.lastChecked = new Date();
       await product.save();
 
-      // Check thresholds and notify users
-      for (const tracker of product.trackedBy) {
-        const shouldNotify = await this.shouldNotifyUser(tracker, previousPrice, currentPrice);
-        
-        if (shouldNotify) {
-          await this.notifyUser(tracker.chatId, product, previousPrice, currentPrice);
+      // Check thresholds and notify users (only if wasn't out of stock notification)
+      if (!wasOutOfStock) {
+        for (const tracker of product.trackedBy) {
+          const shouldNotify = await this.shouldNotifyUser(tracker, previousPrice, currentPrice);
           
-          // Update last alerted time to prevent spam
-          tracker.lastAlertedAt = new Date();
+          if (shouldNotify) {
+            await this.notifyUser(tracker.chatId, product, previousPrice, currentPrice);
+            
+            // Update last alerted time to prevent spam
+            tracker.lastAlertedAt = new Date();
+          }
         }
       }
       
@@ -114,6 +134,38 @@ export class PriceTrackerService {
       });
     } catch (error) {
       console.error(`Error notifying user ${chatId} about product ${product.asin}:`, error);
+    }
+  }
+
+  async notifyBackInStock(chatId, product, currentPrice, thresholdPrice) {
+    try {
+      const { escapeMarkdownV2 } = await import('../utils/messageHelper.js');
+      
+      const belowThreshold = currentPrice <= thresholdPrice;
+      
+      const message = [
+        '🎉 *Back in Stock Alert\\!*',
+        '',
+        `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
+        '',
+        '✅ *Good news\\!* This product is now available again\\!',
+        '',
+        `💰 *Current Price:* £${escapeMarkdownV2(currentPrice.toFixed(2))}`,
+        `🎯 *Your Alert:* £${escapeMarkdownV2(thresholdPrice.toFixed(2))}`,
+        '',
+        belowThreshold 
+          ? `🎊 *Awesome\\!* It's at or below your target price\\!`
+          : `📊 Price is ${escapeMarkdownV2((((currentPrice - thresholdPrice) / thresholdPrice) * 100).toFixed(1))}% above your alert\\.`,
+        '',
+        '🔗 Click the link above to buy now before it goes out of stock again\\!'
+      ].join('\n');
+
+      await this.bot.telegram.sendMessage(chatId, message, {
+        parse_mode: 'MarkdownV2',
+        disable_web_page_preview: false
+      });
+    } catch (error) {
+      console.error(`Error notifying user ${chatId} about back-in-stock for ${product.asin}:`, error);
     }
   }
 
