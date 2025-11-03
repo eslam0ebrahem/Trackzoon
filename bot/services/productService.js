@@ -31,6 +31,7 @@ export class ProductService {
         isNew = true;
         const name = await getProductName(resolvedUrl);
         let currentPrice;
+        let isOutOfStock = false;
         
         // Try to get price, but handle out-of-stock gracefully
         try {
@@ -40,6 +41,7 @@ export class ProductService {
           if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
             console.log(`Product ${asin} is out of stock, tracking with threshold as placeholder`);
             currentPrice = threshold;
+            isOutOfStock = true;
           } else {
             // For other errors, re-throw
             throw priceError;
@@ -51,6 +53,7 @@ export class ProductService {
           name,
           url: resolvedUrl,
           currentPrice,
+          isOutOfStock,
           priceHistory: [{ price: currentPrice, date: new Date() }],
           trackedBy: [{ chatId, thresholdPrice: threshold }]
         });

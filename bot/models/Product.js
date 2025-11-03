@@ -5,6 +5,7 @@ const ProductSchema = new mongoose.Schema({
   url: { type: String, required: true },
   name: { type: String, required: true },
   currentPrice: { type: Number, default: 0 },
+  isOutOfStock: { type: Boolean, default: false },
   lastChecked: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now },
   trackedBy: [{

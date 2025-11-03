@@ -182,6 +182,9 @@ const registerHandlers = (bot) => {
 
         // Add or update tracker
         const { product, isNew, isAlreadyTracked } = await ProductService.addProduct(resolvedUrl, ctx.chat.id, threshold);
+        
+        // Use product's isOutOfStock flag (more reliable than local variable)
+        isOutOfStock = product.isOutOfStock || false;
 
         // Handle already tracked case
         if (isAlreadyTracked) {
@@ -914,6 +917,12 @@ async function handleUrlAndPrice(ctx) {
     // Add or update tracker
     const { product, isNew, isAlreadyTracked } = await ProductService.addProduct(resolvedUrl, ctx.chat.id, threshold);
     stateManager.clearState(ctx.chat.id);
+    
+    // Use product's isOutOfStock flag (more reliable than local variable)
+    isOutOfStock = product.isOutOfStock || false;
+    if (isOutOfStock) {
+      priceWarning = '\n\n⚠️ *Currently Out of Stock* \\- I\'ll notify you when available\\!';
+    }
 
     // Handle already tracked case
     if (isAlreadyTracked) {

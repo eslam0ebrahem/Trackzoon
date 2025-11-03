@@ -12,20 +12,34 @@ export class PriceTrackerService {
   async checkPrice(product) {
     try {
       let currentPrice;
-      let wasOutOfStock = false;
-      
-      // Check if product was previously out of stock (current price equals threshold)
-      const trackers = product.trackedBy || [];
-      if (trackers.length > 0 && trackers.some(t => product.currentPrice === t.thresholdPrice)) {
-        wasOutOfStock = true;
-      }
+      const wasOutOfStock = product.isOutOfStock || false;
       
       try {
         currentPrice = await getPrice(product.url);
+        
+        // Product is now available (no error thrown)
+        if (wasOutOfStock) {
+          console.log(`Product ${product.asin} is now back in stock!`);
+          product.isOutOfStock = false;
+          
+          // Notify all users that product is back in stock
+          for (const tracker of product.trackedBy) {
+            await this.notifyBackInStock(tracker.chatId, product, currentPrice, tracker.thresholdPrice);
+            tracker.lastAlertedAt = new Date();
+          }
+        }
+        
       } catch (priceError) {
         // Handle out-of-stock products gracefully
         if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
           console.log(`Product ${product.asin} is out of stock, skipping price check`);
+          
+          // Mark as out of stock if not already
+          if (!product.isOutOfStock) {
+            product.isOutOfStock = true;
+            console.log(`Marked product ${product.asin} as out of stock`);
+          }
+          
           product.lastChecked = new Date();
           await product.save();
           return null; // Skip this product without failing the entire check
@@ -35,18 +49,9 @@ export class PriceTrackerService {
       
       const previousPrice = product.currentPrice;
 
-      // Special case: Product was out of stock and now is available
-      if (wasOutOfStock && currentPrice > 0 && currentPrice !== previousPrice) {
-        console.log(`Product ${product.asin} is now back in stock!`);
-        
-        // Notify all users that product is back in stock
-        for (const tracker of product.trackedBy) {
-          await this.notifyBackInStock(tracker.chatId, product, currentPrice, tracker.thresholdPrice);
-          tracker.lastAlertedAt = new Date();
-        }
-      }
-
       if (currentPrice === previousPrice) {
+        product.lastChecked = new Date();
+        await product.save();
         return null;
       }
 
