@@ -357,7 +357,6 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     const noChange = [];
     const bestDeals = [];
     const outOfStock = [];
-    const backInStock = [];
     let totalSavings = 0;
     let potentialSavings = 0;
     
@@ -381,14 +380,8 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         
         const oldPrice = oldPriceEntry.price;
         
-        // Check if recently back in stock (was placeholder, now real price)
-        if (product.priceHistory.length >= 2) {
-            const secondLast = product.priceHistory[product.priceHistory.length - 2];
-            const isPlaceholder = tracker?.thresholdPrice && Math.abs(secondLast.price - tracker.thresholdPrice) < 0.01;
-            if (isPlaceholder && currentPrice !== tracker.thresholdPrice) {
-                backInStock.push({ product, price: currentPrice, tracker });
-            }
-        }
+        // Note: Back-in-stock notifications are handled by the real-time price tracker
+        // We don't duplicate that logic here to avoid false positives
         
         const change = ((currentPrice - oldPrice) / oldPrice) * 100;
         const priceDiff = oldPrice - currentPrice;
@@ -435,7 +428,6 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     const highlights = [];
     if (bestDeals.length > 0) highlights.push(`🔥 ${bestDeals.length} hot deal${bestDeals.length > 1 ? 's' : ''}`);
     if (atTarget.length > 0) highlights.push(`✅ ${atTarget.length} at target`);
-    if (backInStock.length > 0) highlights.push(`🎉 ${backInStock.length} back in stock`);
     if (outOfStock.length > 0) highlights.push(`⚠️ ${outOfStock.length} out of stock`);
     
     if (highlights.length > 0) {
@@ -471,17 +463,6 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         if (atTarget.length > 5) {
             message += `   \\+${atTarget.length - 5} more ready to buy\\!\n\n`;
         }
-    }
-    
-    // Back in stock section
-    if (backInStock.length > 0) {
-        message += `🎉 *Back In Stock*\n\n`;
-        backInStock.slice(0, 3).forEach(({ product, price }) => {
-            const name = escapeMarkdownV2(product.name.substring(0, 40) + (product.name.length > 40 ? '...' : ''));
-            message += `� ${name}\n`;
-            message += `   Now available for £${escapeMarkdownV2(price.toFixed(2))}\n`;
-            message += `   [Check It Out](${escapeMarkdownV2(product.url)})\n\n`;
-        });
     }
     
     // Out of stock warning
@@ -557,10 +538,6 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     if (priceDrops.length > 0 && bestDeals.length === 0) {
         actionCount++;
         message += `${actionCount}\\. 👀 *Review price drops* \\- ${priceDrops.length} item${priceDrops.length > 1 ? 's' : ''} cheaper today\\!\n`;
-    }
-    if (backInStock.length > 0) {
-        actionCount++;
-        message += `${actionCount}\\. 🎉 *Grab restocked items* \\- Before they sell out again\\!\n`;
     }
     if (actionCount === 0) {
         message += `😊 *Relax\\!* No urgent actions needed\\. Keep tracking\\!\n`;

@@ -39,10 +39,18 @@ export class PriceTrackerService {
           product.currentPrice = currentPrice;
           product.lastChecked = new Date();
           
-          // Notify all users that product is back in stock
+          // Notify users that product is back in stock (with cooldown check)
           for (const tracker of product.trackedBy) {
-            await this.notifyBackInStock(tracker.chatId, product, currentPrice, tracker.thresholdPrice);
-            tracker.lastAlertedAt = new Date();
+            // Check if we already notified recently (within 24 hours)
+            const shouldNotifyRestock = !tracker.lastAlertedAt || 
+              (Date.now() - tracker.lastAlertedAt.getTime()) > 24 * 60 * 60 * 1000;
+            
+            if (shouldNotifyRestock) {
+              await this.notifyBackInStock(tracker.chatId, product, currentPrice, tracker.thresholdPrice);
+              tracker.lastAlertedAt = new Date();
+            } else {
+              console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - already notified within 24h`);
+            }
           }
           
           await product.save();
