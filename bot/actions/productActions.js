@@ -5,7 +5,8 @@ import {
   confirmationKeyboard,
   backToMainKeyboard 
 } from '../utils/keyboards/mainKeyboard.js';
-import { buildProductListMessage, formatProductDetails, escapeMarkdownV2, safeEditMessageText } from '../utils/messageHelper.js';
+import { buildProductListMessage, formatProductDetails, escapeMarkdownV2, safeEditMessageText, formatProductLine } from '../utils/messageHelper.js';
+import { buildPaginatedProductList, createPaginationKeyboard } from '../utils/pagination.js';
 import { stateManager, BotStates } from '../utils/stateManager.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 
@@ -70,27 +71,93 @@ export default (bot) => {
         );
       }
 
-      const message = buildProductListMessage(products, ctx.chat.id);
-      const keyboard = products.map(p => [
+      const { message, pagination } = buildPaginatedProductList(
+        products,
+        ctx.chat.id,
+        1,
+        formatProductLine,
+        escapeMarkdownV2
+      );
+
+      // Create inline keyboard with product buttons and pagination
+      const productButtons = pagination.items.map(p => [
         {
-          text: `${p.name} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
+          text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
           callback_data: `action_view_${p.asin}`
         }
       ]);
+
+      const paginationButtons = createPaginationKeyboard(
+        pagination.currentPage,
+        pagination.totalPages,
+        'action_list_page'
+      );
+
+      const keyboard = [
+        ...productButtons,
+        ...paginationButtons,
+        [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
+      ];
 
       await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: true,
         reply_markup: {
-          inline_keyboard: [
-            ...keyboard,
-            [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
-          ]
+          inline_keyboard: keyboard
         }
       });
     } catch (error) {
       console.error('Error in list products action:', error);
       await ctx.answerCbQuery('⚠️ Error fetching products. Please try again.');
+    }
+  });
+
+  // Handle pagination for action_list_products
+  bot.action(/action_list_page_(\d+)/, async (ctx) => {
+    try {
+      const page = parseInt(ctx.match[1]);
+      const products = await ProductService.getUserProducts(ctx.chat.id);
+
+      const { message, pagination } = buildPaginatedProductList(
+        products,
+        ctx.chat.id,
+        page,
+        formatProductLine,
+        escapeMarkdownV2
+      );
+
+      // Create inline keyboard with product buttons and pagination
+      const productButtons = pagination.items.map(p => [
+        {
+          text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
+          callback_data: `action_view_${p.asin}`
+        }
+      ]);
+
+      const paginationButtons = createPaginationKeyboard(
+        pagination.currentPage,
+        pagination.totalPages,
+        'action_list_page'
+      );
+
+      const keyboard = [
+        ...productButtons,
+        ...paginationButtons,
+        [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
+      ];
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        disable_web_page_preview: true,
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
+      });
+
+      await ctx.answerCbQuery();
+    } catch (error) {
+      console.error('Error in pagination:', error);
+      await ctx.answerCbQuery('⚠️ Error loading page. Please try again.');
     }
   });
 

@@ -6,9 +6,10 @@ import { BotError, ErrorCodes, handleError } from './utils/errorHandler.js';
 import { resolveAmazonUrl } from './utils/url.js';
 import { getProductName } from './utils/scraper/getProductName.js';
 import { getPrice } from './utils/scraper/getPrice.js';
-import { escapeMarkdownV2, buildProductListMessage, formatProductDetails, buildDailyReportMessage, buildSettingsMessage } from './utils/messageHelper.js';
+import { escapeMarkdownV2, buildProductListMessage, formatProductDetails, buildDailyReportMessage, buildSettingsMessage, formatProductLine } from './utils/messageHelper.js';
 import { Messages } from './utils/messages.js';
 import { Markup } from 'telegraf';
+import { buildPaginatedProductList, createPaginationKeyboard } from './utils/pagination.js';
 import mainActions from './actions/mainActions.js';
 import productActions from './actions/productActions.js';
 import settingsActions from './actions/settingsActions.js';
@@ -300,16 +301,107 @@ const registerHandlers = (bot) => {
   bot.command('list', async (ctx) => {
     try {
       const products = await ProductService.getUserProducts(ctx.chat.id);
-      const message = buildProductListMessage(products, ctx.chat.id);
+      
+      if (products.length === 0) {
+        const message = '🔍 *No products tracked yet*\n\nUse /add to start tracking your first product\\.';
+        return await ctx.reply(message, {
+          parse_mode: 'MarkdownV2',
+          ...mainKeyboard()
+        });
+      }
+
+      const { message, pagination } = buildPaginatedProductList(
+        products,
+        ctx.chat.id,
+        1,
+        formatProductLine,
+        escapeMarkdownV2
+      );
+
+      // Create inline keyboard with product buttons and pagination
+      const productButtons = pagination.items.map(p => [
+        {
+          text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
+          callback_data: `action_view_${p.asin}`
+        }
+      ]);
+
+      const paginationButtons = createPaginationKeyboard(
+        pagination.currentPage,
+        pagination.totalPages,
+        'list_page'
+      );
+
+      const keyboard = [
+        ...productButtons,
+        ...paginationButtons,
+        [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
+      ];
 
       await ctx.reply(message, {
         parse_mode: 'MarkdownV2',
-        ...mainKeyboard(),
-        disable_web_page_preview: true
+        disable_web_page_preview: true,
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
       });
     } catch (error) {
       handleError(ctx, error);
     }
+  });
+
+  // Handle pagination for list command
+  bot.action(/list_page_(\d+)/, async (ctx) => {
+    try {
+      const page = parseInt(ctx.match[1]);
+      const products = await ProductService.getUserProducts(ctx.chat.id);
+
+      const { message, pagination } = buildPaginatedProductList(
+        products,
+        ctx.chat.id,
+        page,
+        formatProductLine,
+        escapeMarkdownV2
+      );
+
+      // Create inline keyboard with product buttons and pagination
+      const productButtons = pagination.items.map(p => [
+        {
+          text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
+          callback_data: `action_view_${p.asin}`
+        }
+      ]);
+
+      const paginationButtons = createPaginationKeyboard(
+        pagination.currentPage,
+        pagination.totalPages,
+        'list_page'
+      );
+
+      const keyboard = [
+        ...productButtons,
+        ...paginationButtons,
+        [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
+      ];
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'MarkdownV2',
+        disable_web_page_preview: true,
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
+      });
+
+      await ctx.answerCbQuery();
+    } catch (error) {
+      console.error('Error in pagination:', error);
+      await ctx.answerCbQuery('⚠️ Error loading page. Please try again.');
+    }
+  });
+
+  // Handle pagination info button (does nothing, just shows current page)
+  bot.action('pagination_info', async (ctx) => {
+    await ctx.answerCbQuery();
   });
 
   // Settings command
