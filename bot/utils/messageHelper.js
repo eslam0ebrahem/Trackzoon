@@ -318,10 +318,38 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         ].join('\n');
     }
     
+    // Helper function to get price from ~24 hours ago
+    const getPriceFrom24HoursAgo = (priceHistory) => {
+        if (!priceHistory || priceHistory.length === 0) return null;
+        
+        const now = new Date();
+        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        
+        // Find the closest price entry to 24 hours ago (within 26 hours to be safe)
+        let closestEntry = null;
+        let closestDiff = Infinity;
+        
+        for (const entry of priceHistory) {
+            const entryDate = new Date(entry.date);
+            const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
+            
+            // Only consider entries from 20-28 hours ago (buffer for scheduler timing)
+            if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
+                closestDiff = timeDiff;
+                closestEntry = entry;
+            }
+        }
+        
+        // If no entry found in the time window, use the oldest available entry
+        if (!closestEntry && priceHistory.length > 0) {
+            closestEntry = priceHistory[0];
+        }
+        
+        return closestEntry;
+    };
+    
     // Categorize products
     const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
     
     const priceDrops = [];
     const atTarget = [];
@@ -335,7 +363,6 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     
     products.forEach(product => {
         const tracker = product.trackedBy[0]; // Assuming first tracker is the user's
-        const recentHistory = product.priceHistory.slice(-2);
         
         // Check out of stock status
         if (product.isOutOfStock) {
@@ -343,37 +370,48 @@ const buildDailyReportMessage = (products, userName = 'there') => {
             return;
         }
         
-        // Check if recently back in stock
-        if (recentHistory.length >= 2 && recentHistory[0].price === tracker?.thresholdPrice && recentHistory[1].price !== tracker?.thresholdPrice) {
-            backInStock.push({ product, price: recentHistory[1].price, tracker });
+        const currentPrice = product.currentPrice;
+        const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
+        
+        // Skip if no historical data or current price unavailable
+        if (!oldPriceEntry || !currentPrice) {
+            noChange.push({ product, price: currentPrice, tracker });
+            return;
         }
         
-        if (recentHistory.length >= 2) {
-            const oldPrice = recentHistory[0].price;
-            const newPrice = recentHistory[1].price;
-            const change = ((newPrice - oldPrice) / oldPrice) * 100;
-            const priceDiff = oldPrice - newPrice;
-            
-            if (newPrice < oldPrice) {
-                priceDrops.push({ product, oldPrice, newPrice, change: Math.abs(change), priceDiff, tracker });
-                totalSavings += priceDiff;
-                
-                // Check if it's a really good deal (>15% drop or >£10 off)
-                if (Math.abs(change) >= 15 || priceDiff >= 10) {
-                    bestDeals.push({ product, oldPrice, newPrice, change: Math.abs(change), priceDiff, tracker });
-                }
-            } else if (newPrice > oldPrice) {
-                priceIncreases.push({ product, oldPrice, newPrice, change, tracker });
-            } else {
-                noChange.push({ product, price: newPrice, tracker });
+        const oldPrice = oldPriceEntry.price;
+        
+        // Check if recently back in stock (was placeholder, now real price)
+        if (product.priceHistory.length >= 2) {
+            const secondLast = product.priceHistory[product.priceHistory.length - 2];
+            const isPlaceholder = tracker?.thresholdPrice && Math.abs(secondLast.price - tracker.thresholdPrice) < 0.01;
+            if (isPlaceholder && currentPrice !== tracker.thresholdPrice) {
+                backInStock.push({ product, price: currentPrice, tracker });
             }
+        }
+        
+        const change = ((currentPrice - oldPrice) / oldPrice) * 100;
+        const priceDiff = oldPrice - currentPrice;
+        
+        if (currentPrice < oldPrice) {
+            priceDrops.push({ product, oldPrice, newPrice: currentPrice, change: Math.abs(change), priceDiff, tracker });
+            totalSavings += priceDiff;
             
-            // Check if at or below target
-            if (tracker && tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
-                const savings = newPrice < tracker.thresholdPrice ? tracker.thresholdPrice - newPrice : 0;
-                atTarget.push({ product, price: newPrice, target: tracker.thresholdPrice, savings });
-                potentialSavings += savings;
+            // Check if it's a really good deal (>15% drop or >£10 off)
+            if (Math.abs(change) >= 15 || priceDiff >= 10) {
+                bestDeals.push({ product, oldPrice, newPrice: currentPrice, change: Math.abs(change), priceDiff, tracker });
             }
+        } else if (currentPrice > oldPrice) {
+            priceIncreases.push({ product, oldPrice, newPrice: currentPrice, change: Math.abs(change), tracker });
+        } else {
+            noChange.push({ product, price: currentPrice, tracker });
+        }
+        
+        // Check if at or below target
+        if (tracker && tracker.thresholdPrice && currentPrice <= tracker.thresholdPrice) {
+            const savings = currentPrice < tracker.thresholdPrice ? tracker.thresholdPrice - currentPrice : 0;
+            atTarget.push({ product, price: currentPrice, target: tracker.thresholdPrice, savings });
+            potentialSavings += savings;
         }
     });
     

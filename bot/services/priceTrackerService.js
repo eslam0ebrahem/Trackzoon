@@ -13,6 +13,7 @@ export class PriceTrackerService {
     try {
       let currentPrice;
       const wasOutOfStock = product.isOutOfStock || false;
+      const previousPrice = product.currentPrice;
       
       try {
         currentPrice = await getPrice(product.url);
@@ -21,12 +22,36 @@ export class PriceTrackerService {
         if (wasOutOfStock) {
           console.log(`Product ${product.asin} is now back in stock!`);
           product.isOutOfStock = false;
+          product.outOfStockSince = null; // Clear out of stock timestamp
+          
+          // Only add to price history if price actually changed or this is first real price
+          const shouldAddToHistory = !previousPrice || 
+                                     previousPrice === 0 || 
+                                     currentPrice !== previousPrice;
+          
+          if (shouldAddToHistory) {
+            product.priceHistory.push({
+              price: currentPrice,
+              date: new Date()
+            });
+          }
+          
+          product.currentPrice = currentPrice;
+          product.lastChecked = new Date();
           
           // Notify all users that product is back in stock
           for (const tracker of product.trackedBy) {
             await this.notifyBackInStock(tracker.chatId, product, currentPrice, tracker.thresholdPrice);
             tracker.lastAlertedAt = new Date();
           }
+          
+          await product.save();
+          return {
+            product,
+            previousPrice,
+            currentPrice,
+            wasOutOfStock: true
+          };
         }
         
       } catch (priceError) {
@@ -37,6 +62,7 @@ export class PriceTrackerService {
           // Mark as out of stock if not already
           if (!product.isOutOfStock) {
             product.isOutOfStock = true;
+            product.outOfStockSince = new Date();
             console.log(`Marked product ${product.asin} as out of stock`);
           }
           
@@ -46,39 +72,35 @@ export class PriceTrackerService {
         }
         throw priceError; // Re-throw other errors
       }
-      
-      const previousPrice = product.currentPrice;
 
+      // No price change
       if (currentPrice === previousPrice) {
         product.lastChecked = new Date();
         await product.save();
         return null;
       }
 
-      // Update price history and current price
+      // Price changed - update history and current price
       product.priceHistory.push({
         price: currentPrice,
         date: new Date()
       });
       product.currentPrice = currentPrice;
       product.lastChecked = new Date();
-      await product.save();
 
-      // Check thresholds and notify users (only if wasn't out of stock notification)
-      if (!wasOutOfStock) {
-        for (const tracker of product.trackedBy) {
-          const shouldNotify = await this.shouldNotifyUser(tracker, previousPrice, currentPrice);
+      // Check thresholds and notify users
+      for (const tracker of product.trackedBy) {
+        const shouldNotify = await this.shouldNotifyUser(tracker, previousPrice, currentPrice);
+        
+        if (shouldNotify) {
+          await this.notifyUser(tracker.chatId, product, previousPrice, currentPrice);
           
-          if (shouldNotify) {
-            await this.notifyUser(tracker.chatId, product, previousPrice, currentPrice);
-            
-            // Update last alerted time to prevent spam
-            tracker.lastAlertedAt = new Date();
-          }
+          // Update last alerted time to prevent spam
+          tracker.lastAlertedAt = new Date();
         }
       }
       
-      // Save updated tracker info
+      // Save all changes
       await product.save();
 
       return {
