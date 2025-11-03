@@ -9,7 +9,7 @@ export const mainKeyboard = () => {
           { text: '📋 My Products', callback_data: 'action_list_products' }
         ],
         [
-          { text: '📊 View Statistics', callback_data: 'action_view_stats' },
+          { text: '� Top 5 Deals', callback_data: 'action_top_deals' },
           { text: '⚙️ Settings', callback_data: 'action_settings' }
         ],
         [{ text: '❓ Help', callback_data: 'action_help' }]
