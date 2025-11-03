@@ -1,6 +1,6 @@
 import { resolveAmazonUrl } from '../utils/url.js';
-import { getProductName } from '../../src/lib/scraper/getProductName.js';
-import { getPrice } from '../../src/lib/scraper/getPrice.js';
+import { getProductName } from '../utils/scraper/getProductName.js';
+import { getPrice } from '../utils/scraper/getPrice.js';
 import { addPriceTracker, validatePercentage } from '../utils/productTracker.js';
 import { parseAmazonUrl } from '../utils/urlParser.js';
 import { escapeMarkdownV2 } from '../utils/messageHelper.js';

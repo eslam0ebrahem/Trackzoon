@@ -1,7 +1,7 @@
 import Product from '../models/Product.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
-import { getProductName } from '../../src/lib/scraper/getProductName.js';
-import { getPrice } from '../../src/lib/scraper/getPrice.js';
+import { getProductName } from '../utils/scraper/getProductName.js';
+import { getPrice } from '../utils/scraper/getPrice.js';
 import { resolveAmazonUrl } from '../utils/url.js';
 
 export class ProductService {

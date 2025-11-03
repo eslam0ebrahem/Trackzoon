@@ -1,6 +1,6 @@
 import Product from '../models/Product.js';
 import User from '../models/User.js';
-import { getPrice } from '../../src/lib/scraper/getPrice.js';
+import { getPrice } from '../utils/scraper/getPrice.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { buildPriceAlertMessage } from '../utils/messageHelper.js';
 
