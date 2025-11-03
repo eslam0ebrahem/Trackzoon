@@ -1,5 +1,6 @@
 import { escapeMarkdownV2 } from './messageHelper.js';
 import { mainKeyboard } from './keyboards/mainKeyboard.js';
+import { captureError } from '../config/sentry.js';
 
 export class BotError extends Error {
   constructor(message, code, userMessage = null) {
@@ -40,6 +41,14 @@ const errorMessages = {
 
 export const handleError = async (ctx, error, defaultMessage = 'An unexpected error occurred. Please try again.') => {
   console.error(`Error in chat ${ctx.chat.id}:`, error);
+  
+  // Capture error in Sentry with context
+  captureError(error, {
+    chatId: ctx.chat?.id,
+    username: ctx.from?.username,
+    command: ctx.message?.text || ctx.callbackQuery?.data,
+    updateType: ctx.updateType,
+  });
 
   const isCallback = ctx.updateType === 'callback_query';
   let showMainMenu = true;

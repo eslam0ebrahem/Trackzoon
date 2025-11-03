@@ -18,6 +18,7 @@ export class PriceTrackerService {
       let currentPrice;
       const wasOutOfStock = product.isOutOfStock || false;
       const previousPrice = product.currentPrice;
+      const asin = product.asin;
       
       try {
         currentPrice = await getPrice(product.url);
@@ -25,41 +26,58 @@ export class PriceTrackerService {
         // Product is now available (no error thrown)
         if (wasOutOfStock) {
           console.log(`Product ${product.asin} is now back in stock!`);
-          product.isOutOfStock = false;
-          product.outOfStockSince = null; // Clear out of stock timestamp
           
           // Only add to price history if price actually changed or this is first real price
           const shouldAddToHistory = !previousPrice || 
                                      previousPrice === 0 || 
                                      currentPrice !== previousPrice;
           
+          // Atomic update to prevent race conditions
+          const updateOps = {
+            $set: {
+              isOutOfStock: false,
+              outOfStockSince: null,
+              currentPrice: currentPrice,
+              lastChecked: new Date()
+            }
+          };
+          
           if (shouldAddToHistory) {
-            product.priceHistory.push({
-              price: currentPrice,
-              date: new Date()
-            });
+            updateOps.$push = {
+              priceHistory: {
+                price: currentPrice,
+                date: new Date()
+              }
+            };
           }
           
-          product.currentPrice = currentPrice;
-          product.lastChecked = new Date();
+          const updatedProduct = await Product.findOneAndUpdate(
+            { asin: asin },
+            updateOps,
+            { new: true }
+          );
           
           // Notify users that product is back in stock (with cooldown check)
-          for (const tracker of product.trackedBy) {
+          for (const tracker of updatedProduct.trackedBy) {
             // Check if we already notified recently (within 24 hours)
             const shouldNotifyRestock = !tracker.lastAlertedAt || 
               (Date.now() - tracker.lastAlertedAt.getTime()) > 24 * 60 * 60 * 1000;
             
             if (shouldNotifyRestock) {
-              await this.notifyBackInStock(tracker.chatId, product, currentPrice, tracker.thresholdPrice);
-              tracker.lastAlertedAt = new Date();
+              await this.notifyBackInStock(tracker.chatId, updatedProduct, currentPrice, tracker.thresholdPrice);
+              
+              // Update lastAlertedAt atomically
+              await Product.updateOne(
+                { asin: asin, 'trackedBy.chatId': tracker.chatId },
+                { $set: { 'trackedBy.$.lastAlertedAt': new Date() } }
+              );
             } else {
               console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - already notified within 24h`);
             }
           }
           
-          await product.save();
           return {
-            product,
+            product: updatedProduct,
             previousPrice,
             currentPrice,
             wasOutOfStock: true
@@ -69,54 +87,77 @@ export class PriceTrackerService {
       } catch (priceError) {
         // Handle out-of-stock products gracefully
         if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
-          console.log(`Product ${product.asin} is out of stock, skipping price check`);
+          console.log(`Product ${asin} is out of stock, skipping price check`);
           
-          // Mark as out of stock if not already
-          if (!product.isOutOfStock) {
-            product.isOutOfStock = true;
-            product.outOfStockSince = new Date();
-            console.log(`Marked product ${product.asin} as out of stock`);
+          // Mark as out of stock if not already (atomic update)
+          if (!wasOutOfStock) {
+            await Product.findOneAndUpdate(
+              { asin: asin },
+              {
+                $set: {
+                  isOutOfStock: true,
+                  outOfStockSince: new Date(),
+                  lastChecked: new Date()
+                }
+              }
+            );
+            console.log(`Marked product ${asin} as out of stock`);
+          } else {
+            // Just update lastChecked
+            await Product.findOneAndUpdate(
+              { asin: asin },
+              { $set: { lastChecked: new Date() } }
+            );
           }
-          
-          product.lastChecked = new Date();
-          await product.save();
           return null; // Skip this product without failing the entire check
         }
         throw priceError; // Re-throw other errors
       }
 
-      // No price change
+      // No price change - atomic update of lastChecked only
       if (currentPrice === previousPrice) {
-        product.lastChecked = new Date();
-        await product.save();
+        await Product.findOneAndUpdate(
+          { asin: asin },
+          { $set: { lastChecked: new Date() } }
+        );
         return null;
       }
 
-      // Price changed - update history and current price
-      product.priceHistory.push({
-        price: currentPrice,
-        date: new Date()
-      });
-      product.currentPrice = currentPrice;
-      product.lastChecked = new Date();
+      // Price changed - atomic update with history push
+      const updatedProduct = await Product.findOneAndUpdate(
+        { asin: asin },
+        {
+          $push: {
+            priceHistory: {
+              price: currentPrice,
+              date: new Date()
+            }
+          },
+          $set: {
+            currentPrice: currentPrice,
+            lastChecked: new Date()
+          }
+        },
+        { new: true }
+      );
 
       // Check thresholds and notify users
-      for (const tracker of product.trackedBy) {
+      for (const tracker of updatedProduct.trackedBy) {
         const shouldNotify = await this.shouldNotifyUser(tracker, previousPrice, currentPrice);
         
         if (shouldNotify) {
-          await this.notifyUser(tracker.chatId, product, previousPrice, currentPrice);
+          await this.notifyUser(tracker.chatId, updatedProduct, previousPrice, currentPrice);
           
-          // Update last alerted time to prevent spam
-          tracker.lastAlertedAt = new Date();
+          // Update last alerted time atomically
+          await Product.updateOne(
+            { asin: asin, 'trackedBy.chatId': tracker.chatId },
+            { $set: { 'trackedBy.$.lastAlertedAt': new Date() } }
+          );
         }
       }
-      
-      // Save all changes
-      await product.save();
 
       return {
-        product,
+        product: updatedProduct,
         previousPrice,
         currentPrice
       };

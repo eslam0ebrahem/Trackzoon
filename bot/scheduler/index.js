@@ -3,6 +3,10 @@ import { PriceTrackerService } from '../services/priceTrackerService.js';
 import User from '../models/User.js';
 import Product from '../models/Product.js';
 import { buildDailyReportMessage } from '../utils/messageHelper.js';
+import { captureError, captureMessage } from '../config/sentry.js';
+
+// Store active cron tasks for cleanup
+let activeTasks = [];
 
 const startScheduler = (bot) => {
   const priceTracker = new PriceTrackerService(bot);
@@ -26,8 +30,18 @@ const startScheduler = (bot) => {
           - ${results.succeeded} prices updated
           - ${results.unchanged} prices unchanged
           - ${results.failed} checks failed`);
+      
+      // Log to Sentry if too many failures
+      if (results.failed > results.succeeded && results.failed > 5) {
+        captureMessage(
+          `High failure rate in price check: ${results.failed} failures vs ${results.succeeded} successes`,
+          'warning',
+          { results }
+        );
+      }
     } catch (error) {
       console.error('Error in scheduled price check:', error);
+      captureError(error, { operation: 'scheduled_price_check' });
     } finally {
       isChecking = false;
     }
@@ -99,16 +113,27 @@ const startScheduler = (bot) => {
           - ${sent} reports sent successfully
           - ${skipped} users skipped (no products)
           - ${failed} failed to send`);
+      
+      // Log to Sentry if too many failures
+      if (failed > sent && failed > 3) {
+        captureMessage(
+          `High failure rate in daily reports: ${failed} failures vs ${sent} successes`,
+          'warning',
+          { sent, failed, skipped }
+        );
+      }
     } catch (error) {
       console.error('Error in daily report generation:', error);
+      captureError(error, { operation: 'daily_report_generation' });
     }
   };
 
-  // Run price checks every 30 minutes
-  cron.schedule('0,30 * * * *', runPriceCheck);
-
-  // Send daily reports at 8:00 AM every day
-  cron.schedule('0 8 * * *', sendDailyReports);
+  // Create and store cron tasks
+  const priceCheckTask = cron.schedule('0,30 * * * *', runPriceCheck);
+  const dailyReportTask = cron.schedule('0 8 * * *', sendDailyReports);
+  
+  // Store tasks for cleanup
+  activeTasks.push(priceCheckTask, dailyReportTask);
 
   // Run initial check after 1 minute
   setTimeout(runPriceCheck, 60 * 1000);
@@ -116,6 +141,18 @@ const startScheduler = (bot) => {
   console.log('Scheduler started:');
   console.log('- Price checks: Every 30 minutes');
   console.log('- Daily reports: Every day at 8:00 AM');
+  
+  // Return cleanup function
+  return () => {
+    console.log('Stopping scheduler...');
+    activeTasks.forEach(task => {
+      if (task && task.stop) {
+        task.stop();
+      }
+    });
+    activeTasks = [];
+    console.log('Scheduler stopped');
+  };
 };
 
 export default startScheduler;

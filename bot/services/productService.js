@@ -1,4 +1,6 @@
 import Product from '../models/Product.js';
+import User from '../models/User.js';
+import mongoose from 'mongoose';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { getProductName } from '../utils/scraper/getProductName.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
@@ -6,6 +8,9 @@ import { resolveAmazonUrl } from '../utils/url.js';
 
 export class ProductService {
   static async addProduct(productUrl, chatId, threshold) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
     try {
       const { resolvedUrl, asin } = await resolveAmazonUrl(productUrl);
       
@@ -15,13 +20,14 @@ export class ProductService {
 
       let isNew = false;
       let isAlreadyTracked = false;
+      
       // Check if product exists and is already tracked by user
-      let product = await Product.findOne({ asin });
+      let product = await Product.findOne({ asin }).session(session);
       if (product) {
         const isTracking = product.trackedBy.some(t => t.chatId === chatId);
         if (isTracking) {
           isAlreadyTracked = true;
-          // No error thrown, just return the product and the flag
+          await session.abortTransaction();
           return { product, isNew, isAlreadyTracked };
         }
       }
@@ -57,15 +63,40 @@ export class ProductService {
           priceHistory: [{ price: currentPrice, date: new Date() }],
           trackedBy: [{ chatId, thresholdPrice: threshold }]
         });
+        
+        await product.save({ session });
       } else {
-        // If product exists but not tracked by user, add the new tracker
-        product.trackedBy.push({ chatId, thresholdPrice: threshold });
+        // If product exists but not tracked by user, add the new tracker atomically
+        product = await Product.findOneAndUpdate(
+          { asin: asin },
+          { 
+            $push: { 
+              trackedBy: { chatId, thresholdPrice: threshold } 
+            } 
+          },
+          { new: true, session }
+        );
       }
 
-      await product.save();
+      // Update user's product list if User model exists
+      await User.findOneAndUpdate(
+        { chatId: chatId },
+        { 
+          $addToSet: { products: product._id },
+          $set: { lastActive: new Date() }
+        },
+        { session, upsert: false }
+      ).catch(() => {
+        // Ignore if user doesn't exist yet
+        console.log(`User ${chatId} not found, skipping user update`);
+      });
+
+      await session.commitTransaction();
       return { product, isNew, isAlreadyTracked };
 
     } catch (error) {
+      await session.abortTransaction();
+      
       if (error instanceof BotError) throw error;
       
       console.error('Error adding product:', error);
@@ -74,13 +105,19 @@ export class ProductService {
         ErrorCodes.DATABASE_ERROR,
         'Failed to add the product. Please try again later.'
       );
+    } finally {
+      session.endSession();
     }
   }
 
   static async removeProduct(asin, chatId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
     try {
-      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
+      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId }).session(session);
       if (!product) {
+        await session.abortTransaction();
         throw new BotError(
           'Product not found',
           ErrorCodes.PRODUCT_NOT_FOUND,
@@ -88,17 +125,36 @@ export class ProductService {
         );
       }
 
-      product.trackedBy = product.trackedBy.filter(t => t.chatId !== chatId);
+      // Check if this is the last tracker
+      const remainingTrackers = product.trackedBy.filter(t => t.chatId !== chatId);
       
-      if (product.trackedBy.length === 0) {
-        await Product.deleteOne({ _id: product._id });
+      if (remainingTrackers.length === 0) {
+        // Delete product if no one else is tracking it
+        await Product.deleteOne({ _id: product._id }).session(session);
       } else {
-        await product.save();
+        // Remove user from trackedBy array atomically
+        await Product.findOneAndUpdate(
+          { asin: asin },
+          { $pull: { trackedBy: { chatId: chatId } } },
+          { session }
+        );
       }
 
+      // Remove from user's product list
+      await User.findOneAndUpdate(
+        { chatId: chatId },
+        { $pull: { products: product._id } },
+        { session }
+      ).catch(() => {
+        console.log(`User ${chatId} not found, skipping user update`);
+      });
+
+      await session.commitTransaction();
       return product;
 
     } catch (error) {
+      await session.abortTransaction();
+      
       if (error instanceof BotError) throw error;
       
       console.error('Error removing product:', error);
@@ -107,12 +163,20 @@ export class ProductService {
         ErrorCodes.DATABASE_ERROR,
         'Failed to remove the product. Please try again later.'
       );
+    } finally {
+      session.endSession();
     }
   }
 
   static async updateThreshold(asin, chatId, newThreshold) {
     try {
-      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
+      // Use atomic update to prevent race conditions
+      const product = await Product.findOneAndUpdate(
+        { asin: asin, 'trackedBy.chatId': chatId },
+        { $set: { 'trackedBy.$.thresholdPrice': newThreshold } },
+        { new: true }
+      );
+      
       if (!product) {
         throw new BotError(
           'Product not found',
@@ -120,18 +184,6 @@ export class ProductService {
           'Product not found or not tracked by you'
         );
       }
-
-      const tracker = product.trackedBy.find(t => t.chatId === chatId);
-      if (!tracker) {
-        throw new BotError(
-          'Product not tracked',
-          ErrorCodes.PRODUCT_NOT_FOUND,
-          'You are not tracking this product'
-        );
-      }
-
-      tracker.thresholdPrice = newThreshold;
-      await product.save();
       
       return product;
 
