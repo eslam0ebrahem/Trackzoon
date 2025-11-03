@@ -29,10 +29,22 @@ export class ProductService {
       // Product doesn't exist or not tracked by user
       if (!product) {
         isNew = true;
-        const [name, currentPrice] = await Promise.all([
-          getProductName(resolvedUrl),
-          getPrice(resolvedUrl)
-        ]);
+        const name = await getProductName(resolvedUrl);
+        let currentPrice;
+        
+        // Try to get price, but handle out-of-stock gracefully
+        try {
+          currentPrice = await getPrice(resolvedUrl);
+        } catch (priceError) {
+          // If out of stock, use threshold as placeholder
+          if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
+            console.log(`Product ${asin} is out of stock, tracking with threshold as placeholder`);
+            currentPrice = threshold;
+          } else {
+            // For other errors, re-throw
+            throw priceError;
+          }
+        }
 
         product = new Product({
           asin,
