@@ -328,22 +328,39 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     const priceIncreases = [];
     const noChange = [];
     const bestDeals = [];
+    const outOfStock = [];
+    const backInStock = [];
+    let totalSavings = 0;
+    let potentialSavings = 0;
     
     products.forEach(product => {
         const tracker = product.trackedBy[0]; // Assuming first tracker is the user's
         const recentHistory = product.priceHistory.slice(-2);
         
+        // Check out of stock status
+        if (product.isOutOfStock) {
+            outOfStock.push({ product, tracker });
+            return;
+        }
+        
+        // Check if recently back in stock
+        if (recentHistory.length >= 2 && recentHistory[0].price === tracker?.thresholdPrice && recentHistory[1].price !== tracker?.thresholdPrice) {
+            backInStock.push({ product, price: recentHistory[1].price, tracker });
+        }
+        
         if (recentHistory.length >= 2) {
             const oldPrice = recentHistory[0].price;
             const newPrice = recentHistory[1].price;
             const change = ((newPrice - oldPrice) / oldPrice) * 100;
+            const priceDiff = oldPrice - newPrice;
             
             if (newPrice < oldPrice) {
-                priceDrops.push({ product, oldPrice, newPrice, change: Math.abs(change), tracker });
+                priceDrops.push({ product, oldPrice, newPrice, change: Math.abs(change), priceDiff, tracker });
+                totalSavings += priceDiff;
                 
-                // Check if it's a really good deal (>20% drop)
-                if (Math.abs(change) >= 20) {
-                    bestDeals.push({ product, oldPrice, newPrice, change: Math.abs(change), tracker });
+                // Check if it's a really good deal (>15% drop or >£10 off)
+                if (Math.abs(change) >= 15 || priceDiff >= 10) {
+                    bestDeals.push({ product, oldPrice, newPrice, change: Math.abs(change), priceDiff, tracker });
                 }
             } else if (newPrice > oldPrice) {
                 priceIncreases.push({ product, oldPrice, newPrice, change, tracker });
@@ -353,74 +370,165 @@ const buildDailyReportMessage = (products, userName = 'there') => {
             
             // Check if at or below target
             if (tracker && tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
-                atTarget.push({ product, price: newPrice, target: tracker.thresholdPrice });
+                const savings = newPrice < tracker.thresholdPrice ? tracker.thresholdPrice - newPrice : 0;
+                atTarget.push({ product, price: newPrice, target: tracker.thresholdPrice, savings });
+                potentialSavings += savings;
             }
         }
     });
     
+    // Get time-based greeting
+    const hour = today.getHours();
+    let greeting = '☀️';
+    if (hour < 12) greeting = '🌅';
+    else if (hour < 17) greeting = '☀️';
+    else if (hour < 21) greeting = '🌆';
+    else greeting = '🌙';
+    
     let message = [
         `📊 *Daily Price Report*`,
-        `Good morning ${escapedName}\\! ☀️`,
+        `Good morning ${escapedName}\\! ${greeting}`,
         '',
-        `📅 ${escapeMarkdownV2(today.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))}`,
+        `📅 ${escapeMarkdownV2(today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}`,
         ''
     ].join('\n');
     
+    // Highlights section
+    const highlights = [];
+    if (bestDeals.length > 0) highlights.push(`🔥 ${bestDeals.length} hot deal${bestDeals.length > 1 ? 's' : ''}`);
+    if (atTarget.length > 0) highlights.push(`✅ ${atTarget.length} at target`);
+    if (backInStock.length > 0) highlights.push(`🎉 ${backInStock.length} back in stock`);
+    if (outOfStock.length > 0) highlights.push(`⚠️ ${outOfStock.length} out of stock`);
+    
+    if (highlights.length > 0) {
+        message += `*Quick Highlights:* ${highlights.join(' • ')}\n\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    }
+    
     // Hot deals section
     if (bestDeals.length > 0) {
-        message += `\n🔥 *HOT DEALS \\- Don't Miss These\\!*\n`;
-        bestDeals.slice(0, 3).forEach(({ product, oldPrice, newPrice, change }) => {
-            const name = escapeMarkdownV2(product.name.substring(0, 40) + (product.name.length > 40 ? '...' : ''));
-            message += `├ ${name}\n`;
-            message += `│ ~~£${escapeMarkdownV2(oldPrice.toFixed(2))}~~ → *£${escapeMarkdownV2(newPrice.toFixed(2))}* \\(⬇️${escapeMarkdownV2(change.toFixed(0))}%\\)\n`;
+        message += `🔥 *HOT DEALS \\- Don't Miss These\\!*\n\n`;
+        bestDeals.slice(0, 5).forEach(({ product, oldPrice, newPrice, change, priceDiff }, index) => {
+            const name = escapeMarkdownV2(product.name.substring(0, 45) + (product.name.length > 45 ? '...' : ''));
+            const icon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔸';
+            message += `${icon} ${name}\n`;
+            message += `   ~~£${escapeMarkdownV2(oldPrice.toFixed(2))}~~ → *£${escapeMarkdownV2(newPrice.toFixed(2))}*\n`;
+            message += `   💰 Save £${escapeMarkdownV2(priceDiff.toFixed(2))} \\(${escapeMarkdownV2(change.toFixed(0))}% off\\)\n`;
+            message += `   [View Product](${escapeMarkdownV2(product.url)})\n\n`;
         });
-        message += '\n';
     }
     
     // At target section
     if (atTarget.length > 0) {
-        message += `\n✅ *Target Price Reached* \\(${atTarget.length}\\)\n`;
-        atTarget.slice(0, 3).forEach(({ product, price, target }) => {
-            const name = escapeMarkdownV2(product.name.substring(0, 35) + (product.name.length > 35 ? '...' : ''));
-            message += `├ ${name}\n`;
-            message += `│ £${escapeMarkdownV2(price.toFixed(2))} \\(Target: £${escapeMarkdownV2(target.toFixed(2))}\\)\n`;
+        message += `✅ *Target Price Reached* \\(${atTarget.length}\\)\n\n`;
+        atTarget.slice(0, 5).forEach(({ product, price, target, savings }) => {
+            const name = escapeMarkdownV2(product.name.substring(0, 40) + (product.name.length > 40 ? '...' : ''));
+            message += `🎯 ${name}\n`;
+            message += `   Current: *£${escapeMarkdownV2(price.toFixed(2))}* \\| Target: £${escapeMarkdownV2(target.toFixed(2))}\n`;
+            if (savings > 0) {
+                message += `   💚 Even £${escapeMarkdownV2(savings.toFixed(2))} below target\\!\n`;
+            }
+            message += `   [Buy Now](${escapeMarkdownV2(product.url)})\n\n`;
         });
-        if (atTarget.length > 3) {
-            message += `└ \\+${atTarget.length - 3} more ready to buy\\!\n`;
+        if (atTarget.length > 5) {
+            message += `   \\+${atTarget.length - 5} more ready to buy\\!\n\n`;
         }
-        message += '\n';
     }
     
-    // Summary section
-    message += `\n📈 *Summary*\n`;
-    message += `├ 💚 Price Drops: ${priceDrops.length}\n`;
-    message += `├ 💔 Price Increases: ${priceIncreases.length}\n`;
-    message += `├ 😴 No Change: ${noChange.length}\n`;
-    message += `└ 📦 Total Tracked: ${products.length}\n\n`;
-    
-    // Price drops detail (if not covered in hot deals)
-    if (priceDrops.length > bestDeals.length && priceDrops.length <= 5) {
-        message += `\n💰 *Recent Price Drops*\n`;
-        priceDrops.filter(item => !bestDeals.includes(item)).slice(0, 3).forEach(({ product, oldPrice, newPrice, change }) => {
-            const name = escapeMarkdownV2(product.name.substring(0, 35) + (product.name.length > 35 ? '...' : ''));
-            message += `├ ${name}\n`;
-            message += `│ ~~£${escapeMarkdownV2(oldPrice.toFixed(2))}~~ → £${escapeMarkdownV2(newPrice.toFixed(2))} \\(⬇️${escapeMarkdownV2(change.toFixed(1))}%\\)\n`;
+    // Back in stock section
+    if (backInStock.length > 0) {
+        message += `🎉 *Back In Stock*\n\n`;
+        backInStock.slice(0, 3).forEach(({ product, price }) => {
+            const name = escapeMarkdownV2(product.name.substring(0, 40) + (product.name.length > 40 ? '...' : ''));
+            message += `� ${name}\n`;
+            message += `   Now available for £${escapeMarkdownV2(price.toFixed(2))}\n`;
+            message += `   [Check It Out](${escapeMarkdownV2(product.url)})\n\n`;
         });
-        message += '\n';
+    }
+    
+    // Out of stock warning
+    if (outOfStock.length > 0) {
+        message += `⚠️ *Out of Stock* \\(${outOfStock.length}\\)\n\n`;
+        outOfStock.slice(0, 3).forEach(({ product }) => {
+            const name = escapeMarkdownV2(product.name.substring(0, 40) + (product.name.length > 40 ? '...' : ''));
+            message += `🔴 ${name}\n`;
+        });
+        if (outOfStock.length > 3) {
+            message += `   \\+${outOfStock.length - 3} more unavailable\n`;
+        }
+        message += `\n_We'll notify you when they're back\\!_\n\n`;
+    }
+    
+    // Summary section with visual bars
+    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `📊 *Daily Summary*\n\n`;
+    
+    const inStockCount = products.length - outOfStock.length;
+    message += `📦 *Total Products:* ${products.length}\n`;
+    if (inStockCount > 0) {
+        message += `   └ 🟢 In Stock: ${inStockCount}\n`;
+    }
+    if (outOfStock.length > 0) {
+        message += `   └ 🔴 Out of Stock: ${outOfStock.length}\n`;
+    }
+    message += `\n`;
+    
+    if (priceDrops.length > 0) {
+        message += `� *Price Drops:* ${priceDrops.length}\n`;
+    }
+    if (priceIncreases.length > 0) {
+        message += `💔 *Price Increases:* ${priceIncreases.length}\n`;
+    }
+    if (noChange.length > 0) {
+        message += `😴 *No Change:* ${noChange.length}\n`;
+    }
+    message += `\n`;
+    
+    // Savings section
+    if (totalSavings > 0 || potentialSavings > 0) {
+        message += `💰 *Your Savings*\n`;
+        if (totalSavings > 0) {
+            message += `   • 24h Savings: *£${escapeMarkdownV2(totalSavings.toFixed(2))}*\n`;
+        }
+        if (potentialSavings > 0) {
+            message += `   • Extra Savings: £${escapeMarkdownV2(potentialSavings.toFixed(2))} \\(below target\\)\n`;
+        }
+        message += `\n`;
+    }
+    
+    // Trending section
+    if (priceDrops.length > 3) {
+        message += `📉 *Trending Down* \\- More drops than usual\\!\n\n`;
+    } else if (priceIncreases.length > priceDrops.length && priceIncreases.length > 3) {
+        message += `📈 *Trending Up* \\- Prices rising\\. Consider buying soon\\!\n\n`;
     }
     
     // Action items
-    message += `\n💡 *Recommended Actions*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `💡 *What to Do Next*\n\n`;
+    let actionCount = 0;
+    
     if (atTarget.length > 0) {
-        message += `• 🛒 ${atTarget.length} product${atTarget.length > 1 ? 's' : ''} at target price \\- ready to buy\\!\n`;
+        actionCount++;
+        message += `${actionCount}\\. 🛒 *Buy now* \\- ${atTarget.length} product${atTarget.length > 1 ? 's' : ''} at your target price\\!\n`;
     }
-    if (priceDrops.length > 0) {
-        message += `• 👀 ${priceDrops.length} price drop${priceDrops.length > 1 ? 's' : ''} \\- check for deals\\!\n`;
+    if (bestDeals.length > 0) {
+        actionCount++;
+        message += `${actionCount}\\. 🔥 *Check hot deals* \\- Big discounts available\\!\n`;
     }
-    if (priceDrops.length === 0 && atTarget.length === 0) {
-        message += `• 😊 No action needed\\. Sit back and relax\\!\n`;
+    if (priceDrops.length > 0 && bestDeals.length === 0) {
+        actionCount++;
+        message += `${actionCount}\\. 👀 *Review price drops* \\- ${priceDrops.length} item${priceDrops.length > 1 ? 's' : ''} cheaper today\\!\n`;
     }
-    message += `\n📋 Use /list to see all your tracked products\\.`;
+    if (backInStock.length > 0) {
+        actionCount++;
+        message += `${actionCount}\\. 🎉 *Grab restocked items* \\- Before they sell out again\\!\n`;
+    }
+    if (actionCount === 0) {
+        message += `😊 *Relax\\!* No urgent actions needed\\. Keep tracking\\!\n`;
+    }
+    
+    message += `\n📋 Type /list to see all your products\\.`;
     
     return message;
 };

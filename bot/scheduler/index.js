@@ -44,6 +44,7 @@ const startScheduler = (bot) => {
       
       let sent = 0;
       let failed = 0;
+      let skipped = 0;
       
       for (const user of users) {
         try {
@@ -53,6 +54,7 @@ const startScheduler = (bot) => {
           });
           
           if (products.length === 0) {
+            skipped++;
             continue; // Skip users with no products
           }
           
@@ -67,10 +69,25 @@ const startScheduler = (bot) => {
           
           await bot.telegram.sendMessage(user.chatId, reportMessage, {
             parse_mode: 'MarkdownV2',
-            disable_web_page_preview: true
+            disable_web_page_preview: true,
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📋 View All Products', callback_data: 'list_products' },
+                  { text: '🔥 Hot Deals', callback_data: 'show_deals' }
+                ],
+                [
+                  { text: '➕ Track New Product', callback_data: 'add_product' },
+                  { text: '⚙️ Settings', callback_data: 'settings' }
+                ]
+              ]
+            }
           });
           
           sent++;
+          
+          // Add small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (error) {
           console.error(`Failed to send daily report to user ${user.chatId}:`, error.message);
           failed++;
@@ -79,8 +96,9 @@ const startScheduler = (bot) => {
       
       const duration = (Date.now() - startTime) / 1000;
       console.log(`Daily reports completed in ${duration.toFixed(1)}s:
-          - ${sent} reports sent
-          - ${failed} failed`);
+          - ${sent} reports sent successfully
+          - ${skipped} users skipped (no products)
+          - ${failed} failed to send`);
     } catch (error) {
       console.error('Error in daily report generation:', error);
     }
