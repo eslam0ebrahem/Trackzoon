@@ -3,6 +3,10 @@ import User from '../models/User.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { buildPriceAlertMessage } from '../utils/messageHelper.js';
+import pLimit from 'p-limit';
+
+// Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
+const scrapingLimit = pLimit(3);
 
 export class PriceTrackerService {
   constructor(bot) {
@@ -208,8 +212,9 @@ export class PriceTrackerService {
     const products = await Product.find({});
     console.log(`Checking prices for ${products.length} products...`);
 
+    // Use rate limiter to batch requests (3 concurrent max)
     const results = await Promise.allSettled(
-      products.map(product => this.checkPrice(product))
+      products.map(product => scrapingLimit(() => this.checkPrice(product)))
     );
 
     const succeeded = results.filter(r => r.status === 'fulfilled' && r.value).length;

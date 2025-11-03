@@ -50,7 +50,7 @@ const startScheduler = (bot) => {
         try {
           // Get user's tracked products with full details
           const products = await Product.find({ 
-            'trackedBy.chatId': parseInt(user.chatId) 
+            'trackedBy.chatId': user.chatId 
           });
           
           if (products.length === 0) {
@@ -62,7 +62,7 @@ const startScheduler = (bot) => {
           const reportMessage = buildDailyReportMessage(
             products.map(p => ({
               ...p.toObject(),
-              trackedBy: p.trackedBy.filter(t => t.chatId === parseInt(user.chatId))
+              trackedBy: p.trackedBy.filter(t => t.chatId === user.chatId)
             })),
             user.firstName || user.username || 'there'
           );

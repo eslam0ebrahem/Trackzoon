@@ -25,7 +25,7 @@ const userSettingsSchema = new mongoose.Schema({
 
 const userSchema = new mongoose.Schema({
   chatId: {
-    type: String,
+    type: Number,
     required: true,
     unique: true
   },
