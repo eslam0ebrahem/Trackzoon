@@ -11,7 +11,21 @@ export class PriceTrackerService {
 
   async checkPrice(product) {
     try {
-      const currentPrice = await getPrice(product.url);
+      let currentPrice;
+      
+      try {
+        currentPrice = await getPrice(product.url);
+      } catch (priceError) {
+        // Handle out-of-stock products gracefully
+        if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
+          console.log(`Product ${product.asin} is out of stock, skipping price check`);
+          product.lastChecked = new Date();
+          await product.save();
+          return null; // Skip this product without failing the entire check
+        }
+        throw priceError; // Re-throw other errors
+      }
+      
       const previousPrice = product.currentPrice;
 
       if (currentPrice === previousPrice) {

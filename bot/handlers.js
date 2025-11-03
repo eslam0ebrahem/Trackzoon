@@ -150,7 +150,26 @@ const registerHandlers = (bot) => {
 
         // Get product details
         const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
-        const currentPrice = await getPrice(resolvedUrl).catch(() => 0);
+        let currentPrice;
+        
+        try {
+          currentPrice = await getPrice(resolvedUrl);
+        } catch (priceError) {
+          await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
+          
+          // Check if it's an out-of-stock error
+          if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
+            return await ctx.reply(
+              escapeMarkdownV2('⚠️ This product is currently out of stock or unavailable. Please try again when it\'s back in stock.'),
+              { parse_mode: 'MarkdownV2', ...mainKeyboard() }
+            );
+          }
+          
+          return await ctx.reply(
+            escapeMarkdownV2('❌ Unable to fetch the current price. Please try again later.'),
+            { parse_mode: 'MarkdownV2', ...mainKeyboard() }
+          );
+        }
 
         if (currentPrice <= 0) {
           await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
@@ -842,13 +861,31 @@ async function handleUrlAndPrice(ctx) {
 
     // Get product details
     const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
-    let currentPrice = await getPrice(resolvedUrl).catch((err) => {
-      console.error('Error fetching price:', err.message);
-      return 0;
-    });
-
-    // Allow adding product even without current price (it will be fetched later by scheduler)
+    let currentPrice;
     let priceWarning = '';
+    
+    try {
+      currentPrice = await getPrice(resolvedUrl);
+    } catch (err) {
+      console.error('Error fetching price:', err.message);
+      
+      // Check if it's an out-of-stock error
+      if (err.message.includes('out of stock') || err.message.includes('unavailable')) {
+        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
+        throw new BotError(
+          'Product unavailable',
+          ErrorCodes.SCRAPING_ERROR,
+          '⚠️ This product is currently out of stock or unavailable\\. Please try again when it\'s back in stock\\.'
+        );
+      }
+      
+      // Allow adding product even without current price (it will be fetched later by scheduler)
+      console.log('Price not available now, will be checked by scheduler');
+      currentPrice = threshold; // Use threshold as placeholder
+      priceWarning = '\n\n⚠️ *Note:* Current price unavailable\\. We\'ll fetch it in the next update\\.';
+    }
+
+    // Additional check for invalid prices
     if (currentPrice <= 0) {
       console.log('Price not available now, will be checked by scheduler');
       currentPrice = threshold; // Use threshold as placeholder

@@ -19,6 +19,44 @@ async function getPrice(url) {
     const html = response.data;
     const $ = cheerio.load(html);
 
+    // Check if product is available first
+    const availabilitySelectors = [
+      '#availability span',
+      '#availability',
+      '.availability span',
+      '[data-feature-name="availability"]'
+    ];
+
+    let availabilityText = '';
+    for (const selector of availabilitySelectors) {
+      const element = $(selector).first();
+      if (element.length) {
+        availabilityText = element.text().trim().toLowerCase();
+        if (availabilityText) {
+          console.log(`Availability status: ${availabilityText}`);
+          break;
+        }
+      }
+    }
+
+    // Check for out of stock indicators
+    const outOfStockKeywords = [
+      'currently unavailable',
+      'out of stock',
+      'not available',
+      'temporarily out of stock',
+      'unavailable'
+    ];
+
+    const isOutOfStock = outOfStockKeywords.some(keyword => 
+      availabilityText.includes(keyword)
+    );
+
+    if (isOutOfStock) {
+      console.log('Product is out of stock or unavailable');
+      throw new Error('Product is currently out of stock or unavailable');
+    }
+
     // Try multiple price selectors (Amazon uses different ones across regions)
     const selectors = [
       // Common selectors
