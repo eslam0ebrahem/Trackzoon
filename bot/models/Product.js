@@ -6,7 +6,7 @@ const MAX_PRICE_HISTORY_ENTRIES = 1000; // Keep last 1000 price records
 const PRICE_HISTORY_DAYS_TO_KEEP = 90; // Keep last 90 days
 
 const ProductSchema = new mongoose.Schema({
-  asin: { type: String, required: true, index: true },
+  asin: { type: String, required: true },
   url: { type: String, required: true },
   name: { type: String, required: true },
   currentPrice: { type: Number, default: 0 },
@@ -28,8 +28,8 @@ const ProductSchema = new mongoose.Schema({
   }]
 });
 
-// Indexes for performance optimization
-ProductSchema.index({ asin: 1 });
+// Indexes for performance optimization (Phase 1)
+ProductSchema.index({ asin: 1 }, { unique: true });
 ProductSchema.index({ 'trackedBy.chatId': 1 });
 ProductSchema.index({ asin: 1, 'trackedBy.chatId': 1 });
 ProductSchema.index({ lastChecked: 1 }); // For finding stale products
