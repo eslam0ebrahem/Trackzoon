@@ -1,5 +1,6 @@
 import { initSentry, captureError } from './config/sentry.js';
 import cache from './config/cache.js';
+import connectDB from './config/db.js';
 import commands from './config/commands.js';
 import initializeBot from './core/bot.js';
 import registerHandlers from './handlers.js';
@@ -14,6 +15,9 @@ initSentry();
 
 // Initialize Redis cache (optional)
 cache.init();
+
+// Connect to MongoDB
+await connectDB();
 
 // Initialize the bot
 const bot = initializeBot(commands);
