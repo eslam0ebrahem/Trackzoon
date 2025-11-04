@@ -1,4 +1,3 @@
-import { initializeConfig } from './config/init.js';
 import { initSentry, captureError } from './config/sentry.js';
 import cache from './config/cache.js';
 import commands from './config/commands.js';
@@ -15,9 +14,6 @@ initSentry();
 
 // Initialize Redis cache (optional)
 cache.init();
-
-// Initialize configurations
-initializeConfig();
 
 // Initialize the bot
 const bot = initializeBot(commands);
