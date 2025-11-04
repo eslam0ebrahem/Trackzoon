@@ -511,7 +511,7 @@ Choose a threshold or set a custom one:`,
         const rank = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}\\.`;
         const name = escapeMarkdownV2(deal.product.name.substring(0, 50) + (deal.product.name.length > 50 ? '...' : ''));
         
-        message += `${rank} *${name}*\n`;
+        message += `${rank} [${name}](${escapeMarkdownV2(deal.product.url)})\n`;
         message += `   ~~£${escapeMarkdownV2(deal.oldPrice.toFixed(2))}~~ → *£${escapeMarkdownV2(deal.currentPrice.toFixed(2))}*\n`;
         message += `   💰 Save £${escapeMarkdownV2(deal.priceDiff.toFixed(2))} \\(${escapeMarkdownV2(deal.percentChange.toFixed(1))}% off\\)\n`;
         
@@ -520,7 +520,7 @@ Choose a threshold or set a custom one:`,
           message += `   ✅ *At your target price\\!*\n`;
         }
         
-        message += `   [View Product](${escapeMarkdownV2(deal.product.url)})\n\n`;
+        message += `\n`;
       });
 
       // Add summary

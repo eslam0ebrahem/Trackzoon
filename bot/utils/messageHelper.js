@@ -441,10 +441,9 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         bestDeals.slice(0, 5).forEach(({ product, oldPrice, newPrice, change, priceDiff }, index) => {
             const name = escapeMarkdownV2(product.name.substring(0, 45) + (product.name.length > 45 ? '...' : ''));
             const icon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔸';
-            message += `${icon} ${name}\n`;
+            message += `${icon} [${name}](${escapeMarkdownV2(product.url)})\n`;
             message += `   ~~£${escapeMarkdownV2(oldPrice.toFixed(2))}~~ → *£${escapeMarkdownV2(newPrice.toFixed(2))}*\n`;
-            message += `   💰 Save £${escapeMarkdownV2(priceDiff.toFixed(2))} \\(${escapeMarkdownV2(change.toFixed(0))}% off\\)\n`;
-            message += `   [View Product](${escapeMarkdownV2(product.url)})\n\n`;
+            message += `   💰 Save £${escapeMarkdownV2(priceDiff.toFixed(2))} \\(${escapeMarkdownV2(change.toFixed(0))}% off\\)\n\n`;
         });
     }
     
@@ -453,12 +452,12 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         message += `✅ *Target Price Reached* \\(${atTarget.length}\\)\n\n`;
         atTarget.slice(0, 5).forEach(({ product, price, target, savings }) => {
             const name = escapeMarkdownV2(product.name.substring(0, 40) + (product.name.length > 40 ? '...' : ''));
-            message += `🎯 ${name}\n`;
+            message += `🎯 [${name}](${escapeMarkdownV2(product.url)})\n`;
             message += `   Current: *£${escapeMarkdownV2(price.toFixed(2))}* \\| Target: £${escapeMarkdownV2(target.toFixed(2))}\n`;
             if (savings > 0) {
                 message += `   💚 Even £${escapeMarkdownV2(savings.toFixed(2))} below target\\!\n`;
             }
-            message += `   [Buy Now](${escapeMarkdownV2(product.url)})\n\n`;
+            message += `\n`;
         });
         if (atTarget.length > 5) {
             message += `   \\+${atTarget.length - 5} more ready to buy\\!\n\n`;
@@ -470,7 +469,7 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         message += `⚠️ *Out of Stock* \\(${outOfStock.length}\\)\n\n`;
         outOfStock.slice(0, 3).forEach(({ product }) => {
             const name = escapeMarkdownV2(product.name.substring(0, 40) + (product.name.length > 40 ? '...' : ''));
-            message += `🔴 ${name}\n`;
+            message += `🔴 [${name}](${escapeMarkdownV2(product.url)})\n`;
         });
         if (outOfStock.length > 3) {
             message += `   \\+${outOfStock.length - 3} more unavailable\n`;
