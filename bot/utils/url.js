@@ -1,4 +1,5 @@
 import axios from 'axios';
+import cache, { CacheKeys, CacheTTL } from '../config/cache.js';
 
 /**
  * Cleans an Amazon URL by removing query parameters and tracking codes
@@ -28,6 +29,14 @@ export function cleanAmazonUrl(url) {
 export async function resolveAmazonUrl(url) {
   try {
     console.log('\nProcessing URL:', url);
+
+    // Try cache first
+    const cacheKey = CacheKeys.resolvedUrl(url);
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log('Cache hit: Resolved URL');
+      return cached;
+    }
 
     // Clean the URL first
     let cleanUrl = url.trim();
@@ -97,10 +106,13 @@ export async function resolveAmazonUrl(url) {
           if (match && match[1].length === 10) {
             const asin = match[1].toUpperCase();
             console.log('Found ASIN from resolved URL:', asin);
-            return {
+            const result = {
               resolvedUrl: cleanAmazonUrl(resolvedUrl),
               asin: asin
             };
+            // Cache the resolved URL
+            await cache.set(cacheKey, result, CacheTTL.RESOLVED_URL);
+            return result;
           }
         }
       } catch (error) {
@@ -110,10 +122,13 @@ export async function resolveAmazonUrl(url) {
 
     // If we got here, we couldn't find a valid ASIN
     console.log('No valid ASIN found');
-    return {
+    const result = {
       resolvedUrl: cleanAmazonUrl(cleanUrl),
       asin: null
     };
+    // Cache even null results to avoid repeated resolution attempts
+    await cache.set(cacheKey, result, 3600); // 1 hour for failed resolutions
+    return result;
   } catch (error) {
     console.error('Error in resolveAmazonUrl:', error);
     return {

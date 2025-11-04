@@ -3,6 +3,7 @@ import { PriceTrackerService } from '../services/priceTrackerService.js';
 import User from '../models/User.js';
 import Product from '../models/Product.js';
 import { buildDailyReportMessage } from '../utils/messageHelper.js';
+import { sendMessageWithRetry } from '../utils/retry.js';
 import { captureError, captureMessage } from '../config/sentry.js';
 
 // Store active cron tasks for cleanup
@@ -81,7 +82,7 @@ const startScheduler = (bot) => {
             user.firstName || user.username || 'there'
           );
           
-          await bot.telegram.sendMessage(user.chatId, reportMessage, {
+          await sendMessageWithRetry(bot, user.chatId, reportMessage, {
             parse_mode: 'MarkdownV2',
             disable_web_page_preview: true,
             reply_markup: {

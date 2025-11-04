@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { buildPriceAlertMessage } from '../utils/messageHelper.js';
+import { sendMessageWithRetry } from '../utils/retry.js';
 import pLimit from 'p-limit';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
@@ -208,12 +209,13 @@ export class PriceTrackerService {
   async notifyUser(chatId, product, oldPrice, newPrice) {
     try {
       const message = buildPriceAlertMessage(product, oldPrice, newPrice);
-      await this.bot.telegram.sendMessage(chatId, message, {
+      await sendMessageWithRetry(this.bot, chatId, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: false
       });
     } catch (error) {
       console.error(`Error notifying user ${chatId} about product ${product.asin}:`, error);
+      // Don't throw - continue processing other notifications
     }
   }
 
@@ -240,12 +242,13 @@ export class PriceTrackerService {
         '🔗 Click the link above to buy now before it goes out of stock again\\!'
       ].join('\n');
 
-      await this.bot.telegram.sendMessage(chatId, message, {
+      await sendMessageWithRetry(this.bot, chatId, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: false
       });
     } catch (error) {
       console.error(`Error notifying user ${chatId} about back-in-stock for ${product.asin}:`, error);
+      // Don't throw - continue processing other notifications
     }
   }
 

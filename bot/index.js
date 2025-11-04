@@ -1,5 +1,6 @@
 import { initializeConfig } from './config/init.js';
 import { initSentry, captureError } from './config/sentry.js';
+import cache from './config/cache.js';
 import commands from './config/commands.js';
 import initializeBot from './core/bot.js';
 import registerHandlers from './handlers.js';
@@ -11,6 +12,9 @@ import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
 
 // Initialize Sentry error monitoring first
 initSentry();
+
+// Initialize Redis cache (optional)
+cache.init();
 
 // Initialize configurations
 initializeConfig();
@@ -72,6 +76,9 @@ const shutdown = (signal) => {
   if (stopScheduler) {
     stopScheduler();
   }
+  
+  // Close cache connection
+  cache.close();
   
   // Stop bot
   bot.stop(signal);
