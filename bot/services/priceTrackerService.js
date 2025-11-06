@@ -224,6 +224,8 @@ export class PriceTrackerService {
       const { escapeMarkdownV2 } = await import('../utils/messageHelper.js');
       
       const belowThreshold = currentPrice <= thresholdPrice;
+      const priceDifference = Math.abs(currentPrice - thresholdPrice);
+      const percentDifference = ((Math.abs(currentPrice - thresholdPrice) / thresholdPrice) * 100).toFixed(1);
       
       const message = [
         '🎉 *Back in Stock Alert\\!*',
@@ -233,13 +235,13 @@ export class PriceTrackerService {
         '✅ *Good news\\!* This product is now available again\\!',
         '',
         `💰 *Current Price:* £${escapeMarkdownV2(currentPrice.toFixed(2))}`,
-        `🎯 *Your Alert:* £${escapeMarkdownV2(thresholdPrice.toFixed(2))}`,
+        `🎯 *Your Alert Price:* £${escapeMarkdownV2(thresholdPrice.toFixed(2))}`,
         '',
         belowThreshold 
-          ? `🎊 *Awesome\\!* It's at or below your target price\\!`
-          : `📊 Price is ${escapeMarkdownV2((((currentPrice - thresholdPrice) / thresholdPrice) * 100).toFixed(1))}% above your alert\\.`,
+          ? `🎊 *Awesome\\!* It's £${escapeMarkdownV2(priceDifference.toFixed(2))} below your alert price \\(${escapeMarkdownV2(percentDifference)}% less\\)\\!`
+          : `📊 Currently £${escapeMarkdownV2(priceDifference.toFixed(2))} above your alert price \\(${escapeMarkdownV2(percentDifference)}% more\\)\\.`,
         '',
-        '🔗 Click the link above to buy now before it goes out of stock again\\!'
+        '� Click the product name above to view on Amazon\\!'
       ].join('\n');
 
       await sendMessageWithRetry(this.bot, chatId, message, {
