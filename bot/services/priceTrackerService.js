@@ -28,6 +28,12 @@ export class PriceTrackerService {
         if (wasOutOfStock) {
           console.log(`Product ${product.asin} is now back in stock!`);
           
+          // Check if product was actually tracked as in-stock before
+          // (has real price history, not just added while out of stock)
+          const hasBeenInStockBefore = product.priceHistory && 
+                                       product.priceHistory.length > 0 && 
+                                       product.outOfStockSince != null;
+          
           // Only add to price history if price actually changed or this is first real price
           const shouldAddToHistory = !previousPrice || 
                                      previousPrice === 0 || 
@@ -58,23 +64,29 @@ export class PriceTrackerService {
             { new: true }
           );
           
-          // Notify users that product is back in stock (with cooldown check)
-          for (const tracker of updatedProduct.trackedBy) {
-            // Check if we already notified recently (within 24 hours)
-            const shouldNotifyRestock = !tracker.lastAlertedAt || 
-              (Date.now() - tracker.lastAlertedAt.getTime()) > 24 * 60 * 60 * 1000;
-            
-            if (shouldNotifyRestock) {
-              await this.notifyBackInStock(tracker.chatId, updatedProduct, currentPrice, tracker.thresholdPrice);
+          // Only notify if product was genuinely out of stock before
+          // (not just added while unavailable)
+          if (hasBeenInStockBefore) {
+            // Notify users that product is back in stock (with cooldown check)
+            for (const tracker of updatedProduct.trackedBy) {
+              // Check if we already notified recently (within 24 hours)
+              const shouldNotifyRestock = !tracker.lastAlertedAt || 
+                (Date.now() - tracker.lastAlertedAt.getTime()) > 24 * 60 * 60 * 1000;
               
-              // Update lastAlertedAt atomically
-              await Product.updateOne(
-                { asin: asin, 'trackedBy.chatId': tracker.chatId },
-                { $set: { 'trackedBy.$.lastAlertedAt': new Date() } }
-              );
-            } else {
-              console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - already notified within 24h`);
+              if (shouldNotifyRestock) {
+                await this.notifyBackInStock(tracker.chatId, updatedProduct, currentPrice, tracker.thresholdPrice);
+                
+                // Update lastAlertedAt atomically
+                await Product.updateOne(
+                  { asin: asin, 'trackedBy.chatId': tracker.chatId },
+                  { $set: { 'trackedBy.$.lastAlertedAt': new Date() } }
+                );
+              } else {
+                console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - already notified within 24h`);
+              }
             }
+          } else {
+            console.log(`Product ${product.asin} is now available, but was added while out of stock - not sending back-in-stock alert`);
           }
           
           return {
