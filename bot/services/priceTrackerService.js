@@ -65,13 +65,20 @@ export class PriceTrackerService {
           );
           
           // Only notify if product was genuinely out of stock before
-          // (not just added while unavailable)
+          // (not just added while unavailable) AND price is reasonable
           if (hasBeenInStockBefore) {
             // Notify users that product is back in stock (with cooldown check)
             for (const tracker of updatedProduct.trackedBy) {
-              // Check if we already notified recently (within 24 hours)
+              // Only send alert if price is at or below target price
+              // No point alerting if it's too expensive anyway
+              if (!tracker.thresholdPrice || currentPrice > tracker.thresholdPrice) {
+                console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - price £${currentPrice} is above target £${tracker.thresholdPrice}`);
+                continue;
+              }
+              
+              // Check if we already notified recently (within 7 days to reduce spam)
               const shouldNotifyRestock = !tracker.lastAlertedAt || 
-                (Date.now() - tracker.lastAlertedAt.getTime()) > 24 * 60 * 60 * 1000;
+                (Date.now() - tracker.lastAlertedAt.getTime()) > 7 * 24 * 60 * 60 * 1000;
               
               if (shouldNotifyRestock) {
                 await this.notifyBackInStock(tracker.chatId, updatedProduct, currentPrice, tracker.thresholdPrice);
@@ -82,7 +89,7 @@ export class PriceTrackerService {
                   { $set: { 'trackedBy.$.lastAlertedAt': new Date() } }
                 );
               } else {
-                console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - already notified within 24h`);
+                console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - already notified within 7 days`);
               }
             }
           } else {
@@ -235,25 +242,25 @@ export class PriceTrackerService {
     try {
       const { escapeMarkdownV2 } = await import('../utils/messageHelper.js');
       
-      const belowThreshold = currentPrice <= thresholdPrice;
-      const priceDifference = Math.abs(currentPrice - thresholdPrice);
-      const percentDifference = ((Math.abs(currentPrice - thresholdPrice) / thresholdPrice) * 100).toFixed(1);
+      // At this point, price is always at or below threshold (checked before calling)
+      const savings = thresholdPrice - currentPrice;
+      const percentSavings = ((savings / thresholdPrice) * 100).toFixed(1);
       
       const message = [
-        '🎉 *Back in Stock Alert\\!*',
+        '🎉 *Back in Stock at Great Price\\!*',
         '',
         `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
         '',
-        '✅ *Good news\\!* This product is now available again\\!',
+        '✅ This product is now available and within your budget\\!',
         '',
         `💰 *Current Price:* £${escapeMarkdownV2(currentPrice.toFixed(2))}`,
-        `🎯 *Your Alert Price:* £${escapeMarkdownV2(thresholdPrice.toFixed(2))}`,
+        `🎯 *Your Target:* £${escapeMarkdownV2(thresholdPrice.toFixed(2))}`,
         '',
-        belowThreshold 
-          ? `🎊 *Awesome\\!* It's £${escapeMarkdownV2(priceDifference.toFixed(2))} below your alert price \\(${escapeMarkdownV2(percentDifference)}% less\\)\\!`
-          : `📊 Currently £${escapeMarkdownV2(priceDifference.toFixed(2))} above your alert price \\(${escapeMarkdownV2(percentDifference)}% more\\)\\.`,
+        savings > 0 
+          ? `🎊 *Great Deal\\!* You save £${escapeMarkdownV2(savings.toFixed(2))} \\(${escapeMarkdownV2(percentSavings)}% below target\\)\\!`
+          : `✨ *Perfect Price\\!* Exactly at your target\\!`,
         '',
-        '� Click the product name above to view on Amazon\\!'
+        '🛒 Click the product name above to buy now before it sells out again\\!'
       ].join('\n');
 
       await sendMessageWithRetry(this.bot, chatId, message, {
