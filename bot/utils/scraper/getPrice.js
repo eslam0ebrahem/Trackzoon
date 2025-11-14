@@ -39,22 +39,31 @@ async function getPrice(url) {
       }
     }
 
-    // Check for out of stock indicators
-    const outOfStockKeywords = [
-      'currently unavailable',
-      'out of stock',
-      'not available',
-      'temporarily out of stock',
-      'unavailable'
+    // Check for out of stock indicators with more precise matching
+    // Use word boundaries to avoid false positives (e.g., "available" containing "unavailable")
+    const outOfStockPatterns = [
+      /\bcurrently unavailable\b/,
+      /\btemporarily unavailable\b/,
+      /\bout of stock\b/,
+      /\btemporarily out of stock\b/,
+      /\bnot available\b/,
+      /\bunavailable\b(?!.*\bavailable\b)/  // "unavailable" but not followed by "available"
     ];
 
-    const isOutOfStock = outOfStockKeywords.some(keyword => 
-      availabilityText.includes(keyword)
+    const isOutOfStock = outOfStockPatterns.some(pattern => 
+      pattern.test(availabilityText)
     );
 
     if (isOutOfStock) {
-      console.log('Product is out of stock or unavailable');
+      console.log(`Product detected as out of stock. Availability text: "${availabilityText}"`);
       throw new Error('Product is currently out of stock or unavailable');
+    }
+    
+    // Additional check: if availability text suggests product IS available, log it
+    const inStockKeywords = ['in stock', 'available', 'ships from', 'dispatches from'];
+    const seemsInStock = inStockKeywords.some(keyword => availabilityText.includes(keyword));
+    if (seemsInStock) {
+      console.log(`Product appears to be in stock: "${availabilityText}"`);
     }
 
     // Priority-ordered selectors - MOST SPECIFIC FIRST to avoid related products
@@ -110,7 +119,20 @@ async function getPrice(url) {
       $('.a-price .a-offscreen').each((i, el) => {
         console.log(`  ${i}: ${$(el).text().trim()}`);
       });
-      throw new Error('Price not found - product may be unavailable or page structure changed');
+      
+      // If we couldn't find price but product seems available, it's a scraping issue
+      // If availability suggests out of stock, throw appropriate error
+      if (availabilityText) {
+        console.log(`Availability check: "${availabilityText}"`);
+        // Re-check with looser patterns if no price found
+        if (availabilityText.includes('unavailable') || 
+            availabilityText.includes('out of stock') ||
+            availabilityText.includes('not available')) {
+          throw new Error('Product is currently out of stock or unavailable');
+        }
+      }
+      
+      throw new Error('Price not found - page structure may have changed');
     }
     
     // Clean and convert price string
