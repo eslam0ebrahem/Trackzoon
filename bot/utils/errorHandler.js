@@ -70,13 +70,25 @@ export const handleError = async (ctx, error, defaultMessage = 'An unexpected er
     const errorMessage = escapeMarkdownV2(`❌ *Error*\n\n${message}`);
 
     if (isCallback) {
-      // For callback queries, answer the query and edit the message
+      // For callback queries, answer the query first
       await ctx.answerCbQuery('❌ Error').catch(console.error);
       
-      await ctx.editMessageText(errorMessage, {
-        parse_mode: 'MarkdownV2',
-        ...(showMainMenu ? mainKeyboard() : {})
-      }).catch(console.error);
+      // Check if the message is a photo (can't edit text on photo messages)
+      const hasPhoto = ctx.callbackQuery?.message?.photo;
+      
+      if (hasPhoto) {
+        // If it's a photo message, send a new message instead
+        await ctx.reply(errorMessage, {
+          parse_mode: 'MarkdownV2',
+          ...(showMainMenu ? mainKeyboard() : {})
+        }).catch(console.error);
+      } else {
+        // If it's a text message, edit it
+        await ctx.editMessageText(errorMessage, {
+          parse_mode: 'MarkdownV2',
+          ...(showMainMenu ? mainKeyboard() : {})
+        }).catch(console.error);
+      }
     } else {
       // For regular messages, just send a new message
       await ctx.reply(errorMessage, {

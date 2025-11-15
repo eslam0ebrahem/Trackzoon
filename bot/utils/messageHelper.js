@@ -309,6 +309,10 @@ const safeEditMessageText = async (ctx, text, options = {}) => {
         // If message content is the same, just acknowledge it silently
         if (error.description && error.description.includes('message is not modified')) {
             await ctx.answerCbQuery().catch(() => {}); // Silent acknowledgment
+        } else if (error.description && error.description.includes('no text in the message to edit')) {
+            // Message is a photo/media, send new message instead
+            await ctx.answerCbQuery().catch(() => {});
+            await ctx.reply(text, options).catch(() => {});
         } else {
             // Re-throw other errors
             throw error;

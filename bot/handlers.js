@@ -893,24 +893,51 @@ const registerHandlers = (bot) => {
         'Enter your new desired price threshold\.'
       ].join('\n'));
 
-      await ctx.editMessageText(message, {
-        parse_mode: 'MarkdownV2',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: '5% off', callback_data: `action_threshold_${asin}_5` },
-              { text: '10% off', callback_data: `action_threshold_${asin}_10` },
-              { text: '20% off', callback_data: `action_threshold_${asin}_20` }
-            ],
-            [
-              { text: '💭 Custom Threshold', callback_data: `action_custom_threshold_${asin}` }
-            ],
-            [
-              { text: '🔙 Back', callback_data: `action_view_${asin}` }
+      // Check if the message has a photo (from chart command)
+      const hasPhoto = ctx.callbackQuery?.message?.photo;
+      
+      if (hasPhoto) {
+        // If it's a photo message, answer callback and send new message
+        await ctx.answerCbQuery();
+        await ctx.reply(message, {
+          parse_mode: 'MarkdownV2',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '5% off', callback_data: `action_threshold_${asin}_5` },
+                { text: '10% off', callback_data: `action_threshold_${asin}_10` },
+                { text: '20% off', callback_data: `action_threshold_${asin}_20` }
+              ],
+              [
+                { text: '💭 Custom Threshold', callback_data: `action_custom_threshold_${asin}` }
+              ],
+              [
+                { text: '🔙 Back', callback_data: `action_view_${asin}` }
+              ]
             ]
-          ]
-        }
-      });
+          }
+        });
+      } else {
+        // If it's a text message, edit it
+        await ctx.editMessageText(message, {
+          parse_mode: 'MarkdownV2',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '5% off', callback_data: `action_threshold_${asin}_5` },
+                { text: '10% off', callback_data: `action_threshold_${asin}_10` },
+                { text: '20% off', callback_data: `action_threshold_${asin}_20` }
+              ],
+              [
+                { text: '💭 Custom Threshold', callback_data: `action_custom_threshold_${asin}` }
+              ],
+              [
+                { text: '🔙 Back', callback_data: `action_view_${asin}` }
+              ]
+            ]
+          }
+        });
+      }
     } catch (error) {
       handleError(ctx, error);
     }
