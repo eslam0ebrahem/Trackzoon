@@ -128,8 +128,11 @@ async function getPrice(url) {
     if (!priceText) {
       console.error('Price not found with any selector');
       console.log('Available price elements on page:');
+      const allPrices = [];
       $('.a-price .a-offscreen').each((i, el) => {
-        console.log(`  ${i}: ${$(el).text().trim()}`);
+        const priceVal = $(el).text().trim();
+        console.log(`  ${i}: ${priceVal}`);
+        allPrices.push(priceVal);
       });
       
       // Last resort: try to find ANY price-like text in the buy box area
@@ -152,6 +155,21 @@ async function getPrice(url) {
             console.log(`Found price with fallback regex: ${priceText}`);
             break;
           }
+        }
+      }
+      
+      // If still no price found but we have prices in the array, use the first one
+      if (!priceText && allPrices.length > 0) {
+        // Filter out unreasonably high prices (likely from similar products)
+        const reasonablePrices = allPrices.filter(p => {
+          const num = parseFloat(p.replace(/[^\d.]/g, ''));
+          return !isNaN(num) && num > 0 && num < 50000; // Reasonable price range
+        });
+        
+        if (reasonablePrices.length > 0) {
+          priceText = reasonablePrices[0];
+          foundSelector = 'fallback-first-price';
+          console.log(`Using first available price as fallback: ${priceText}`);
         }
       }
       
