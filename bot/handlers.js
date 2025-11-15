@@ -13,6 +13,9 @@ import { buildPaginatedProductList, createPaginationKeyboard } from './utils/pag
 import mainActions from './actions/mainActions.js';
 import productActions from './actions/productActions.js';
 import settingsActions from './actions/settingsActions.js';
+import handleChartCommand from './commands/chartCommand.js';
+import handleSavingsCommand from './commands/savingsCommand.js';
+import handleFlashDealsCommand from './commands/flashDealsCommand.js';
 
 const registerHandlers = (bot) => {
   // Register all action handlers
@@ -706,6 +709,35 @@ const registerHandlers = (bot) => {
         disable_web_page_preview: true,
         ...mainKeyboard()
       });
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  // Chart command - show price history chart
+  bot.command('chart', async (ctx) => {
+    try {
+      const args = ctx.message.text.split(' ').slice(1);
+      const asin = args[0] || null;
+      await handleChartCommand(bot, ctx.chat.id, asin);
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  // Savings command - show total savings
+  bot.command('savings', async (ctx) => {
+    try {
+      await handleSavingsCommand(bot, ctx.chat.id);
+    } catch (error) {
+      handleError(ctx, error);
+    }
+  });
+
+  // Flash deals command - show active flash deals
+  bot.command('flashdeals', async (ctx) => {
+    try {
+      await handleFlashDealsCommand(bot, ctx.chat.id);
     } catch (error) {
       handleError(ctx, error);
     }
@@ -1445,39 +1477,5 @@ async function handleThresholdUpdate(ctx) {
     disable_web_page_preview: true
   });
 }
-
-// Import new command handlers
-import handleChartCommand from './commands/chartCommand.js';
-import handleSavingsCommand from './commands/savingsCommand.js';
-import handleFlashDealsCommand from './commands/flashDealsCommand.js';
-
-// Chart command - show price history chart
-bot.command('chart', async (ctx) => {
-  try {
-    const args = ctx.message.text.split(' ').slice(1);
-    const asin = args[0] || null;
-    await handleChartCommand(bot, ctx.chat.id, asin);
-  } catch (error) {
-    handleError(ctx, error);
-  }
-});
-
-// Savings command - show total savings
-bot.command('savings', async (ctx) => {
-  try {
-    await handleSavingsCommand(bot, ctx.chat.id);
-  } catch (error) {
-    handleError(ctx, error);
-  }
-});
-
-// Flash deals command - show active flash deals
-bot.command('flashdeals', async (ctx) => {
-  try {
-    await handleFlashDealsCommand(bot, ctx.chat.id);
-  } catch (error) {
-    handleError(ctx, error);
-  }
-});
 
 export default registerHandlers;
