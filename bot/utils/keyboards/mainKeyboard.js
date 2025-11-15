@@ -21,7 +21,7 @@ export const mainKeyboard = () => {
   };
 };
 
-export const productActionsKeyboard = (asin) => {
+export const productActionsKeyboard = (asin) => { 
   return {
     reply_markup: {
       inline_keyboard: [
