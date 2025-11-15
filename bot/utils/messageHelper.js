@@ -46,6 +46,12 @@ const formatProductLine = (index, product, tracker, showCurrentPrice = true) => 
         message += `\n   💰 Price: *${escapeMarkdownV2(formatPrice(product.currentPrice, '£', true, previousPrice))}*`;
         message += `\n   🎯 Alert: ${escapeMarkdownV2(formatPrice(threshold))}`;
         
+        // Add rating if available
+        if (product.rating && product.rating.stars > 0) {
+            const ratingEmoji = product.rating.stars >= 4.5 ? '🌟' : product.rating.stars >= 4.0 ? '⭐' : product.rating.stars >= 3.5 ? '✨' : product.rating.stars >= 3.0 ? '💫' : '⚠️';
+            message += `\n   ${ratingEmoji} Rating: ${escapeMarkdownV2(product.rating.stars.toFixed(1))}/5 \\(${escapeMarkdownV2(product.rating.count.toLocaleString())} reviews\\)`;
+        }
+        
         // Add price difference from threshold
         const diffFromThreshold = ((product.currentPrice - threshold) / threshold) * 100;
         if (diffFromThreshold > 0) {
@@ -91,6 +97,13 @@ const formatProductDetails = (product, tracker) => {
 
     let message = `🛍️ *Product Details*\n\n`;
     message += `📦 *Name:* [${name}](${url})\n\n`;
+    
+    // Add rating if available
+    if (product.rating && product.rating.stars > 0) {
+        const ratingEmoji = product.rating.stars >= 4.5 ? '🌟' : product.rating.stars >= 4.0 ? '⭐' : product.rating.stars >= 3.5 ? '✨' : product.rating.stars >= 3.0 ? '💫' : '⚠️';
+        message += `${ratingEmoji} *Rating:* ${escapeMarkdownV2(product.rating.stars.toFixed(1))}/5\\.0 \\(${escapeMarkdownV2(product.rating.count.toLocaleString())} reviews\\)\n\n`;
+    }
+    
     message += `💰 *Current Price:* ${escapeMarkdownV2(formatPrice(currentPrice))}\n`;
     message += `🎯 *Alert Price:* ${escapeMarkdownV2(formatPrice(threshold))}\n\n`;
     message += `📊 *Price Statistics:*\n`;
@@ -545,6 +558,22 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     message += `\n📋 Type /list to see all your products\\.`;
     
     return message;
+};
+
+/**
+ * Send message helper function
+ */
+export const sendMessage = async (bot, chatId, text, options = {}) => {
+  try {
+    return await bot.telegram.sendMessage(chatId, text, {
+      parse_mode: 'Markdown',
+      disable_web_page_preview: true,
+      ...options
+    });
+  } catch (error) {
+    console.error(`Error sending message to ${chatId}:`, error.message);
+    throw error;
+  }
 };
 
 export {

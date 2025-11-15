@@ -5,6 +5,8 @@ import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { buildPriceAlertMessage } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
 import pLimit from 'p-limit';
+import { detectFlashDeal, notifyFlashDeal } from './flashDealDetector.js';
+import { updateProductRating } from './ratingScraper.js';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
 const scrapingLimit = pLimit(3);
@@ -291,10 +293,95 @@ export class PriceTrackerService {
       - ${unchanged} prices unchanged
       - ${failed} checks failed`);
 
+    // After price checks, scan for flash deals (async, don't block)
+    this.scanForFlashDeals().catch(err => 
+      console.error('Error scanning for flash deals:', err)
+    );
+
+    // Update ratings for a few products (async, don't block)
+    this.updateSomeRatings().catch(err => 
+      console.error('Error updating ratings:', err)
+    );
+
     return {
       succeeded,
       unchanged,
       failed
     };
+  }
+
+  /**
+   * Scan for flash deals after price checks
+   */
+  async scanForFlashDeals() {
+    try {
+      console.log('🔍 Scanning for flash deals...');
+      
+      // Get all tracked products that are in stock
+      const products = await Product.find({ 
+        'trackedBy.0': { $exists: true },
+        isOutOfStock: false,
+        currentPrice: { $gt: 0 }
+      });
+
+      let flashDealsFound = 0;
+
+      for (const product of products) {
+        const flashDeal = detectFlashDeal(product);
+        
+        if (flashDeal) {
+          console.log(`⚡ Flash deal detected: ${product.name} - ${flashDeal.dropPercentage}% off`);
+          await notifyFlashDeal(this.bot, product, flashDeal);
+          flashDealsFound++;
+        }
+      }
+
+      console.log(`✅ Flash deal scan complete. Found ${flashDealsFound} deals.`);
+      return flashDealsFound;
+
+    } catch (error) {
+      console.error('Error in scanForFlashDeals:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Update ratings for a subset of products (to avoid overwhelming the scraper)
+   */
+  async updateSomeRatings() {
+    try {
+      console.log('⭐ Updating product ratings...');
+      
+      // Get products that need rating updates (no rating or >7 days old)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      
+      const products = await Product.find({
+        'trackedBy.0': { $exists: true },
+        isOutOfStock: false,
+        $or: [
+          { 'rating.lastUpdated': { $exists: false } },
+          { 'rating.lastUpdated': { $lt: sevenDaysAgo } }
+        ]
+      }).limit(5); // Only update 5 products per run to avoid rate limiting
+
+      let updated = 0;
+      for (const product of products) {
+        try {
+          await updateProductRating(product);
+          updated++;
+          // Add delay between requests
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (error) {
+          console.error(`Error updating rating for ${product.name}:`, error.message);
+        }
+      }
+
+      console.log(`✅ Updated ${updated} product ratings.`);
+      return updated;
+
+    } catch (error) {
+      console.error('Error in updateSomeRatings:', error);
+      return 0;
+    }
   }
 }

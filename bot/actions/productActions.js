@@ -558,5 +558,64 @@ Choose a threshold or set a custom one:`,
       await ctx.answerCbQuery('⚠️ Error loading deals. Please try again.');
     }
   });
+
+  // Chart action - view price chart for a specific product
+  bot.action(/chart_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      await ctx.answerCbQuery('⏳ Generating chart...');
+      
+      // Import and use the chart command handler
+      const handleChartCommand = (await import('../commands/chartCommand.js')).default;
+      await handleChartCommand(bot, ctx.chat.id, asin);
+      
+    } catch (error) {
+      console.error('Error in chart action:', error);
+      await ctx.answerCbQuery('⚠️ Error generating chart. Please try again.');
+    }
+  });
+
+  // View history action (legacy support)
+  bot.action(/view_history_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      await ctx.answerCbQuery('⏳ Generating chart...');
+      
+      const handleChartCommand = (await import('../commands/chartCommand.js')).default;
+      await handleChartCommand(bot, ctx.chat.id, asin);
+      
+    } catch (error) {
+      console.error('Error in view history action:', error);
+      await ctx.answerCbQuery('⚠️ Error generating chart. Please try again.');
+    }
+  });
+
+  // Flash deals action
+  bot.action('flash_deals', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('⏳ Scanning for flash deals...');
+      
+      const handleFlashDealsCommand = (await import('../commands/flashDealsCommand.js')).default;
+      await handleFlashDealsCommand(bot, ctx.chat.id);
+      
+    } catch (error) {
+      console.error('Error in flash deals action:', error);
+      await ctx.answerCbQuery('⚠️ Error loading flash deals. Please try again.');
+    }
+  });
+
+  // Savings action
+  bot.action('savings', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('⏳ Loading savings...');
+      
+      const handleSavingsCommand = (await import('../commands/savingsCommand.js')).default;
+      await handleSavingsCommand(bot, ctx.chat.id);
+      
+    } catch (error) {
+      console.error('Error in savings action:', error);
+      await ctx.answerCbQuery('⚠️ Error loading savings. Please try again.');
+    }
+  });
 };
 

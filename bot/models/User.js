@@ -40,6 +40,29 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product'
   }],
+  // Savings tracking
+  savings: {
+    total: { type: Number, default: 0 },
+    priceDrops: { type: Number, default: 0 },
+    waitedForDeals: { type: Number, default: 0 },
+    flashDeals: { type: Number, default: 0 },
+    history: [{
+      amount: Number,
+      type: { type: String, enum: ['price_drop', 'waited_for_deal', 'flash_deal'] },
+      productName: String,
+      productUrl: String,
+      originalPrice: Number,
+      finalPrice: Number,
+      date: { type: Date, default: Date.now }
+    }]
+  },
+  // Product ratings cache
+  productRatings: [{
+    asin: String,
+    rating: Number,
+    reviewCount: Number,
+    lastUpdated: Date
+  }],
   createdAt: {
     type: Date,
     default: Date.now

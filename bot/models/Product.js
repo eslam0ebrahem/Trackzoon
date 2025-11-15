@@ -17,6 +17,7 @@ const ProductSchema = new mongoose.Schema({
   trackedBy: [{
     chatId: { type: Number, required: true },
     lastAlertedAt: Date,
+    lastFlashDealAlert: Date, // Track flash deal alerts separately
     alertType: { type: String, enum: ['drop', 'percentage_drop'], default: 'drop' },
     thresholdPrice: { type: Number },
     percentageThreshold: Number,
@@ -25,7 +26,13 @@ const ProductSchema = new mongoose.Schema({
   priceHistory: [{
     price: { type: Number, required: true },
     date: { type: Date, default: Date.now }
-  }]
+  }],
+  // Product rating information
+  rating: {
+    stars: { type: Number, min: 0, max: 5 },
+    count: { type: Number, default: 0 },
+    lastUpdated: { type: Date }
+  }
 });
 
 // Indexes for performance optimization (Phase 1)

@@ -31,7 +31,7 @@ export const productActionsKeyboard = (asin) => {
         ],
         [{ text: '🔙 Back to Products', callback_data: 'action_list_products' }]
       ]
-    }
+    } 
   };
 };
 
