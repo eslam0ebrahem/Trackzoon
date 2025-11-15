@@ -161,6 +161,11 @@ export default (bot) => {
     }
   });
 
+  // Handle pagination info button (does nothing, just shows current page)
+  bot.action('pagination_info', async (ctx) => {
+    await ctx.answerCbQuery();
+  });
+
   // Add product action
   bot.action('action_add_product', async (ctx) => {
     try {
