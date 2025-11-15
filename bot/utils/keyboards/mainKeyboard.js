@@ -10,9 +10,12 @@ export const mainKeyboard = () => {
         ],
         [
           { text: '🏆 Top 5 Deals', callback_data: 'action_top_deals' },
-          { text: '⚙️ Settings', callback_data: 'action_settings' }
+          { text: '📊 Daily Report', callback_data: 'action_report' }
         ],
-        [{ text: '❓ Help', callback_data: 'action_help' }]
+        [
+          { text: '⚙️ Settings', callback_data: 'action_settings' },
+          { text: '❓ Help', callback_data: 'action_help' }
+        ]
       ]
     }
   };

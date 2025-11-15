@@ -87,6 +87,88 @@ export default (bot) => {
     }
   });
 
+  // Daily Report action
+  bot.action('action_report', async (ctx) => {
+    try {
+      const products = await ProductService.getUserProducts(ctx.chat.id);
+      
+      if (products.length === 0) {
+        const message = escapeMarkdownV2([
+          '📊 *Daily Report*',
+          '',
+          '📭 No products tracked yet\\.',
+          '',
+          'Start tracking products to see your daily report\\!'
+        ].join('\n'));
+
+        await safeEditMessageText(ctx, message, {
+          parse_mode: 'MarkdownV2',
+          ...backToMainKeyboard()
+        });
+        await ctx.answerCbQuery('No products to report');
+        return;
+      }
+
+      // Build daily report message
+      const report = {
+        totalProducts: products.length,
+        priceDrops: [],
+        inRange: [],
+        belowThreshold: []
+      };
+
+      products.forEach(product => {
+        const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
+        if (!tracker) return;
+
+        const priceHistory = product.priceHistory || [];
+        const recentPrices = priceHistory.slice(-2);
+        
+        if (recentPrices.length >= 2) {
+          const priceDrop = recentPrices[0].price - recentPrices[1].price;
+          if (priceDrop > 0) {
+            report.priceDrops.push({ product, drop: priceDrop });
+          }
+        }
+
+        if (product.currentPrice <= tracker.thresholdPrice) {
+          report.belowThreshold.push(product);
+        } else {
+          report.inRange.push(product);
+        }
+      });
+
+      let message = `📊 *Daily Report*\n\n`;
+      message += `📦 Total Products: ${report.totalProducts}\n`;
+      message += `🎯 Below Threshold: ${report.belowThreshold.length}\n`;
+      message += `📈 In Range: ${report.inRange.length}\n\n`;
+
+      if (report.priceDrops.length > 0) {
+        message += `🔥 *Recent Price Drops:*\n`;
+        report.priceDrops.slice(0, 5).forEach(({ product, drop }) => {
+          message += `• ${product.name.substring(0, 30)}... \\-£${drop.toFixed(2)}\n`;
+        });
+        message += '\n';
+      }
+
+      if (report.belowThreshold.length > 0) {
+        message += `✅ *Products at Target Price:*\n`;
+        report.belowThreshold.slice(0, 3).forEach(product => {
+          message += `• ${product.name.substring(0, 30)}... £${product.currentPrice}\n`;
+        });
+      }
+
+      await safeEditMessageText(ctx, escapeMarkdownV2(message), {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+      await ctx.answerCbQuery('Report generated');
+    } catch (error) {
+      console.error('Error in report action:', error);
+      await ctx.answerCbQuery('⚠️ Error generating report. Please try again.');
+    }
+  });
+
   // Help action
   bot.action('action_help', async (ctx) => {
     try {
