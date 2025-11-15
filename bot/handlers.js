@@ -14,8 +14,6 @@ import mainActions from './actions/mainActions.js';
 import productActions from './actions/productActions.js';
 import settingsActions from './actions/settingsActions.js';
 import handleChartCommand from './commands/chartCommand.js';
-import handleSavingsCommand from './commands/savingsCommand.js';
-import handleFlashDealsCommand from './commands/flashDealsCommand.js';
 
 const registerHandlers = (bot) => {
   // Register all action handlers
@@ -83,8 +81,6 @@ const registerHandlers = (bot) => {
         '',
         '*New Features ✨*',
         '/chart \\[ASIN\\] \\- View price history chart',
-        '/savings \\- See your total savings',
-        '/flashdeals \\- Check active flash deals \\(>20% off\\)',
         '',
         '*Settings:*',
         '/settings \\- Manage preferences',
@@ -92,8 +88,6 @@ const registerHandlers = (bot) => {
         '💡 *Pro Tips:*',
         '• Set realistic price alerts',
         '• Check /deals daily for best savings',
-        '• Use /flashdeals for urgent opportunities',
-        '• Track your savings with /savings',
         '• View price trends with /chart',
         '• Enable daily reports in /settings',
         '• Products are checked every 30 minutes',
@@ -720,24 +714,6 @@ const registerHandlers = (bot) => {
       const args = ctx.message.text.split(' ').slice(1);
       const asin = args[0] || null;
       await handleChartCommand(bot, ctx.chat.id, asin);
-    } catch (error) {
-      handleError(ctx, error);
-    }
-  });
-
-  // Savings command - show total savings
-  bot.command('savings', async (ctx) => {
-    try {
-      await handleSavingsCommand(bot, ctx.chat.id);
-    } catch (error) {
-      handleError(ctx, error);
-    }
-  });
-
-  // Flash deals command - show active flash deals
-  bot.command('flashdeals', async (ctx) => {
-    try {
-      await handleFlashDealsCommand(bot, ctx.chat.id);
     } catch (error) {
       handleError(ctx, error);
     }

@@ -5,7 +5,6 @@ import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { buildPriceAlertMessage } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
 import pLimit from 'p-limit';
-import { detectFlashDeal, notifyFlashDeal } from './flashDealDetector.js';
 import { updateProductRating } from './ratingScraper.js';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
