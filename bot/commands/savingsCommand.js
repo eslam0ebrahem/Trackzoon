@@ -83,7 +83,7 @@ export const handleSavingsCommand = async (bot, chatId) => {
     try {
       const chartUrl = await generateSavingsChart(savings.total, savingsBreakdown);
       if (chartUrl) {
-        await bot.sendPhoto(chatId, chartUrl, {
+        await bot.telegram.sendPhoto(chatId, chartUrl, {
           caption: message,
           parse_mode: 'Markdown',
           reply_markup: {

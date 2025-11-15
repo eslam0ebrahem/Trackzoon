@@ -96,7 +96,7 @@ ${trendEmoji} *Current:* £${currentPrice.toFixed(2)} (${priceChange >= 0 ? '+' 
 ${tracker?.thresholdPrice ? `🎯 *Your Target:* £${tracker.thresholdPrice.toFixed(2)}` : ''}
 `;
 
-      await bot.sendPhoto(chatId, chartUrl, {
+      await bot.telegram.sendPhoto(chatId, chartUrl, {
         caption: message,
         parse_mode: 'Markdown',
         reply_markup: {

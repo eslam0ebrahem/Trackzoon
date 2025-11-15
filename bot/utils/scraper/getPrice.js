@@ -69,26 +69,38 @@ async function getPrice(url) {
     // Priority-ordered selectors - MOST SPECIFIC FIRST to avoid related products
     // These selectors target the main product price area only
     const selectors = [
-      // Highest priority - Main product price containers
+      // Highest priority - Main product price containers (2024+ layouts)
       '#corePriceDisplay_desktop_feature_div .a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
       '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen',
       '#corePrice_feature_div .a-price .a-offscreen',
+      '#corePrice_desktop .a-price .a-offscreen',
       
       // Price to pay (new Amazon layout)
       '.priceToPay .a-offscreen',
       'span.priceToPay .a-offscreen',
+      '.a-price.priceToPay .a-offscreen',
       
-      // Buy box price
+      // Buy box price (various formats)
       '#price_inside_buybox',
+      '.a-section.a-spacing-none.aok-align-center #price_inside_buybox',
       
       // Deal/Sale prices (specific to main product)
       '#priceblock_dealprice',
       '#priceblock_ourprice',
       '#priceblock_saleprice',
       
-      // Alternative main product selectors
+      // Apex price (newer format)
       '#apex_desktop .a-price .a-offscreen',
+      '#apex_desktop .apexPriceToPay .a-offscreen',
+      '.apex_offerDisplay_desktop .a-price .a-offscreen',
+      
+      // Alternative main product selectors
       '.a-box-inner .a-price .a-offscreen',
+      '#buybox .a-price .a-offscreen',
+      
+      // Fallback - any price in main content area (last resort)
+      '#centerCol .a-price .a-offscreen',
+      '#rightCol .a-price .a-offscreen',
     ];
 
     let priceText = null;
@@ -120,19 +132,36 @@ async function getPrice(url) {
         console.log(`  ${i}: ${$(el).text().trim()}`);
       });
       
-      // If we couldn't find price but product seems available, it's a scraping issue
-      // If availability suggests out of stock, throw appropriate error
-      if (availabilityText) {
-        console.log(`Availability check: "${availabilityText}"`);
-        // Re-check with looser patterns if no price found
-        if (availabilityText.includes('unavailable') || 
-            availabilityText.includes('out of stock') ||
-            availabilityText.includes('not available')) {
-          throw new Error('Product is currently out of stock or unavailable');
+      // Last resort: try to find ANY price-like text in the buy box area
+      console.log('Attempting fallback price extraction...');
+      const buyBoxArea = $('#buybox, #centerCol, #apex_desktop').first();
+      if (buyBoxArea.length) {
+        const buyBoxText = buyBoxArea.text();
+        // Look for price patterns like £XX.XX or $XX.XX
+        const priceMatch = buyBoxText.match(/[£$€](\d{1,5}(?:[.,]\d{2})?)/);
+        if (priceMatch) {
+          priceText = priceMatch[0];
+          foundSelector = 'fallback-regex';
+          console.log(`Found price with fallback regex: ${priceText}`);
         }
       }
       
-      throw new Error('Price not found - page structure may have changed');
+      // If still no price found
+      if (!priceText) {
+        // If we couldn't find price but product seems available, it's a scraping issue
+        // If availability suggests out of stock, throw appropriate error
+        if (availabilityText) {
+          console.log(`Availability check: "${availabilityText}"`);
+          // Re-check with looser patterns if no price found
+          if (availabilityText.includes('unavailable') || 
+              availabilityText.includes('out of stock') ||
+              availabilityText.includes('not available')) {
+            throw new Error('Product is currently out of stock or unavailable');
+          }
+        }
+        
+        throw new Error('Price not found - page structure may have changed');
+      }
     }
     
     // Clean and convert price string
