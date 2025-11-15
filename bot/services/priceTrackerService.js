@@ -313,35 +313,9 @@ export class PriceTrackerService {
    * Scan for flash deals after price checks
    */
   async scanForFlashDeals() {
-    try {
-      console.log('🔍 Scanning for flash deals...');
-      
-      // Get all tracked products that are in stock
-      const products = await Product.find({ 
-        'trackedBy.0': { $exists: true },
-        isOutOfStock: false,
-        currentPrice: { $gt: 0 }
-      });
-
-      let flashDealsFound = 0;
-
-      for (const product of products) {
-        const flashDeal = detectFlashDeal(product);
-        
-        if (flashDeal) {
-          console.log(`⚡ Flash deal detected: ${product.name} - ${flashDeal.dropPercentage}% off`);
-          await notifyFlashDeal(this.bot, product, flashDeal);
-          flashDealsFound++;
-        }
-      }
-
-      console.log(`✅ Flash deal scan complete. Found ${flashDealsFound} deals.`);
-      return flashDealsFound;
-
-    } catch (error) {
-      console.error('Error in scanForFlashDeals:', error);
-      return 0;
-    }
+    // Flash deals feature has been removed
+    console.log('⚠️ Flash deals feature is disabled');
+    return 0;
   }
 
   /**

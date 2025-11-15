@@ -137,12 +137,21 @@ async function getPrice(url) {
       const buyBoxArea = $('#buybox, #centerCol, #apex_desktop').first();
       if (buyBoxArea.length) {
         const buyBoxText = buyBoxArea.text();
-        // Look for price patterns like £XX.XX or $XX.XX
-        const priceMatch = buyBoxText.match(/[£$€](\d{1,5}(?:[.,]\d{2})?)/);
-        if (priceMatch) {
-          priceText = priceMatch[0];
-          foundSelector = 'fallback-regex';
-          console.log(`Found price with fallback regex: ${priceText}`);
+        // Look for price patterns like £XX.XX, $XX.XX, EGP XX.XX, or just numbers
+        const pricePatterns = [
+          /(?:EGP|£|€|\$)\s*(\d{1,5}(?:[.,]\d{2})?)/i,  // Currency prefix with space
+          /(\d{1,5}(?:[.,]\d{2})?)\s*(?:EGP|£|€|\$)/i,  // Currency suffix
+          /[£$€]\s*(\d{1,5}(?:[.,]\d{2})?)/,            // Symbol prefix
+        ];
+        
+        for (const pattern of pricePatterns) {
+          const priceMatch = buyBoxText.match(pattern);
+          if (priceMatch) {
+            priceText = priceMatch[0];
+            foundSelector = 'fallback-regex';
+            console.log(`Found price with fallback regex: ${priceText}`);
+            break;
+          }
         }
       }
       
@@ -165,8 +174,8 @@ async function getPrice(url) {
     }
     
     // Clean and convert price string
-    // Remove currency symbols, commas, and spaces
-    priceText = priceText.replace(/[^\d.,]/g, '');
+    // Remove currency symbols (£, $, €, EGP), commas, and spaces
+    priceText = priceText.replace(/EGP/gi, '').replace(/[^\d.,]/g, '');
     
     // Handle different decimal separators
     // If there's both comma and dot, assume dot is decimal
