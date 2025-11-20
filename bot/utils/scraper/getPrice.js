@@ -159,17 +159,47 @@ async function getPrice(url) {
       }
       
       // If still no price found but we have prices in the array, use the first one
-      if (!priceText && allPrices.length > 0) {
-        // Filter out unreasonably high prices (likely from similar products)
-        const reasonablePrices = allPrices.filter(p => {
-          const num = parseFloat(p.replace(/[^\d.]/g, ''));
-          return !isNaN(num) && num > 0 && num < 50000; // Reasonable price range
+      // BUT ONLY if we're confident the product is in stock
+      if (!priceText && allPrices.length > 0 && seemsInStock) {
+        // Only use fallback if product appears to be in stock
+        console.log('Attempting to use fallback price since product appears in stock...');
+        
+        // Try to get prices ONLY from main product area, not similar products
+        const mainProductPrices = [];
+        $('#centerCol .a-price .a-offscreen, #rightCol .a-price .a-offscreen, #buybox .a-price .a-offscreen').each((i, el) => {
+          const $el = $(el);
+          // Exclude prices from specific similar/related product sections
+          const isInExcludedSection = $el.closest(
+            '#similarities_feature_div, ' +
+            '#sims-fbt, ' +
+            '#sp_detail, ' +
+            '#aplus, ' +
+            '[data-feature-name="aplus"], ' +
+            '[cel_widget_id*="similar"], ' +
+            '[cel_widget_id*="compare"], ' +
+            '[cel_widget_id*="sims"], ' +
+            '.a-carousel-container'
+          ).length > 0;
+          
+          if (!isInExcludedSection) {
+            const priceVal = $el.text().trim();
+            mainProductPrices.push(priceVal);
+            console.log(`  Main area price ${i}: ${priceVal}`);
+          }
         });
         
-        if (reasonablePrices.length > 0) {
-          priceText = reasonablePrices[0];
-          foundSelector = 'fallback-first-price';
-          console.log(`Using first available price as fallback: ${priceText}`);
+        if (mainProductPrices.length > 0) {
+          // Filter out unreasonably high prices (likely errors)
+          const reasonablePrices = mainProductPrices.filter(p => {
+            const num = parseFloat(p.replace(/[^\d.]/g, ''));
+            return !isNaN(num) && num > 0 && num < 50000;
+          });
+          
+          if (reasonablePrices.length > 0) {
+            priceText = reasonablePrices[0];
+            foundSelector = 'fallback-main-area-price';
+            console.log(`Using first main area price as fallback: ${priceText}`);
+          }
         }
       }
       
@@ -185,6 +215,12 @@ async function getPrice(url) {
               availabilityText.includes('not available')) {
             throw new Error('Product is currently out of stock or unavailable');
           }
+        }
+        
+        // If no availability text found at all, it might be out of stock
+        if (!availabilityText || availabilityText.length === 0) {
+          console.log('No availability information found - product may be out of stock');
+          throw new Error('Product is currently out of stock or unavailable');
         }
         
         throw new Error('Price not found - page structure may have changed');
