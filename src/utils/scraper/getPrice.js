@@ -184,6 +184,27 @@ async function getPrice(url) {
       throw new Error('Amazon Captcha detected');
     }
 
+    // Check if product is only available from third-party sellers
+    const pageText = $('body').text().toLowerCase();
+    const thirdPartyOnlyPatterns = [
+      /only available from third-party sellers/i,
+      /this item is only available from third-party sellers/i,
+      /only available through.*third-party/i
+    ];
+
+    const isThirdPartyOnly = thirdPartyOnlyPatterns.some(pattern => pattern.test(pageText));
+    if (isThirdPartyOnly) {
+      logger.info('Product is only available from third-party sellers - treating as unavailable');
+      throw new Error('Product is only available from third-party sellers');
+    }
+
+    // Check for "Currently unavailable" in variant/size selections
+    const variantText = $('#variation_size_name, #native_dropdown_selected_size_name, .a-button-selected').text().toLowerCase();
+    if (variantText.includes('currently unavailable')) {
+      logger.info('Selected variant is currently unavailable');
+      throw new Error('Selected product variant is currently unavailable');
+    }
+
     const { isOutOfStock, text: availabilityText } = checkAvailability($);
     if (isOutOfStock) {
       throw new Error('Product is currently out of stock or unavailable');
