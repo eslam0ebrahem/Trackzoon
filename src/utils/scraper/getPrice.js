@@ -133,15 +133,9 @@ function extractPrice($) {
       });
 
       if (!isInExcludedSection) {
-        // Additional validation: ensure we're in the main product area
-        const isInMainProductArea = element.closest('#centerCol, #buybox, #apex_desktop, #corePriceDisplay_desktop_feature_div').length > 0;
-
-        if (isInMainProductArea || selector.includes('#price_inside_buybox') || selector.includes('#priceblock')) {
-          logger.info(`Found price with selector: ${selector}`);
-          return { priceText: element.text().trim(), selector };
-        } else {
-          logger.warn(`Skipping price from selector ${selector} - not in main product area`);
-        }
+        // Found a valid price - log and return it
+        logger.info(`Found price with selector: ${selector}`);
+        return { priceText: element.text().trim(), selector };
       } else {
         logger.warn(`Skipping price from selector ${selector} - in excluded section`);
       }
