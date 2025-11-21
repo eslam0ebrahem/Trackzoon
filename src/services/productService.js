@@ -46,7 +46,7 @@ export class ProductService {
         // Try to get price, but handle out-of-stock gracefully
         try {
           const scrapeResult = await getPrice(resolvedUrl);
-          currentPrice = scrapeResult.price;
+          currentPrice = scrapeResult.currentPrice;
           imageUrl = scrapeResult.imageUrl;
         } catch (priceError) {
           // If out of stock (includes no-buybox scenarios), use threshold as placeholder
