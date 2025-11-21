@@ -1,6 +1,8 @@
 // Helper utilities for composing and formatting messages for the Telegram bot
 // Uses MarkdownV2 escaping and provides rich message formatting with emojis
 
+import { calculatePriceStats } from './priceUtils.js';
+
 const escapeMarkdownV2 = (text = '') => {
     // First, handle any pre-escaped characters (those with a single backslash)
     const preProcessed = String(text).replace(/\\([_*\[\]()~`>#+=|{}.!-])/g, '$1');
@@ -408,7 +410,19 @@ const buildDailyReportMessage = (products, userName = 'there') => {
             totalSavings += priceDiff;
 
             // Check if it's a really good deal (>15% drop or >EGP10 off)
-            if (Math.abs(change) >= 15 || priceDiff >= 10) {
+            // SMART ALERT: Check for "fake deals"
+            let isFakeDeal = false;
+            if (product.priceHistory) {
+                const stats30d = calculatePriceStats(product.priceHistory, 30);
+                if (stats30d) {
+                    // If current price is > 40% above the 30-day LOW, it's not a "hot deal"
+                    if (currentPrice > stats30d.min * 1.4) {
+                        isFakeDeal = true;
+                    }
+                }
+            }
+
+            if (!isFakeDeal && (Math.abs(change) >= 15 || priceDiff >= 10)) {
                 bestDeals.push({ product, oldPrice, newPrice: currentPrice, change: Math.abs(change), priceDiff, tracker });
             }
         } else if (currentPrice > oldPrice) {

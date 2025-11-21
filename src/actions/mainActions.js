@@ -1,5 +1,5 @@
 import { mainKeyboard, backToMainKeyboard } from '../utils/keyboards/mainKeyboard.js';
-import { escapeMarkdownV2, safeEditMessageText } from '../utils/messageHelper.js';
+import { escapeMarkdownV2, safeEditMessageText, buildDailyReportMessage } from '../utils/messageHelper.js';
 import { ProductService } from '../services/productService.js';
 
 export default (bot) => {
@@ -91,145 +91,32 @@ export default (bot) => {
   bot.action('action_report', async (ctx) => {
     try {
       const products = await ProductService.getUserProducts(ctx.chat.id);
+      const user = ctx.from;
+      const username = user.first_name || user.username || 'there';
 
-      if (products.length === 0) {
-        const message = escapeMarkdownV2([
-          '📊 *Daily Report*',
-          '',
-          '📭 No products tracked yet\\.',
-          '',
-          'Start tracking products to see your daily report\\!'
-        ].join('\n'));
+      // Use the unified report builder
+      // We need to map products to include the specific tracker for this user
+      // similar to how reportCommand.js does it, although buildDailyReportMessage
+      // handles the array of trackers, passing the specific user context is safer
+      // if we want to reuse the exact same logic.
+      // However, buildDailyReportMessage expects the raw product objects and finds the tracker itself
+      // assuming the first tracker is the user's (which might be a risky assumption in the helper).
+      // Let's look at how reportCommand calls it:
+      // products.map(p => ({ ...p.toObject(), trackedBy: p.trackedBy.filter(t => t.chatId === ctx.chat.id) }))
+      // This ensures the helper sees only THIS user's tracker as the first one.
 
-        await safeEditMessageText(ctx, message, {
-          parse_mode: 'MarkdownV2',
-          ...backToMainKeyboard()
-        });
-        await ctx.answerCbQuery('No products to report');
-        return;
-      }
-
-      // Build daily report message with smart insights
-      const report = {
-        totalProducts: products.length,
-        priceDrops: [],
-        inRange: [],
-        belowThreshold: [],
-        totalSavings: 0,
-        totalDropValue: 0
-      };
-
-      products.forEach(product => {
-        const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-        if (!tracker) return;
-
-        const priceHistory = product.priceHistory || [];
-        const recentPrices = priceHistory.slice(-2);
-
-        // Calculate recent price drops
-        if (recentPrices.length >= 2) {
-          const priceDrop = recentPrices[0].price - recentPrices[1].price;
-          const percentDrop = ((priceDrop / recentPrices[0].price) * 100);
-          if (priceDrop > 0) {
-            report.priceDrops.push({
-              product,
-              drop: priceDrop,
-              percentDrop: percentDrop,
-              oldPrice: recentPrices[0].price,
-              newPrice: recentPrices[1].price
-            });
-            report.totalDropValue += priceDrop;
-          }
-        }
-
-        // Calculate savings vs threshold
-        if (product.currentPrice <= tracker.thresholdPrice) {
-          const savings = tracker.thresholdPrice - product.currentPrice;
-          report.belowThreshold.push({
-            product,
-            targetPrice: tracker.thresholdPrice,
-            savings: savings
-          });
-          report.totalSavings += savings;
-        } else {
-          report.inRange.push(product);
-        }
+      const userProducts = products.map(p => {
+        // If it's a mongoose document, convert to object, otherwise use as is
+        const productObj = p.toObject ? p.toObject() : p;
+        return {
+          ...productObj,
+          trackedBy: productObj.trackedBy.filter(t => t.chatId === ctx.chat.id)
+        };
       });
 
-      // Sort price drops by amount (biggest first)
-      report.priceDrops.sort((a, b) => b.drop - a.drop);
-      // Sort below threshold by savings (biggest savings first)
-      report.belowThreshold.sort((a, b) => a.product.currentPrice - b.product.currentPrice); // Sort by current price for "ready to buy"
+      const message = buildDailyReportMessage(userProducts, username);
 
-      // Build message with MessageBuilder if available, or construct manually
-      let message = `📊 *Your Daily Snapshot*\n\n`;
-
-      // Summary stats
-      message += `📦 *Tracking ${report.totalProducts} Product${report.totalProducts > 1 ? 's' : ''}*\n`;
-
-      const percentBelow = report.totalProducts > 0
-        ? ((report.belowThreshold.length / report.totalProducts) * 100).toFixed(0)
-        : 0;
-
-      message += `🎯 ${report.belowThreshold.length} at Target (${percentBelow}%)\n`;
-      message += `📈 ${report.inRange.length} Above Target\n`;
-
-      if (report.totalSavings > 0) {
-        message += `\n💰 *Potential Savings: EGP ${report.totalSavings.toFixed(2)}*\n`;
-      }
-
-      // Recent price drops section
-      if (report.priceDrops.length > 0) {
-        message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
-        message += `📉 *${report.priceDrops.length} Price Drop${report.priceDrops.length > 1 ? 's' : ''} Detected*\n\n`;
-
-        report.priceDrops.slice(0, 5).forEach(({ product, drop, percentDrop, oldPrice, newPrice }, index) => {
-          // Add urgency badge for big drops
-          let badge = '';
-          if (percentDrop >= 30) {
-            badge = ' 🔥';
-          } else if (percentDrop >= 15) {
-            badge = ' ⚡';
-          }
-
-          const icon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '•';
-          message += `${icon} ${product.name.substring(0, 28)}...${badge}\n`;
-          message += `   Was EGP ${oldPrice.toFixed(2)} → *Now EGP ${newPrice.toFixed(2)}*\n`;
-          message += `   💸 Save EGP ${drop.toFixed(2)} (${percentDrop.toFixed(1)}% OFF)\n\n`;
-        });
-
-        if (report.priceDrops.length > 5) {
-          message += `_...and ${report.priceDrops.length - 5} more price drop${report.priceDrops.length - 5 > 1 ? 's' : ''}_\n`;
-        }
-      }
-
-      // Products at target price
-      if (report.belowThreshold.length > 0) {
-        message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
-        message += `✅ *${report.belowThreshold.length} Product${report.belowThreshold.length > 1 ? 's' : ''} Ready to Buy*\n\n`;
-
-        report.belowThreshold.slice(0, 3).forEach(({ product, targetPrice, savings }) => {
-          message += `🛒 ${product.name.substring(0, 28)}...\n`;
-          message += `   *EGP ${product.currentPrice.toFixed(2)}* (Target: EGP ${targetPrice.toFixed(2)})\n`;
-          if (savings > 0) {
-            message += `   💰 EGP ${savings.toFixed(2)} below your target!\n`;
-          }
-          message += `\n`;
-        });
-
-        if (report.belowThreshold.length > 3) {
-          message += `_...and ${report.belowThreshold.length - 3} more ready to buy_\n`;
-        }
-      }
-
-      // Call to action
-      if (report.belowThreshold.length > 0 || report.priceDrops.length > 0) {
-        message += `\n💡 *Act fast!* Prices change every 30 minutes.\n`;
-      } else {
-        message += `\n⏳ No deals yet. We're watching for price drops!\n`;
-      }
-
-      await safeEditMessageText(ctx, escapeMarkdownV2(message), {
+      await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
       });

@@ -280,8 +280,7 @@ export class PriceTrackerService {
           parse_mode: 'MarkdownV2',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🛒 Buy Now', url: product.url }],
-              [{ text: '📈 View Chart', callback_data: `action_chart_${product.asin}` }]
+              [{ text: '🛒 Buy Now', url: product.url }]
             ]
           }
         });

@@ -469,21 +469,7 @@ Choose a threshold or set a custom one:`,
     }
   });
 
-  // Chart action - view price chart for a specific product
-  bot.action(/action_chart_(\w+)/, async (ctx) => {
-    try {
-      const asin = ctx.match[1];
-      await ctx.answerCbQuery('⏳ Generating chart...');
 
-      // Import and use the chart command handler
-      const handleChartCommand = (await import('../commands/chartCommand.js')).default;
-      await handleChartCommand(bot, ctx.chat.id, asin);
-
-    } catch (error) {
-      console.error('Error in chart action:', error);
-      await ctx.answerCbQuery('⚠️ Error generating chart. Please try again.');
-    }
-  });
 
   // View history action (legacy support)
   bot.action(/view_history_(\w+)/, async (ctx) => {

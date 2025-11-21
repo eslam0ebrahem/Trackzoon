@@ -33,7 +33,7 @@ export const renderDealsList = (deals, page, callbackPrefix) => {
     builder.addLine(`💰 Total Savings: *EGP ${totalSavings.toFixed(2)}*`);
     builder.addDivider();
 
-    const chartButtons = [];
+
 
     items.forEach((deal, index) => {
         const rank = startIndex + index + 1;
@@ -62,12 +62,6 @@ export const renderDealsList = (deals, page, callbackPrefix) => {
 
         builder.addLine(`   [🛒 View Deal](${deal.product.url})`);
         builder.addSpacer();
-
-        // Add chart button for this deal
-        chartButtons.push({
-            text: `${rank}. 📈 Chart`,
-            callback_data: `action_chart_${deal.product.asin}`
-        });
     });
 
     builder.addDivider();
@@ -83,15 +77,8 @@ export const renderDealsList = (deals, page, callbackPrefix) => {
     builder.addSpacer();
     builder.addTip('⏰ Prices update every 30 min • Grab deals before they expire!');
 
-    // Organize chart buttons in rows of 2
-    const chartRows = [];
-    for (let i = 0; i < chartButtons.length; i += 2) {
-        chartRows.push(chartButtons.slice(i, i + 2));
-    }
-
     const keyboard = {
         inline_keyboard: [
-            ...chartRows,
             ...createPaginationKeyboard(currentPage, totalPages, callbackPrefix),
             [{ text: '📋 All Products', callback_data: 'action_list_products' }],
             [{ text: '🔙 Main Menu', callback_data: 'action_main_menu' }]
