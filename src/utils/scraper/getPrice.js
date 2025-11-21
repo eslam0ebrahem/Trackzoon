@@ -187,16 +187,34 @@ async function getPrice(url) {
     }
 
     // Check if product is only available from third-party sellers
-    const pageText = $('body').text().toLowerCase();
+    // This text appears in specific divs, not in the availability section
+    const thirdPartySelectors = [
+      '#alternativeOfferEligibilityMessaging_feature_div',
+      '#buybox-see-all-buying-choices',
+      '.a-declarative[data-action="show-all-offers-display"]'
+    ];
+
+    let thirdPartyText = '';
+    for (const selector of thirdPartySelectors) {
+      const element = $(selector).first();
+      if (element.length) {
+        // Clone and remove script tags
+        const clone = element.clone();
+        clone.find('script, style').remove();
+        thirdPartyText = clone.text().toLowerCase();
+        if (thirdPartyText) break;
+      }
+    }
+
     const thirdPartyOnlyPatterns = [
       /only available from third-party sellers/i,
       /this item is only available from third-party sellers/i,
       /only available through.*third-party/i
     ];
 
-    const isThirdPartyOnly = thirdPartyOnlyPatterns.some(pattern => pattern.test(pageText));
+    const isThirdPartyOnly = thirdPartyOnlyPatterns.some(pattern => pattern.test(thirdPartyText));
     if (isThirdPartyOnly) {
-      logger.info('Product is only available from third-party sellers - treating as unavailable');
+      logger.info(`Product is only available from third-party sellers - detected in: "${thirdPartyText.substring(0, 100)}"`);
       throw new Error('Product is only available from third-party sellers');
     }
 
