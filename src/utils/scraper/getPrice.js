@@ -56,7 +56,10 @@ function checkAvailability($) {
     /\bout of stock\b/,
     /\btemporarily out of stock\b/,
     /\bnot available\b/,
-    /\bunavailable\b(?!.*\bavailable\b)/
+    /\bunavailable\b(?!.*\bavailable\b)/,
+    /\bcurrently not available\b/,
+    /\bno longer available\b/,
+    /\bdiscontinued\b/
   ];
 
   const isOutOfStock = outOfStockPatterns.some(pattern => pattern.test(availabilityText));
@@ -64,6 +67,14 @@ function checkAvailability($) {
   if (isOutOfStock) {
     logger.info(`Product detected as out of stock. Text: "${availabilityText}"`);
     return { isOutOfStock: true, text: availabilityText };
+  }
+
+  // Additional check: if availability section exists but is empty or has suspicious text,
+  // and we can't find a buybox, it might be unavailable
+  const hasBuyBox = $('#buybox, #buy-now-button, #add-to-cart-button').length > 0;
+  if (!hasBuyBox && availabilityText) {
+    logger.warn(`No buy box found and availability text is: "${availabilityText}"`);
+    // This could indicate the product is not available for purchase
   }
 
   return { isOutOfStock: false, text: availabilityText };
@@ -92,13 +103,47 @@ function extractPrice($) {
     '#rightCol .a-price .a-offscreen',
   ];
 
+  // Expanded list of sections to exclude (related products, similar items, etc.)
+  const excludedSections = [
+    '#similarities_feature_div',        // Similar items
+    '#sims-fbt',                        // Frequently bought together
+    '#sp_detail',                       // Sponsored products
+    '[data-feature-name="aplus"]',      // A+ content
+    '#HLCXComparisonWidget',            // Comparison widget
+    '#comparison_table',                // Comparison table
+    '#btfContent2',                     // Below the fold content
+    '#rhf',                             // Related to this item
+    '#anonCarousel1',                   // Carousels often have related products
+    '#anonCarousel2',
+    '#anonCarousel3',
+    '[cel_widget_id*="desktop-similar"]',  // Similar products widget
+    '[cel_widget_id*="MAIN-SIMILAR"]',
+    '.similarities-widget',
+    '.a-carousel-container',            // Generic carousel
+    '#sponsoredProducts',               // Sponsored products section
+    '#session-recommendations',         // Recommendations
+  ];
+
   for (const selector of selectors) {
     const element = $(selector).first();
     if (element.length && element.text().trim()) {
-      // Avoid related products
-      const isInSimilarProducts = element.closest('#similarities_feature_div, #sims-fbt, #sp_detail, [data-feature-name="aplus"]').length > 0;
-      if (!isInSimilarProducts) {
-        return { priceText: element.text().trim(), selector };
+      // Check if element is within any excluded sections
+      const isInExcludedSection = excludedSections.some(excludedSelector => {
+        return element.closest(excludedSelector).length > 0;
+      });
+
+      if (!isInExcludedSection) {
+        // Additional validation: ensure we're in the main product area
+        const isInMainProductArea = element.closest('#centerCol, #buybox, #apex_desktop, #corePriceDisplay_desktop_feature_div').length > 0;
+
+        if (isInMainProductArea || selector.includes('#price_inside_buybox') || selector.includes('#priceblock')) {
+          logger.info(`Found price with selector: ${selector}`);
+          return { priceText: element.text().trim(), selector };
+        } else {
+          logger.warn(`Skipping price from selector ${selector} - not in main product area`);
+        }
+      } else {
+        logger.warn(`Skipping price from selector ${selector} - in excluded section`);
       }
     }
   }
