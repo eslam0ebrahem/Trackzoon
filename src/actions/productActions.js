@@ -495,7 +495,7 @@ Choose a threshold or set a custom one:`,
       }
 
       builder.addLine(`${icon} *${deal.product.name.substring(0, 38)}...*${urgencyBadge}`);
-      builder.addLine(`   ~~EGP ${deal.oldPrice.toFixed(2)}~~ → *EGP ${deal.currentPrice.toFixed(2)}*`);
+      builder.addLine(`   Was EGP ${deal.oldPrice.toFixed(2)} → *Now EGP ${deal.currentPrice.toFixed(2)}*`);
       builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
 
       // Check if at or below target
