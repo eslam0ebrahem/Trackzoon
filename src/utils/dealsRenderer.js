@@ -47,7 +47,9 @@ export const renderDealsList = (deals, page, callbackPrefix) => {
             urgencyBadge = ' ⚡ *HOT*';
         }
 
-        builder.addLine(`${icon} *${deal.product.name.substring(0, 38)}...*${urgencyBadge}`);
+        // Make product name clickable
+        const productName = deal.product.name.substring(0, 45);
+        builder.addLine(`${icon} [${productName}...](${deal.product.url})${urgencyBadge}`);
         builder.addLine(`   Was EGP ${deal.oldPrice.toFixed(2)} → *Now EGP ${deal.currentPrice.toFixed(2)}*`);
         builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
 
@@ -60,7 +62,6 @@ export const renderDealsList = (deals, page, callbackPrefix) => {
             builder.addLine(`   ✅ *Hit your target price!*`);
         }
 
-        builder.addLine(`   [🛒 View Deal](${deal.product.url})`);
         builder.addSpacer();
     });
 
