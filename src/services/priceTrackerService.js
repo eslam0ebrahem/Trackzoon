@@ -25,8 +25,8 @@ export class PriceTrackerService {
 
       try {
         const scrapeResult = await getPrice(product.url);
-        currentPrice = scrapeResult.price;
-        const imageUrl = scrapeResult.imageUrl;
+        currentPrice = scrapeResult.currentPrice;
+        const imageUrl = scrapeResult.imageUrl || null; // Optional field
 
         // Product is now available (no error thrown)
         if (wasOutOfStock) {
