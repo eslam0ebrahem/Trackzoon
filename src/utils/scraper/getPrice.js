@@ -1,62 +1,122 @@
-import * as cheerio from 'cheerio';
 import axios from 'axios';
-import { logger } from '../logger.js';
+import * as cheerio from 'cheerio';
+import logger from './logger.js';
 
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15'
-];
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-const getRandomUserAgent = () => USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+/**
+ * ========================================
+ * SMART SCRAPER WITH MULTI-STRATEGY DETECTION
+ * ========================================
+ * 
+ * Features:
+ * 1. Multi-strategy price detection (try multiple methods)
+ * 2. Intelligent availability detection
+ * 3. Data validation layer
+ * 4. Better error reporting
+ */
 
-async function fetchPage(url) {
-  const headers = {
-    'User-Agent': getRandomUserAgent(),
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache'
-  };
+// ============================================
+// 1. SMART AVAILABILITY DETECTION
+// ============================================
 
-  try {
-    const response = await axios.get(url, {
-      headers,
-      timeout: 15000,
-      maxRedirects: 5,
-      validateStatus: status => status === 200 || status === 404 // Handle 404 gracefully
-    });
-    return response;
-  } catch (error) {
-    throw new Error(`Network error: ${error.message}`);
-  }
-}
-
-function checkAvailability($) {
-  const availabilitySelectors = [
-    '#availability span:not(script)',
-    '#availability:not(script)',
-    '.availability span:not(script)',
-    '[data-feature-name="availability"]:not(script)'
+/**
+ * Strategy 1: Check availability text
+ */
+function checkAvailabilityText($) {
+  const selectors = [
+    '#availability span',
+    '#availability',
+    '.availability span',
+    '[data-feature-name="availability"]'
   ];
 
-  let availabilityText = '';
-  for (const selector of availabilitySelectors) {
+  for (const selector of selectors) {
     const element = $(selector).first();
     if (element.length) {
-      // Get text but exclude script/style tags content
+      // Clone and remove script/style tags
       const clone = element.clone();
-      clone.find('script, style').remove();
-      availabilityText = clone.text().trim().toLowerCase();
+      clone.find('script, style, noscript').remove();
+      let text = clone.text().trim().toLowerCase();
 
       // Skip if it looks like JavaScript code
-      if (availabilityText && !availabilityText.includes('function') && !availabilityText.includes('p.when')) {
-        break;
+      if (text && !text.includes('function') && !text.includes('p.when') && !text.includes('var ')) {
+        return { text, source: selector };
       }
-      availabilityText = ''; // Reset if it was JavaScript
     }
   }
+
+  return { text: '', source: 'none' };
+}
+
+/**
+ * Strategy 2: Check for buy box presence
+ */
+function checkBuyBoxPresence($) {
+  const buyBoxSelectors = [
+    '#buybox',
+    '#add-to-cart-button',
+    '#buy-now-button',
+    '#submit\\.add-to-cart',
+    '#availability .a-color-success'
+  ];
+
+  for (const selector of buyBoxSelectors) {
+    if ($(selector).length > 0) {
+      return { hasBox: true, selector };
+    }
+  }
+
+  return { hasBox: false, selector: 'none' };
+}
+
+/**
+ * Strategy 3: Check for third-party seller only
+ */
+function checkThirdPartySeller($) {
+  const selectors = [
+    '#alternativeOfferEligibilityMessaging_feature_div',
+    '#buybox-see-all-buying-choices',
+    '.a-declarative[data-action="show-all-offers-display"]'
+  ];
+
+  for (const selector of selectors) {
+    const element = $(selector).first();
+    if (element.length) {
+      const clone = element.clone();
+      clone.find('script, style').remove();
+      const text = clone.text().toLowerCase();
+
+      if (text.includes('only available from third-party sellers') ||
+        text.includes('this item is only available from third-party')) {
+        return { isThirdParty: true, text: text.substring(0, 100) };
+      }
+    }
+  }
+
+  return { isThirdParty: false, text: '' };
+}
+
+/**
+ * MASTER: Intelligent availability check
+ */
+function smartAvailabilityCheck($) {
+  logger.info('🔍 Running smart availability check...');
+
+  // Strategy 1: Check for third-party sellers FIRST
+  const thirdPartyCheck = checkThirdPartySeller($);
+  if (thirdPartyCheck.isThirdParty) {
+    logger.info(`✅ Third-party seller detected: "${thirdPartyCheck.text}"`);
+    return {
+      isAvailable: false,
+      reason: 'third-party-only',
+      details: thirdPartyCheck.text
+    };
+  }
+
+  // Strategy 2: Check availability text
+  const availText = checkAvailabilityText($);
+  logger.info(`📝 Availability text: "${availText.text}" (from ${availText.source})`);
 
   const outOfStockPatterns = [
     /\bcurrently unavailable\b/,
@@ -70,199 +130,362 @@ function checkAvailability($) {
     /\bdiscontinued\b/
   ];
 
-  const isOutOfStock = outOfStockPatterns.some(pattern => pattern.test(availabilityText));
+  const isOutOfStock = outOfStockPatterns.some(pattern => pattern.test(availText.text));
 
   if (isOutOfStock) {
-    logger.info(`Product detected as out of stock. Text: "${availabilityText}"`);
-    return { isOutOfStock: true, text: availabilityText };
+    logger.info(`❌ Out of stock detected: "${availText.text}"`);
+    return {
+      isAvailable: false,
+      reason: 'out-of-stock',
+      details: availText.text
+    };
   }
 
-  // Additional check: if availability section exists but is empty or has suspicious text,
-  // and we can't find a buybox, it might be unavailable
-  const hasBuyBox = $('#buybox, #buy-now-button, #add-to-cart-button').length > 0;
-  if (!hasBuyBox && availabilityText) {
-    logger.warn(`No buy box found and availability text is: "${availabilityText}"`);
-    // This could indicate the product is not available for purchase
+  // Strategy 3: Check buy box presence
+  const buyBox = checkBuyBoxPresence($);
+  logger.info(`📦 Buy box present: ${buyBox.hasBox} (selector: ${buyBox.selector})`);
+
+  // If no availability text but no buy box, might be unavailable
+  if (!availText.text && !buyBox.hasBox) {
+    logger.warn('⚠️ No availability text AND no buy box - treating as unavailable');
+    return {
+      isAvailable: false,
+      reason: 'no-buy-box',
+      details: 'No buy box or availability information found'
+    };
   }
 
-  return { isOutOfStock: false, text: availabilityText };
+  // Strategy 4: Check for variant unavailability
+  const variantText = $('#variation_size_name, #native_dropdown_selected_size_name, .a-button-selected').text().toLowerCase();
+  if (variantText.includes('currently unavailable')) {
+    logger.info('❌ Variant unavailable');
+    return {
+      isAvailable: false,
+      reason: 'variant-unavailable',
+      details: variantText
+    };
+  }
+
+  // All checks passed - product is available
+  logger.info('✅ Product is available');
+  return {
+    isAvailable: true,
+    reason: 'in-stock',
+    details: availText.text || 'Available'
+  };
 }
 
-function extractPrice($) {
-  const selectors = [
-    '#corePriceDisplay_desktop_feature_div .a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
-    '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen',
-    '#corePrice_feature_div .a-price .a-offscreen',
-    '#corePrice_desktop .a-price .a-offscreen',
-    '.priceToPay .a-offscreen',
-    'span.priceToPay .a-offscreen',
-    '.a-price.priceToPay .a-offscreen',
-    '#price_inside_buybox',
-    '.a-section.a-spacing-none.aok-align-center #price_inside_buybox',
-    '#priceblock_dealprice',
-    '#priceblock_ourprice',
-    '#priceblock_saleprice',
-    '#apex_desktop .a-price .a-offscreen',
-    '#apex_desktop .apexPriceToPay .a-offscreen',
-    '.apex_offerDisplay_desktop .a-price .a-offscreen',
-    '.a-box-inner .a-price .a-offscreen',
-    '#buybox .a-price .a-offscreen',
-    '#centerCol .a-price .a-offscreen',
-    '#rightCol .a-price .a-offscreen',
-  ];
+// ============================================
+// 2. MULTI-STRATEGY PRICE DETECTION
+// ============================================
 
-  // Expanded list of sections to exclude (related products, similar items, etc.)
+/**
+ * Strategy 1: Standard price selectors
+ */
+function extractPriceFromSelectors($) {
   const excludedSections = [
-    '#similarities_feature_div',        // Similar items
-    '#sims-fbt',                        // Frequently bought together
-    '#sp_detail',                       // Sponsored products
-    '[data-feature-name="aplus"]',      // A+ content
-    '#HLCXComparisonWidget',            // Comparison widget
-    '#comparison_table',                // Comparison table
-    '#btfContent2',                     // Below the fold content
-    '#rhf',                             // Related to this item
-    '#anonCarousel1',                   // Carousels often have related products
+    '#similarities_feature_div',
+    '#sims-fbt',
+    '#sp_detail',
+    '[data-feature-name="aplus"]',
+    '#HLCXComparisonWidget',
+    '#comparison_table',
+    '#btfContent2',
+    '#rhf',
+    '#anonCarousel1',
     '#anonCarousel2',
     '#anonCarousel3',
-    '[cel_widget_id*="desktop-similar"]',  // Similar products widget
+    '[cel_widget_id*="desktop-similar"]',
     '[cel_widget_id*="MAIN-SIMILAR"]',
     '.similarities-widget',
-    '.a-carousel-container',            // Generic carousel
-    '#sponsoredProducts',               // Sponsored products section
-    '#session-recommendations',         // Recommendations
+    '.a-carousel-container',
+    '#sponsoredProducts',
+    '#session-recommendations',
+  ];
+
+  const selectors = [
+    '#corePrice_feature_div .a-price .a-offscreen',
+    '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen',
+    '#price_inside_buybox',
+    '#priceblock_ourprice',
+    '#priceblock_dealprice',
+    '.a-price .a-offscreen',
+    '#buybox .a-price .a-offscreen',
+    '#apex_desktop .a-price .a-offscreen',
+    '.reinvent-PriceDisplay .a-offscreen'
   ];
 
   for (const selector of selectors) {
     const element = $(selector).first();
     if (element.length && element.text().trim()) {
-      // Check if element is within any excluded sections
+      // Check if element is within excluded sections
       const isInExcludedSection = excludedSections.some(excludedSelector => {
         return element.closest(excludedSelector).length > 0;
       });
 
       if (!isInExcludedSection) {
-        // Found a valid price - log and return it
-        logger.info(`Found price with selector: ${selector}`);
-        return { priceText: element.text().trim(), selector };
-      } else {
-        logger.warn(`Skipping price from selector ${selector} - in excluded section`);
+        return {
+          priceText: element.text().trim(),
+          strategy: 'selector',
+          selector
+        };
       }
     }
   }
+
   return null;
 }
 
-function parsePrice(priceText) {
-  if (!priceText) return null;
+/**
+ * Strategy 2: Extract from buy box input fields
+ */
+function extractPriceFromBuyBox($) {
+  const inputSelectors = [
+    'input[name*="customerVisiblePrice"]',
+    'input[id*="price"]',
+    '#addToCart input[type="hidden"][name*="price"]'
+  ];
 
-  // Remove currency symbols and cleanup
-  const cleanText = priceText.replace(/EGP|£|€|\$|[^\d.,]/gi, '').trim();
-
-  let price;
-  if (cleanText.includes(',') && cleanText.includes('.')) {
-    price = parseFloat(cleanText.replace(/,/g, ''));
-  } else if (cleanText.includes(',')) {
-    price = parseFloat(cleanText.replace(',', '.'));
-  } else {
-    price = parseFloat(cleanText);
+  for (const selector of inputSelectors) {
+    const input = $(selector).first();
+    if (input.length) {
+      const value = input.attr('value');
+      if (value && !isNaN(parseFloat(value))) {
+        return {
+          priceText: value,
+          strategy: 'input-field',
+          selector
+        };
+      }
+    }
   }
 
-  return (!isNaN(price) && price > 0) ? price : null;
+  return null;
 }
+
+/**
+ * Strategy 3: Extract from JSON-LD structured data
+ */
+function extractPriceFromJSONLD($) {
+  const scripts = $('script[type="application/ld+json"]');
+
+  for (let i = 0; i < scripts.length; i++) {
+    try {
+      const jsonData = JSON.parse($(scripts[i]).html());
+
+      // Check if it's a Product schema
+      if (jsonData['@type'] === 'Product' && jsonData.offers) {
+        const offers = Array.isArray(jsonData.offers) ? jsonData.offers[0] : jsonData.offers;
+        if (offers.price) {
+          return {
+            priceText: offers.price.toString(),
+            strategy: 'json-ld',
+            selector: 'script[type="application/ld+json"]'
+          };
+        }
+      }
+    } catch (e) {
+      // Invalid JSON, skip
+    }
+  }
+
+  return null;
+}
+
+/**
+ * MASTER: Multi-strategy price extraction
+ */
+function smartPriceExtraction($) {
+  logger.info('🔍 Running multi-strategy price detection...');
+
+  const strategies = [
+    { name: 'Selector-based', fn: function () { return extractPriceFromSelectors($); } },
+    { name: 'Buy box input', fn: function () { return extractPriceFromBuyBox($); } },
+    { name: 'JSON-LD', fn: function () { return extractPriceFromJSONLD($); } }
+  ];
+
+  const results = [];
+
+  for (const strategy of strategies) {
+    try {
+      const result = strategy.fn();
+      if (result) {
+        logger.info(`✅ ${strategy.name}: Found "${result.priceText}" using ${result.selector}`);
+        results.push(result);
+      } else {
+        logger.info(`❌ ${strategy.name}: No price found`);
+      }
+    } catch (error) {
+      logger.error(`⚠️ ${strategy.name}: Error - ${error.message}`);
+    }
+  }
+
+  // Return the first valid result
+  if (results.length > 0) {
+    return results[0];
+  }
+
+  return null;
+}
+
+// ============================================
+// 3. DATA VALIDATION LAYER
+// ============================================
+
+/**
+ * Validate extracted price
+ */
+function validatePrice(priceText) {
+  if (!priceText || typeof priceText !== 'string') {
+    return { valid: false, reason: 'Empty or invalid price text' };
+  }
+
+  // Remove currency symbols and whitespace
+  const cleanPrice = priceText.replace(/[^\d.,]/g, '');
+
+  if (!cleanPrice) {
+    return { valid: false, reason: 'No numeric value in price text' };
+  }
+
+  // Parse price
+  let price;
+  if (cleanPrice.includes(',') && cleanPrice.includes('.')) {
+    // Handle formats like "1,234.56"
+    price = parseFloat(cleanPrice.replace(/,/g, ''));
+  } else if (cleanPrice.includes(',')) {
+    // Handle formats like "1234,56" (European)
+    price = parseFloat(cleanPrice.replace(',', '.'));
+  } else {
+    price = parseFloat(cleanPrice);
+  }
+
+  // Sanity checks
+  if (isNaN(price) || price <= 0) {
+    return { valid: false, reason: `Invalid price value: ${price}` };
+  }
+
+  if (price < 1 || price > 1000000) {
+    return { valid: false, reason: `Price out of reasonable range: ${price} EGP` };
+  }
+
+  return { valid: true, price };
+}
+
+/**
+ * Validate availability data
+ */
+function validateAvailability(availabilityData) {
+  if (!availabilityData || typeof availabilityData !== 'object') {
+    return { valid: false, reason: 'Invalid availability data structure' };
+  }
+
+  if (typeof availabilityData.isAvailable !== 'boolean') {
+    return { valid: false, reason: 'Missing isAvailable flag' };
+  }
+
+  if (!availabilityData.reason) {
+    return { valid: false, reason: 'Missing availability reason' };
+  }
+
+  return { valid: true };
+}
+
+// ============================================
+// MAIN SCRAPER FUNCTION
+// ============================================
 
 async function getPrice(url) {
   try {
-    const response = await fetchPage(url);
+    logger.info(`🌐 Fetching: ${url}`);
 
-    if (response.status === 404) {
-      throw new Error('Product page not found (404)');
-    }
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      timeout: 15000,
+    });
 
-    const html = response.data;
-    const $ = cheerio.load(html);
+    const $ = cheerio.load(response.data);
 
     // Check for captcha
     if ($('title').text().includes('Robot Check')) {
       throw new Error('Amazon Captcha detected');
     }
 
-    // Check if product is only available from third-party sellers
-    // This text appears in specific divs, not in the availability section
-    const thirdPartySelectors = [
-      '#alternativeOfferEligibilityMessaging_feature_div',
-      '#buybox-see-all-buying-choices',
-      '.a-declarative[data-action="show-all-offers-display"]'
-    ];
+    // ============================================
+    // STEP 1: Smart Availability Check
+    // ============================================
+    const availabilityCheck = smartAvailabilityCheck($);
 
-    let thirdPartyText = '';
-    for (const selector of thirdPartySelectors) {
-      const element = $(selector).first();
-      if (element.length) {
-        // Clone and remove script tags
-        const clone = element.clone();
-        clone.find('script, style').remove();
-        thirdPartyText = clone.text().toLowerCase();
-        if (thirdPartyText) break;
-      }
+    // Validate availability data
+    const availValidation = validateAvailability(availabilityCheck);
+    if (!availValidation.valid) {
+      logger.error(`❌ Availability validation failed: ${availValidation.reason}`);
     }
 
-    const thirdPartyOnlyPatterns = [
-      /only available from third-party sellers/i,
-      /this item is only available from third-party sellers/i,
-      /only available through.*third-party/i
-    ];
-
-    const isThirdPartyOnly = thirdPartyOnlyPatterns.some(pattern => pattern.test(thirdPartyText));
-    if (isThirdPartyOnly) {
-      logger.info(`Product is only available from third-party sellers - detected in: "${thirdPartyText.substring(0, 100)}"`);
-      throw new Error('Product is only available from third-party sellers');
+    if (!availabilityCheck.isAvailable) {
+      logger.info(`❌ Product unavailable: ${availabilityCheck.reason}`);
+      throw new Error(`Product is ${availabilityCheck.reason}: ${availabilityCheck.details}`);
     }
 
-    // Check for "Currently unavailable" in variant/size selections
-    const variantText = $('#variation_size_name, #native_dropdown_selected_size_name, .a-button-selected').text().toLowerCase();
-    if (variantText.includes('currently unavailable')) {
-      logger.info('Selected variant is currently unavailable');
-      throw new Error('Selected product variant is currently unavailable');
-    }
+    // ============================================
+    // STEP 2: Multi-Strategy Price Extraction
+    // ============================================
+    const priceResult = smartPriceExtraction($);
 
-    const { isOutOfStock, text: availabilityText } = checkAvailability($);
-    if (isOutOfStock) {
-      throw new Error('Product is currently out of stock or unavailable');
-    }
-
-    const priceResult = extractPrice($);
     if (!priceResult) {
-      // Fallback: check if we can find any price-like text in buy box
+      // Last resort: check if we can find any price-like text in buy box
       const buyBoxText = $('#buybox, #centerCol').text();
-      const priceMatch = buyBoxText.match(/[£$€]\s*(\d{1,5}(?:[.,]\d{2})?)/);
+      const priceMatch = buyBoxText.match(/[£$€EGP]+\s*(\d{1,6}(?:[.,]\d{2})?)/);
+
       if (priceMatch) {
-        const price = parsePrice(priceMatch[1]);
-        if (price) {
-          logger.info(`Found price via fallback regex: ${price}`);
-          return price;
+        logger.warn(`⚠️ Fallback regex found price: ${priceMatch[0]}`);
+        const validation = validatePrice(priceMatch[1]);
+
+        if (validation.valid) {
+          return {
+            currentPrice: validation.price,
+            isOutOfStock: false,
+            extractionMethod: 'fallback-regex'
+          };
         }
       }
 
-      logger.warn(`Price not found. Availability: ${availabilityText}`);
+      logger.error('❌ All price extraction strategies failed');
+      logger.warn(`Availability text was: "${availabilityCheck.details}"`);
       throw new Error('Price not found - page structure may have changed');
     }
 
-    const price = parsePrice(priceResult.priceText);
-    if (!price) {
-      throw new Error(`Invalid price format: ${priceResult.priceText}`);
+    // ============================================
+    // STEP 3: Validate Price
+    // ============================================
+    const priceValidation = validatePrice(priceResult.priceText);
+
+    if (!priceValidation.valid) {
+      logger.error(`❌ Price validation failed: ${priceValidation.reason}`);
+      throw new Error(`Invalid price data: ${priceValidation.reason}`);
     }
 
-    logger.info(`Successfully extracted price: ${price} (selector: ${priceResult.selector})`);
+    logger.info(`✅ Successfully extracted price: ${priceValidation.price} EGP (strategy: ${priceResult.strategy})`);
 
-    // Extract image URL
-    let imageUrl = $('#landingImage').attr('src') ||
-      $('#imgBlkFront').attr('src') ||
-      $('.a-dynamic-image').first().attr('src');
-
-    return { price, imageUrl };
+    return {
+      currentPrice: priceValidation.price,
+      isOutOfStock: false,
+      extractionMethod: priceResult.strategy,
+      selector: priceResult.selector
+    };
 
   } catch (error) {
-    logger.error(`Error scraping ${url}:`, error);
+    if (error.message.includes('out-of-stock') ||
+      error.message.includes('third-party') ||
+      error.message.includes('unavailable')) {
+      // This is an expected "error" - product is just not available
+      throw error;
+    }
+
+    logger.error(`❌ Error scraping ${url}: ${error.message}`);
     throw error;
   }
 }
