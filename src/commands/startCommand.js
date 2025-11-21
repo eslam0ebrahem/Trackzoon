@@ -1,5 +1,6 @@
 import { UserService } from '../services/userService.js';
 import { MessageBuilder } from '../utils/messageDesign.js';
+import { mainKeyboard } from '../utils/keyboards/mainKeyboard.js';
 import { handleError } from '../utils/errorHandler.js';
 
 /**
@@ -21,21 +22,11 @@ export default (bot) => {
       builder.addLine('I check prices 24/7 and notify you the moment they drop. 📉');
       builder.addSpacer();
       builder.addSection('🚀 Ready to save money?');
-      builder.addLine('Click the button below to track your first product, or just paste an Amazon link here!');
+      builder.addLine('Choose an option from the menu below:');
 
       await ctx.reply(builder.toString(), {
         parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: '🛍️ Track My First Product', callback_data: 'action_add_product' }
-            ],
-            [
-              { text: '📚 How it Works', callback_data: 'action_help' },
-              { text: '🏆 See Top Deals', callback_data: 'action_top_deals' }
-            ]
-          ]
-        }
+        ...mainKeyboard()
       });
     } catch (error) {
       handleError(ctx, error);

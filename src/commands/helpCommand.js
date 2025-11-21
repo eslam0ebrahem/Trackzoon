@@ -1,4 +1,4 @@
-import { escapeMarkdownV2 } from '../utils/messageHelper.js';
+import { MessageBuilder } from '../utils/messageDesign.js';
 import { mainKeyboard } from '../utils/keyboards/mainKeyboard.js';
 import { handleError } from '../utils/errorHandler.js';
 
@@ -9,43 +9,46 @@ import { handleError } from '../utils/errorHandler.js';
 export default (bot) => {
   bot.command('help', async (ctx) => {
     try {
-      const helpMessage = [
-        '📚 *Trackzoon Help Center*',
-        '',
-        'I can help you track Amazon prices and save money! 💸',
-        '',
-        '*🚀 Getting Started*',
-        '1️⃣ Find a product on Amazon',
-        '2️⃣ Share the link with me',
-        '3️⃣ Set your target price',
-        '',
-        '*📋 Commands*',
-        '/add <link> - Track a new product',
-        '/list - View your tracked items',
-        '/deals - See top price drops',
-        '/report - Daily price summary',
-        '/settings - Configure alerts',
-        '',
-        '*💡 Tips*',
-        '• You can just paste a link to track it!',
-        '• Use /chart to see price history',
-        '• Enable daily reports in settings'
-      ].join('\n');
+      const builder = new MessageBuilder();
+      builder.setHeader('Help Center', '📚');
+      builder.addLine('I can help you track Amazon prices and save money! 💸');
+      builder.addSpacer();
 
-      await ctx.reply(helpMessage, {
+      builder.addSection('🚀 Getting Started');
+      builder.addLine('1️⃣ Find a product on Amazon');
+      builder.addLine('2️⃣ Share the link with me');
+      builder.addLine('3️⃣ Set your target price');
+      builder.addLine('4️⃣ Get notified when price drops!');
+      builder.addSpacer();
+
+      builder.addSection('📋 Available Commands');
+      builder.addLine('`/add <link>` - Track a new product');
+      builder.addLine('`/list` - View your tracked items');
+      builder.addLine('`/deals` - See top price drops (24h)');
+      builder.addLine('`/report` - Get daily price summary');
+      builder.addLine('`/settings` - Configure your alerts');
+      builder.addLine('`/help` - Show this help message');
+      builder.addSpacer();
+
+      builder.addSection('💡 Pro Tips');
+      builder.addLine('• Just paste an Amazon link to track it instantly!');
+      builder.addLine('• I check prices every 30 minutes');
+      builder.addLine('• Enable daily reports to stay updated');
+      builder.addLine('• Set realistic target prices for best results');
+      builder.addSpacer();
+
+      builder.addSection('🔔 Notifications');
+      builder.addLine('You\'ll receive alerts when:');
+      builder.addLine('  • Price drops below your target');
+      builder.addLine('  • Product goes out of stock');
+      builder.addLine('  • Product is back in stock');
+      builder.addSpacer();
+
+      builder.addTip('Use the menu below to get started!');
+
+      await ctx.reply(builder.toString(), {
         parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: '🛍️ Track Product', callback_data: 'action_add_product' },
-              { text: '📋 My List', callback_data: 'action_list_products' }
-            ],
-            [
-              { text: '⚙️ Settings', callback_data: 'action_settings' },
-              { text: '📞 Support', url: 'https://t.me/TrackzoonSupport' }
-            ]
-          ]
-        }
+        ...mainKeyboard()
       });
     } catch (error) {
       handleError(ctx, error);
