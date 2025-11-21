@@ -247,40 +247,98 @@ export class PriceTrackerService {
       }
     }
 
-    // Always notify if threshold is met
+    // ============================================
+    // 1. ALWAYS NOTIFY: Threshold Met
+    // ============================================
     if (tracker.thresholdPrice && oldPrice > tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
+      logger.info(`🎯 Alert: Threshold met for ${product.asin} (${newPrice} <= ${tracker.thresholdPrice})`);
       return true;
     }
 
-    // SMART ALERT: Check for "fake deals"
-    // If the price dropped but is still significantly higher than the 30-day low, don't alert
-    // unless it hit the user's specific threshold (handled above)
-    if (isDecrease && product.priceHistory) {
-      const stats30d = calculatePriceStats(product.priceHistory, 30);
-      if (stats30d) {
-        // If current price is > 40% above the 30-day LOW, it's not a "hot deal"
-        // Example: Low was 1000. Current is 1500. 1500 > 1400. Skip alert.
-        if (newPrice > stats30d.min * 1.4) {
-          logger.info(`Skipping alert for ${product.asin}: Price dropped to ${newPrice} but is > 40% above 30d low (${stats30d.min})`);
-          return false;
-        }
+    // Only proceed with smart alerts on price decreases
+    if (!isDecrease) {
+      return false;
+    }
+
+    // ============================================
+    // 2. DEAL QUALITY ANALYSIS
+    // ============================================
+    if (!product.priceHistory || product.priceHistory.length < 5) {
+      // Not enough history - use basic threshold (15% drop)
+      if (Math.abs(priceChange) >= 15) {
+        logger.info(`🔥 Alert: Significant drop ${priceChange.toFixed(1)}% for ${product.asin} (limited history)`);
+        return true;
       }
+      return false;
     }
 
-    // Check if price drop is significant (>= 10%)
-    if (isDecrease && Math.abs(priceChange) >= 10) {
+    const stats30d = calculatePriceStats(product.priceHistory, 30);
+    if (!stats30d) {
+      // Fallback to basic logic
+      return Math.abs(priceChange) >= 10;
+    }
+
+    // Calculate deal quality metrics
+    const percentBelowAvg = ((stats30d.average - newPrice) / stats30d.average) * 100;
+    const percentAboveLow = ((newPrice - stats30d.min) / stats30d.min) * 100;
+    const isAtOrBelowLow = newPrice <= stats30d.min;
+    const isNearLow = percentAboveLow <= 5; // Within 5% of 30-day low
+
+    logger.info(`📊 Deal analysis for ${product.asin}:
+      - New price: ${newPrice}
+      - 30d Low: ${stats30d.min} | Avg: ${stats30d.average.toFixed(2)} | High: ${stats30d.max}
+      - ${percentBelowAvg.toFixed(1)}% below average
+      - ${percentAboveLow.toFixed(1)}% above 30-day low`);
+
+    // ============================================
+    // 3. EXCELLENT DEAL: At or below 30-day low
+    // ============================================
+    if (isAtOrBelowLow) {
+      logger.info(`🌟 Excellent deal: Best price in 30 days for ${product.asin}`);
       return true;
     }
 
-    // Notify on any price drop if close to threshold (within 5%)
+    // ============================================
+    // 4. GREAT DEAL: Near low or significantly below average
+    // ============================================
+    if (isNearLow && Math.abs(priceChange) >= 10) {
+      logger.info(`🔥 Great deal: Near 30-day low with ${priceChange.toFixed(1)}% drop for ${product.asin}`);
+      return true;
+    }
+
+    if (percentBelowAvg >= 15 && Math.abs(priceChange) >= 10) {
+      logger.info(`💎 Great deal: ${percentBelowAvg.toFixed(1)}% below 30d average for ${product.asin}`);
+      return true;
+    }
+
+    // ============================================
+    // 5. GOOD DEAL: Substantial drop from average
+    // ============================================
+    if (percentBelowAvg >= 20 && Math.abs(priceChange) >= 5) {
+      logger.info(`✨ Good deal: ${percentBelowAvg.toFixed(1)}% below average for ${product.asin}`);
+      return true;
+    }
+
+    // ============================================
+    // 6. FILTER FAKE DEALS: Price still too high
+    // ============================================
+    if (newPrice > stats30d.min * 1.4) {
+      logger.info(`⚠️ Skipping: Price ${newPrice} is still >40% above 30d low (${stats30d.min}) for ${product.asin}`);
+      return false;
+    }
+
+    // ============================================
+    // 7. NEAR THRESHOLD: Lower threshold when close
+    // ============================================
     if (tracker.thresholdPrice && isDecrease) {
       const percentFromThreshold = ((newPrice - tracker.thresholdPrice) / tracker.thresholdPrice) * 100;
-      if (percentFromThreshold <= 5 && Math.abs(priceChange) >= 5) {
-        // Lower threshold when close to target (5% minimum)
+      if (percentFromThreshold <= 10 && Math.abs(priceChange) >= 5) {
+        logger.info(`🎯 Alert: Close to threshold (${percentFromThreshold.toFixed(1)}% away) for ${product.asin}`);
         return true;
       }
     }
 
+    logger.info(`😴 Skipping: Not a significant deal for ${product.asin}`);
     return false;
   }
 
