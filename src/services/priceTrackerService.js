@@ -8,7 +8,7 @@ import pLimit from 'p-limit';
 import { updateProductRating } from './ratingScraper.js';
 
 import { logger } from '../utils/logger.js';
-import { calculateVolatility } from '../utils/priceUtils.js';
+import { calculateVolatility, calculatePriceStats } from '../utils/priceUtils.js';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
 const scrapingLimit = pLimit(3);
@@ -193,7 +193,7 @@ export class PriceTrackerService {
 
       // Check thresholds and notify users
       for (const tracker of updatedProduct.trackedBy) {
-        const shouldNotify = await this.shouldNotifyUser(tracker, previousPrice, currentPrice);
+        const shouldNotify = await this.shouldNotifyUser(tracker, updatedProduct, previousPrice, currentPrice);
 
         if (shouldNotify) {
           await this.notifyUser(tracker.chatId, updatedProduct, previousPrice, currentPrice);
@@ -221,7 +221,7 @@ export class PriceTrackerService {
     }
   }
 
-  async shouldNotifyUser(tracker, oldPrice, newPrice) {
+  async shouldNotifyUser(tracker, product, oldPrice, newPrice) {
     const priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
     const isDecrease = newPrice < oldPrice;
 
@@ -236,6 +236,21 @@ export class PriceTrackerService {
     // Always notify if threshold is met
     if (tracker.thresholdPrice && oldPrice > tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
       return true;
+    }
+
+    // SMART ALERT: Check for "fake deals"
+    // If the price dropped but is still significantly higher than the 30-day low, don't alert
+    // unless it hit the user's specific threshold (handled above)
+    if (isDecrease && product.priceHistory) {
+      const stats30d = calculatePriceStats(product.priceHistory, 30);
+      if (stats30d) {
+        // If current price is > 40% above the 30-day LOW, it's not a "hot deal"
+        // Example: Low was 1000. Current is 1500. 1500 > 1400. Skip alert.
+        if (newPrice > stats30d.min * 1.4) {
+          logger.info(`Skipping alert for ${product.asin}: Price dropped to ${newPrice} but is > 40% above 30d low (${stats30d.min})`);
+          return false;
+        }
+      }
     }
 
     // Check if price drop is significant (>= 10%)
@@ -335,10 +350,7 @@ export class PriceTrackerService {
       - ${unchanged} prices unchanged
       - ${failed} checks failed`);
 
-    // After price checks, scan for flash deals (async, don't block)
-    this.scanForFlashDeals().catch(err =>
-      logger.error('Error scanning for flash deals:', err)
-    );
+
 
     // Update ratings for a few products (async, don't block)
     this.updateSomeRatings().catch(err =>
@@ -352,14 +364,7 @@ export class PriceTrackerService {
     };
   }
 
-  /**
-   * Scan for flash deals after price checks
-   */
-  async scanForFlashDeals() {
-    // Flash deals feature has been removed
-    logger.info('⚠️ Flash deals feature is disabled');
-    return 0;
-  }
+
 
   /**
    * Update ratings for a subset of products (to avoid overwhelming the scraper)

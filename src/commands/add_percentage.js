@@ -2,7 +2,7 @@ import { resolveAmazonUrl } from '../utils/url.js';
 import { getProductName } from '../utils/scraper/getProductName.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { addPriceTracker, validatePercentage } from '../utils/productTracker.js';
-import { parseAmazonUrl } from '../utils/urlParser.js';
+
 import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
 export default (bot) => {
@@ -28,19 +28,11 @@ export default (bot) => {
       await ctx.reply('Processing your request...');
 
       try {
-        // Parse and validate URL first
-        const parsedUrl = parseAmazonUrl(url);
-        if (!parsedUrl) {
-          return await ctx.reply('Please provide a valid Amazon product URL.');
-        }
-
-        // Then resolve it (handle redirects etc)
-        const { resolvedUrl, asin } = await resolveAmazonUrl(parsedUrl.url);
+        // Resolve and validate URL
+        const { resolvedUrl, asin } = await resolveAmazonUrl(url);
         if (!asin) {
           return await ctx.reply('Please provide a valid Amazon product URL.');
         }
-
-        // Get product details
         const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
         const scrapeResult = await getPrice(resolvedUrl).catch(() => ({ price: 0 }));
         const currentPrice = scrapeResult.price;
