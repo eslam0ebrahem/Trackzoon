@@ -162,26 +162,26 @@ export default (bot) => {
       report.belowThreshold.sort((a, b) => a.product.currentPrice - b.product.currentPrice); // Sort by current price for "ready to buy"
 
       // Build message with MessageBuilder if available, or construct manually
-      let message = `📊 *Your Daily Snapshot*\\n\\n`;
+      let message = `📊 *Your Daily Snapshot*\n\n`;
 
       // Summary stats
-      message += `📦 *Tracking ${report.totalProducts} Product${report.totalProducts > 1 ? 's' : ''}*\\n`;
+      message += `📦 *Tracking ${report.totalProducts} Product${report.totalProducts > 1 ? 's' : ''}*\n`;
 
       const percentBelow = report.totalProducts > 0
         ? ((report.belowThreshold.length / report.totalProducts) * 100).toFixed(0)
         : 0;
 
-      message += `🎯 ${report.belowThreshold.length} at Target (${percentBelow}%)\\n`;
-      message += `📈 ${report.inRange.length} Above Target\\n`;
+      message += `🎯 ${report.belowThreshold.length} at Target (${percentBelow}%)\n`;
+      message += `📈 ${report.inRange.length} Above Target\n`;
 
       if (report.totalSavings > 0) {
-        message += `\\n💰 *Potential Savings: EGP ${report.totalSavings.toFixed(2)}*\\n`;
+        message += `\n💰 *Potential Savings: EGP ${report.totalSavings.toFixed(2)}*\n`;
       }
 
       // Recent price drops section
       if (report.priceDrops.length > 0) {
-        message += `\\n━━━━━━━━━━━━━━━━━━━━\\n`;
-        message += `📉 *${report.priceDrops.length} Price Drop${report.priceDrops.length > 1 ? 's' : ''} Detected*\\n\\n`;
+        message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `📉 *${report.priceDrops.length} Price Drop${report.priceDrops.length > 1 ? 's' : ''} Detected*\n\n`;
 
         report.priceDrops.slice(0, 5).forEach(({ product, drop, percentDrop, oldPrice, newPrice }, index) => {
           // Add urgency badge for big drops
@@ -193,40 +193,40 @@ export default (bot) => {
           }
 
           const icon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '•';
-          message += `${icon} ${product.name.substring(0, 28)}...${badge}\\n`;
-          message += `   Was EGP ${oldPrice.toFixed(2)} → *Now EGP ${newPrice.toFixed(2)}*\\n`;
-          message += `   💸 Save EGP ${drop.toFixed(2)} (${percentDrop.toFixed(1)}% OFF)\\n\\n`;
+          message += `${icon} ${product.name.substring(0, 28)}...${badge}\n`;
+          message += `   Was EGP ${oldPrice.toFixed(2)} → *Now EGP ${newPrice.toFixed(2)}*\n`;
+          message += `   💸 Save EGP ${drop.toFixed(2)} (${percentDrop.toFixed(1)}% OFF)\n\n`;
         });
 
         if (report.priceDrops.length > 5) {
-          message += `_...and ${report.priceDrops.length - 5} more price drop${report.priceDrops.length - 5 > 1 ? 's' : ''}_\\n`;
+          message += `_...and ${report.priceDrops.length - 5} more price drop${report.priceDrops.length - 5 > 1 ? 's' : ''}_\n`;
         }
       }
 
       // Products at target price
       if (report.belowThreshold.length > 0) {
-        message += `\\n━━━━━━━━━━━━━━━━━━━━\\n`;
-        message += `✅ *${report.belowThreshold.length} Product${report.belowThreshold.length > 1 ? 's' : ''} Ready to Buy*\\n\\n`;
+        message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `✅ *${report.belowThreshold.length} Product${report.belowThreshold.length > 1 ? 's' : ''} Ready to Buy*\n\n`;
 
         report.belowThreshold.slice(0, 3).forEach(({ product, targetPrice, savings }) => {
-          message += `🛒 ${product.name.substring(0, 28)}...\\n`;
-          message += `   *EGP ${product.currentPrice.toFixed(2)}* (Target: EGP ${targetPrice.toFixed(2)})\\n`;
+          message += `🛒 ${product.name.substring(0, 28)}...\n`;
+          message += `   *EGP ${product.currentPrice.toFixed(2)}* (Target: EGP ${targetPrice.toFixed(2)})\n`;
           if (savings > 0) {
-            message += `   💰 EGP ${savings.toFixed(2)} below your target!\\n`;
+            message += `   💰 EGP ${savings.toFixed(2)} below your target!\n`;
           }
-          message += `\\n`;
+          message += `\n`;
         });
 
         if (report.belowThreshold.length > 3) {
-          message += `_...and ${report.belowThreshold.length - 3} more ready to buy_\\n`;
+          message += `_...and ${report.belowThreshold.length - 3} more ready to buy_\n`;
         }
       }
 
       // Call to action
       if (report.belowThreshold.length > 0 || report.priceDrops.length > 0) {
-        message += `\\n💡 *Act fast!* Prices change every 30 minutes.\\n`;
+        message += `\n💡 *Act fast!* Prices change every 30 minutes.\n`;
       } else {
-        message += `\\n⏳ No deals yet. We're watching for price drops!\\n`;
+        message += `\n⏳ No deals yet. We're watching for price drops!\n`;
       }
 
       await safeEditMessageText(ctx, escapeMarkdownV2(message), {
