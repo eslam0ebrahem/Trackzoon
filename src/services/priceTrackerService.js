@@ -6,7 +6,7 @@ import { buildPriceAlertMessage } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
 import pLimit from 'p-limit';
 import { updateProductRating } from './ratingScraper.js';
-import { updateProductRating } from './ratingScraper.js';
+
 import { logger } from '../utils/logger.js';
 import { calculateVolatility } from '../utils/priceUtils.js';
 
@@ -52,7 +52,7 @@ export class PriceTrackerService {
               isOutOfStock: false,
               outOfStockSince: null,
               currentPrice: currentPrice,
-              currentPrice: currentPrice,
+
               lastChecked: new Date(),
               ...(imageUrl && { imageUrl }) // Update image if found
             }
@@ -181,7 +181,7 @@ export class PriceTrackerService {
           },
           $set: {
             currentPrice: currentPrice,
-            currentPrice: currentPrice,
+
             lastChecked: new Date(),
             volatilityScore,
             checkInterval,

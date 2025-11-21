@@ -3,7 +3,7 @@ import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 import { mainKeyboard } from '../utils/keyboards/mainKeyboard.js';
 import { paginateItems, createPaginationKeyboard } from '../utils/pagination.js';
 import { MessageBuilder } from '../utils/messageDesign.js';
-import { MessageBuilder } from '../utils/messageDesign.js';
+
 import { handleError } from '../utils/errorHandler.js';
 import { calculatePriceStats } from '../utils/priceUtils.js';
 
