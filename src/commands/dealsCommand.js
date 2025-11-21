@@ -117,6 +117,12 @@ export default (bot) => {
                     if (currentPrice > stats.average * 1.05) {
                         return; // Skip this deal
                     }
+
+                    // Stricter check: If current price is > 40% above the 30-day LOW, it's not a "hot deal"
+                    // This catches cases where price spiked huge (e.g. 65 -> 300) then dropped (300 -> 137), but 137 is still way above 65
+                    if (currentPrice > stats.min * 1.4) {
+                        return; // Skip this deal
+                    }
                 }
 
                 dealsData.push({
