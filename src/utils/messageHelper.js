@@ -472,9 +472,18 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         bestDeals.slice(0, 5).forEach(({ product, oldPrice, newPrice, change, priceDiff }, index) => {
             const name = escapeMarkdownV2(product.name.substring(0, 45) + (product.name.length > 45 ? '...' : ''));
             const icon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔸';
+
             message += `${icon} [${name}](${escapeMarkdownV2(product.url)})\n`;
             message += `   ~~EGP${escapeMarkdownV2(oldPrice.toFixed(2))}~~ → *EGP${escapeMarkdownV2(newPrice.toFixed(2))}*\n`;
-            message += `   💰 Save EGP${escapeMarkdownV2(priceDiff.toFixed(2))} \\(${escapeMarkdownV2(change.toFixed(0))}% off\\)\n\n`;
+            message += `   💰 Save EGP${escapeMarkdownV2(priceDiff.toFixed(2))} \\(${escapeMarkdownV2(change.toFixed(0))}% off\\)\n`;
+
+            // Add smart details
+            if (product.coupon) message += `   🎟️ *Coupon:* ${escapeMarkdownV2(product.coupon)}\n`;
+            if (product.dealProgress) message += `   ⚡ *Lightning Deal:* ${product.dealProgress}% claimed\n`;
+            if (product.prime) message += `   🚛 *Prime Delivery*\n`;
+            else if (product.delivery && product.delivery.price === 'FREE') message += `   🚚 *Free Delivery*\n`;
+
+            message += `\n`;
         });
     }
 
@@ -488,10 +497,45 @@ const buildDailyReportMessage = (products, userName = 'there') => {
             if (savings > 0) {
                 message += `   💚 Even EGP${escapeMarkdownV2(savings.toFixed(2))} below target\\!\n`;
             }
+
+            // Add smart details
+            if (product.merchant && !product.merchant.includes('Amazon')) {
+                message += `   🏪 Sold by: ${escapeMarkdownV2(product.merchant)}\n`;
+            }
+            if (product.coupon) message += `   🎟️ *Plus Coupon:* ${escapeMarkdownV2(product.coupon)}\n`;
+
             message += `\n`;
         });
         if (atTarget.length > 5) {
             message += `   \\+${atTarget.length - 5} more ready to buy\\!\n\n`;
+        }
+    }
+
+    // Smart Insights Section (New)
+    const productsWithCoupons = products.filter(p => p.coupon && !bestDeals.some(d => d.product.asin === p.asin) && !atTarget.some(t => t.product.asin === p.asin));
+    const productsWithOtherSellers = products.filter(p => p.otherSellers && p.otherSellers.length > 0 && p.otherSellers[0].price < p.currentPrice);
+
+    if (productsWithCoupons.length > 0 || productsWithOtherSellers.length > 0) {
+        message += `💡 *Smart Insights*\n\n`;
+
+        if (productsWithCoupons.length > 0) {
+            message += `🎟️ *Coupons Available:*\n`;
+            productsWithCoupons.slice(0, 3).forEach(p => {
+                const name = escapeMarkdownV2(p.name.substring(0, 30) + '...');
+                message += `   • [${name}](${escapeMarkdownV2(p.url)}): ${escapeMarkdownV2(p.coupon)}\n`;
+            });
+            message += `\n`;
+        }
+
+        if (productsWithOtherSellers.length > 0) {
+            message += `📉 *Cheaper Options Found:*\n`;
+            productsWithOtherSellers.slice(0, 3).forEach(p => {
+                const name = escapeMarkdownV2(p.name.substring(0, 30) + '...');
+                const otherPrice = p.otherSellers[0].price;
+                const diff = p.currentPrice - otherPrice;
+                message += `   • [${name}](${escapeMarkdownV2(p.url)}): Save EGP${escapeMarkdownV2(diff.toFixed(2))} from other seller\n`;
+            });
+            message += `\n`;
         }
     }
 
@@ -523,10 +567,10 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     message += `\n`;
 
     if (priceDrops.length > 0) {
-        message += `� *Price Drops:* ${priceDrops.length}\n`;
+        message += `📉 *Price Drops:* ${priceDrops.length}\n`;
     }
     if (priceIncreases.length > 0) {
-        message += `💔 *Price Increases:* ${priceIncreases.length}\n`;
+        message += `📈 *Price Increases:* ${priceIncreases.length}\n`;
     }
     if (noChange.length > 0) {
         message += `😴 *No Change:* ${noChange.length}\n`;
@@ -564,6 +608,10 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     if (bestDeals.length > 0) {
         actionCount++;
         message += `${actionCount}\\. 🔥 *Check hot deals* \\- Big discounts available\\!\n`;
+    }
+    if (productsWithCoupons.length > 0) {
+        actionCount++;
+        message += `${actionCount}\\. 🎟️ *Clip coupons* \\- Extra savings available on ${productsWithCoupons.length} items\n`;
     }
     if (priceDrops.length > 0 && bestDeals.length === 0) {
         actionCount++;

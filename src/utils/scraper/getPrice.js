@@ -439,8 +439,171 @@ function validateAvailability(availabilityData) {
 }
 
 // ============================================
-// MAIN SCRAPER FUNCTION
+// 4. ENHANCED DATA EXTRACTION
 // ============================================
+
+/**
+ * Extract Merchant Information
+ */
+function extractMerchantInfo($) {
+  // Try to find "Sold by" text
+  const merchantSelectors = [
+    '#merchant-info',
+    '#sellerProfileTriggerId',
+    '.offer-display-feature-text-message',
+    '#tabular-buybox .a-row:contains("Sold by")',
+    '#merchantInfoFeature_feature_div'
+  ];
+
+  for (const selector of merchantSelectors) {
+    const element = $(selector).first();
+    if (element.length) {
+      const text = element.text().trim();
+      // Clean up text (remove "Sold by", newlines, etc.)
+      const cleanText = text.replace(/Sold by/i, '').trim();
+      if (cleanText) return cleanText;
+    }
+  }
+
+  return 'Amazon'; // Default fallback if not found (often means Amazon)
+}
+
+/**
+ * Extract Delivery Information
+ */
+function extractDeliveryInfo($) {
+  const deliverySelectors = [
+    '#deliveryBlockMessage',
+    '#mir-layout-DELIVERY_BLOCK-slot-PRIMARY_DELIVERY_MESSAGE_LARGE',
+    '#delivery-message',
+    '#ddmDeliveryMessage'
+  ];
+
+  for (const selector of deliverySelectors) {
+    const element = $(selector).first();
+    if (element.length) {
+      const text = element.text().replace(/\s+/g, ' ').trim();
+
+      // Extract date
+      const dateMatch = text.match(/Arrives:? (.*?)(\.|$)/i) ||
+        text.match(/Delivery (.*?)(\.|$)/i) ||
+        text.match(/Get it (.*?)(\.|$)/i);
+
+      // Extract price
+      const priceMatch = text.match(/FREE delivery/i) ? 'FREE' :
+        text.match(/EGP\s*\d+(\.\d{2})? delivery/i) ? text.match(/EGP\s*\d+(\.\d{2})? delivery/i)[0] : null;
+
+      if (text) {
+        return {
+          message: text,
+          date: dateMatch ? dateMatch[1].trim() : null,
+          price: priceMatch || null
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract Prime Status
+ */
+function extractPrimeStatus($) {
+  const primeSelectors = [
+    '#prime-badge',
+    '.a-icon-prime',
+    '#prime-popover-link',
+    '#pe-prime-badge'
+  ];
+
+  for (const selector of primeSelectors) {
+    if ($(selector).length > 0) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Extract Coupon Information
+ */
+function extractCouponInfo($) {
+  const couponSelectors = [
+    '#vpcButton',
+    '.couponBadge',
+    '#coupon-badge',
+    'label[id*="coupon"]'
+  ];
+
+  for (const selector of couponSelectors) {
+    const element = $(selector).first();
+    if (element.length) {
+      const text = element.text().trim();
+      const match = text.match(/Save (.*?) with coupon/i) ||
+        text.match(/Apply (.*?) coupon/i) ||
+        text.match(/(.*?) coupon/i);
+
+      if (match) return match[1].trim();
+      if (text) return text;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract Deal Progress (Lightning Deals)
+ */
+function extractDealProgress($) {
+  const progressSelectors = [
+    '#dealProgress_feature_div',
+    '.a-progress-bar',
+    '#lightning-deal-progress-bar'
+  ];
+
+  for (const selector of progressSelectors) {
+    const element = $(selector).first();
+    if (element.length) {
+      const text = element.text().trim();
+      const match = text.match(/(\d+)%/);
+      if (match) return parseInt(match[1]);
+
+      // Check style width
+      const style = element.find('.a-meter-bar').attr('style');
+      if (style) {
+        const widthMatch = style.match(/width:\s*(\d+)%/);
+        if (widthMatch) return parseInt(widthMatch[1]);
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract Other Sellers
+ */
+function extractOtherSellers($) {
+  // This is limited as full list is usually on a separate page, 
+  // but we can check the "Other sellers on Amazon" box
+  const otherSellers = [];
+
+  const mbcs = $('#moreBuyingChoices_feature_div, #mbc');
+  if (mbcs.length) {
+    // This usually just shows a link or summary, hard to parse detailed list without visiting the page
+    // But sometimes there are a few listed
+    const price = mbcs.find('.a-price .a-offscreen').first().text().trim();
+    if (price) {
+      otherSellers.push({
+        price: parseFloat(price.replace(/[^\d.]/g, '')),
+        condition: 'New', // Assumption
+        seller: 'Other Seller'
+      });
+    }
+  }
+
+  return otherSellers;
+}
 
 async function getPrice(url) {
   try {
@@ -516,13 +679,32 @@ async function getPrice(url) {
       throw new Error(`Invalid price data: ${priceValidation.reason}`);
     }
 
+    // ============================================
+    // STEP 4: Enhanced Data Extraction
+    // ============================================
+    const merchant = extractMerchantInfo($);
+    const delivery = extractDeliveryInfo($);
+    const prime = extractPrimeStatus($);
+    const coupon = extractCouponInfo($);
+    const dealProgress = extractDealProgress($);
+    const otherSellers = extractOtherSellers($);
+
     logger.info(`✅ Successfully extracted price: ${priceValidation.price} EGP (strategy: ${priceResult.strategy})`);
+    if (merchant) logger.info(`🏪 Merchant: ${merchant}`);
+    if (prime) logger.info(`🚛 Prime: Yes`);
 
     return {
       currentPrice: priceValidation.price,
       isOutOfStock: false,
       extractionMethod: priceResult.strategy,
-      selector: priceResult.selector
+      selector: priceResult.selector,
+      // Enhanced fields
+      merchant,
+      delivery,
+      prime,
+      coupon,
+      dealProgress,
+      otherSellers
     };
 
   } catch (error) {

@@ -36,7 +36,23 @@ const ProductSchema = new mongoose.Schema({
   },
   // Smart Tracking Fields
   volatilityScore: { type: Number, default: 0 }, // 0 to 10 scale of price volatility
-  checkInterval: { type: Number, default: 30 } // Minutes between checks (dynamic)
+  checkInterval: { type: Number, default: 30 }, // Minutes between checks (dynamic)
+
+  // Enhanced Data Fields
+  merchant: { type: String }, // e.g., "Amazon.eg" or third-party seller name
+  prime: { type: Boolean, default: false }, // Is it a Prime item?
+  delivery: {
+    date: String, // e.g., "Tomorrow, 22 November"
+    price: String, // e.g., "FREE" or "EGP 20.00"
+    message: String // Full delivery message
+  },
+  coupon: { type: String }, // Coupon text/value if available
+  dealProgress: { type: Number }, // Percentage claimed for lightning deals
+  otherSellers: [{
+    price: Number,
+    condition: String,
+    seller: String
+  }]
 });
 
 // Indexes for performance optimization (Phase 1)

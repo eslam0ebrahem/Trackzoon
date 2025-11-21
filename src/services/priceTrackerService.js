@@ -54,7 +54,14 @@ export class PriceTrackerService {
               currentPrice: currentPrice,
 
               lastChecked: new Date(),
-              ...(imageUrl && { imageUrl }) // Update image if found
+              ...(imageUrl && { imageUrl }), // Update image if found
+              // Update enhanced fields
+              ...(scrapeResult.merchant && { merchant: scrapeResult.merchant }),
+              ...(scrapeResult.prime !== undefined && { prime: scrapeResult.prime }),
+              ...(scrapeResult.delivery && { delivery: scrapeResult.delivery }),
+              ...(scrapeResult.coupon && { coupon: scrapeResult.coupon }),
+              ...(scrapeResult.dealProgress && { dealProgress: scrapeResult.dealProgress }),
+              ...(scrapeResult.otherSellers && { otherSellers: scrapeResult.otherSellers })
             }
           };
 
@@ -185,7 +192,14 @@ export class PriceTrackerService {
             lastChecked: new Date(),
             volatilityScore,
             checkInterval,
-            ...(imageUrl && { imageUrl })
+            ...(imageUrl && { imageUrl }),
+            // Update enhanced fields
+            ...(scrapeResult.merchant && { merchant: scrapeResult.merchant }),
+            ...(scrapeResult.prime !== undefined && { prime: scrapeResult.prime }),
+            ...(scrapeResult.delivery && { delivery: scrapeResult.delivery }),
+            ...(scrapeResult.coupon && { coupon: scrapeResult.coupon }),
+            ...(scrapeResult.dealProgress && { dealProgress: scrapeResult.dealProgress }),
+            ...(scrapeResult.otherSellers && { otherSellers: scrapeResult.otherSellers })
           }
         },
         { new: true }
