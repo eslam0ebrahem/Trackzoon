@@ -109,12 +109,14 @@ export default (bot) => {
         return;
       }
 
-      // Build daily report message
+      // Build daily report message with smart insights
       const report = {
         totalProducts: products.length,
         priceDrops: [],
         inRange: [],
-        belowThreshold: []
+        belowThreshold: [],
+        totalSavings: 0,
+        totalDropValue: 0
       };
 
       products.forEach(product => {
@@ -124,38 +126,107 @@ export default (bot) => {
         const priceHistory = product.priceHistory || [];
         const recentPrices = priceHistory.slice(-2);
 
+        // Calculate recent price drops
         if (recentPrices.length >= 2) {
           const priceDrop = recentPrices[0].price - recentPrices[1].price;
+          const percentDrop = ((priceDrop / recentPrices[0].price) * 100);
           if (priceDrop > 0) {
-            report.priceDrops.push({ product, drop: priceDrop });
+            report.priceDrops.push({
+              product,
+              drop: priceDrop,
+              percentDrop: percentDrop,
+              oldPrice: recentPrices[0].price,
+              newPrice: recentPrices[1].price
+            });
+            report.totalDropValue += priceDrop;
           }
         }
 
+        // Calculate savings vs threshold
         if (product.currentPrice <= tracker.thresholdPrice) {
-          report.belowThreshold.push(product);
+          const savings = tracker.thresholdPrice - product.currentPrice;
+          report.belowThreshold.push({
+            product,
+            targetPrice: tracker.thresholdPrice,
+            savings: savings
+          });
+          report.totalSavings += savings;
         } else {
           report.inRange.push(product);
         }
       });
 
-      let message = `📊 *Daily Report*\n\n`;
-      message += `📦 Total Products: ${report.totalProducts}\n`;
-      message += `🎯 Below Threshold: ${report.belowThreshold.length}\n`;
-      message += `📈 In Range: ${report.inRange.length}\n\n`;
+      // Sort price drops by amount (biggest first)
+      report.priceDrops.sort((a, b) => b.drop - a.drop);
+      // Sort below threshold by savings (biggest savings first)
+      report.belowThreshold.sort((a, b) => a.product.currentPrice - b.product.currentPrice); // Sort by current price for "ready to buy"
 
-      if (report.priceDrops.length > 0) {
-        message += `🔥 *Recent Price Drops:*\n`;
-        report.priceDrops.slice(0, 5).forEach(({ product, drop }) => {
-          message += `• ${product.name.substring(0, 30)}... \\-EGP${drop.toFixed(2)}\n`;
-        });
-        message += '\n';
+      // Build message with MessageBuilder if available, or construct manually
+      let message = `📊 *Your Daily Snapshot*\\n\\n`;
+
+      // Summary stats
+      message += `📦 *Tracking ${report.totalProducts} Product${report.totalProducts > 1 ? 's' : ''}*\\n`;
+
+      const percentBelow = report.totalProducts > 0
+        ? ((report.belowThreshold.length / report.totalProducts) * 100).toFixed(0)
+        : 0;
+
+      message += `🎯 ${report.belowThreshold.length} at Target (${percentBelow}%)\\n`;
+      message += `📈 ${report.inRange.length} Above Target\\n`;
+
+      if (report.totalSavings > 0) {
+        message += `\\n💰 *Potential Savings: EGP ${report.totalSavings.toFixed(2)}*\\n`;
       }
 
-      if (report.belowThreshold.length > 0) {
-        message += `✅ *Products at Target Price:*\n`;
-        report.belowThreshold.slice(0, 3).forEach(product => {
-          message += `• ${product.name.substring(0, 30)}... EGP${product.currentPrice}\n`;
+      // Recent price drops section
+      if (report.priceDrops.length > 0) {
+        message += `\\n━━━━━━━━━━━━━━━━━━━━\\n`;
+        message += `📉 *${report.priceDrops.length} Price Drop${report.priceDrops.length > 1 ? 's' : ''} Detected*\\n\\n`;
+
+        report.priceDrops.slice(0, 5).forEach(({ product, drop, percentDrop, oldPrice, newPrice }, index) => {
+          // Add urgency badge for big drops
+          let badge = '';
+          if (percentDrop >= 30) {
+            badge = ' 🔥';
+          } else if (percentDrop >= 15) {
+            badge = ' ⚡';
+          }
+
+          const icon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '•';
+          message += `${icon} ${product.name.substring(0, 28)}...${badge}\\n`;
+          message += `   Was EGP ${oldPrice.toFixed(2)} → *Now EGP ${newPrice.toFixed(2)}*\\n`;
+          message += `   💸 Save EGP ${drop.toFixed(2)} (${percentDrop.toFixed(1)}% OFF)\\n\\n`;
         });
+
+        if (report.priceDrops.length > 5) {
+          message += `_...and ${report.priceDrops.length - 5} more price drop${report.priceDrops.length - 5 > 1 ? 's' : ''}_\\n`;
+        }
+      }
+
+      // Products at target price
+      if (report.belowThreshold.length > 0) {
+        message += `\\n━━━━━━━━━━━━━━━━━━━━\\n`;
+        message += `✅ *${report.belowThreshold.length} Product${report.belowThreshold.length > 1 ? 's' : ''} Ready to Buy*\\n\\n`;
+
+        report.belowThreshold.slice(0, 3).forEach(({ product, targetPrice, savings }) => {
+          message += `🛒 ${product.name.substring(0, 28)}...\\n`;
+          message += `   *EGP ${product.currentPrice.toFixed(2)}* (Target: EGP ${targetPrice.toFixed(2)})\\n`;
+          if (savings > 0) {
+            message += `   💰 EGP ${savings.toFixed(2)} below your target!\\n`;
+          }
+          message += `\\n`;
+        });
+
+        if (report.belowThreshold.length > 3) {
+          message += `_...and ${report.belowThreshold.length - 3} more ready to buy_\\n`;
+        }
+      }
+
+      // Call to action
+      if (report.belowThreshold.length > 0 || report.priceDrops.length > 0) {
+        message += `\\n💡 *Act fast!* Prices change every 30 minutes.\\n`;
+      } else {
+        message += `\\n⏳ No deals yet. We're watching for price drops!\\n`;
       }
 
       await safeEditMessageText(ctx, escapeMarkdownV2(message), {
