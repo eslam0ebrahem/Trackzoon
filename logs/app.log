@@ -5,3 +5,21 @@
 [2025-11-21T10:47:07.688Z] [INFO] Launching Trackzoon bot... 
 [2025-11-21T10:47:36.665Z] [INFO] Launching Trackzoon bot... 
 [2025-11-21T10:48:12.698Z] [INFO] Launching Trackzoon bot... 
+[2025-11-21T13:41:35.726Z] [INFO] 🌐 Fetching: https://www.amazon.eg/dp/B09Q1FM6RG 
+[2025-11-21T13:41:37.445Z] [INFO] 🔍 Running smart availability check... 
+[2025-11-21T13:41:37.463Z] [INFO] 📝 Availability text: "" (from none) 
+[2025-11-21T13:41:37.464Z] [INFO] 📦 No featured offers available detected (no buybox) 
+[2025-11-21T13:41:37.464Z] [INFO] ❌ Product unavailable: no-buybox 
+[2025-11-21T13:41:37.464Z] [INFO] 🌐 Fetching: https://www.amazon.eg/dp/B07NY1YZXT 
+[2025-11-21T13:41:39.094Z] [INFO] 🔍 Running smart availability check... 
+[2025-11-21T13:41:39.120Z] [INFO] 📝 Availability text: "in stock" (from #availability span) 
+[2025-11-21T13:41:39.121Z] [INFO] ℹ️ Found #fod-cx-box but not a no-buybox scenario: "
+                                  
+  p.when('a', ..." 
+[2025-11-21T13:41:39.122Z] [INFO] 📦 Buy box present: true (selector: #buybox) 
+[2025-11-21T13:41:39.124Z] [INFO] ✅ Product is available 
+[2025-11-21T13:41:39.124Z] [INFO] 🔍 Running multi-strategy price detection... 
+[2025-11-21T13:41:39.132Z] [INFO] ❌ Selector-based: No price found 
+[2025-11-21T13:41:39.133Z] [INFO] ✅ Buy box input: Found "34.0" using input[name*="customerVisiblePrice"] 
+[2025-11-21T13:41:39.134Z] [INFO] ❌ JSON-LD: No price found 
+[2025-11-21T13:41:39.134Z] [INFO] ✅ Successfully extracted price: 34 EGP (strategy: input-field) 

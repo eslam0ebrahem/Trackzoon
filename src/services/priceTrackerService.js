@@ -112,8 +112,11 @@ export class PriceTrackerService {
         }
 
       } catch (priceError) {
-        // Handle out-of-stock products gracefully
-        if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
+        // Handle out-of-stock products gracefully (includes no-buybox)
+        if (priceError.message.includes('out-of-stock') ||
+          priceError.message.includes('third-party') ||
+          priceError.message.includes('unavailable') ||
+          priceError.message.includes('no-buybox')) {
           logger.info(`Product ${asin} is out of stock, skipping price check`);
 
           // Mark as out of stock if not already (atomic update)

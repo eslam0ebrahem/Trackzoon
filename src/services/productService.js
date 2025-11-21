@@ -48,8 +48,10 @@ export class ProductService {
           currentPrice = scrapeResult.price;
           imageUrl = scrapeResult.imageUrl;
         } catch (priceError) {
-          // If out of stock, use threshold as placeholder
-          if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
+          // If out of stock (includes no-buybox scenarios), use threshold as placeholder
+          if (priceError.message.includes('out of stock') ||
+            priceError.message.includes('unavailable') ||
+            priceError.message.includes('no-buybox')) {
             logger.info(`Product ${asin} is out of stock, tracking with threshold as placeholder`);
             currentPrice = threshold;
             isOutOfStock = true;

@@ -141,17 +141,25 @@ function smartAvailabilityCheck($) {
   logger.info(`📝 Availability text: "${availText.text}" (from ${availText.source})`);
 
   // Strategy 2.5: Check for "No featured offers available" (no buybox)
+  // Note: #fod-cx-box can also contain "Price higher than typical" which should NOT be treated as unavailable
   const noFeaturedOffers = $('#fod-cx-box, #fodcx_feature_div').first();
   if (noFeaturedOffers.length) {
     const messageText = noFeaturedOffers.text().toLowerCase();
-    if (messageText.includes('no featured offers available') ||
-      messageText.includes('no featured offers')) {
+    // Only flag as unavailable if it's specifically about no featured offers
+    const isNoFeaturedOffers = (
+      messageText.includes('no featured offers available') ||
+      (messageText.includes('no featured offers') && !messageText.includes('price higher'))
+    );
+
+    if (isNoFeaturedOffers) {
       logger.info('📦 No featured offers available detected (no buybox)');
       return {
         isAvailable: false,
         reason: 'no-buybox',
         details: 'No featured offers available'
       };
+    } else {
+      logger.info(`ℹ️ Found #fod-cx-box but not a no-buybox scenario: "${messageText.substring(0, 50)}..."`);
     }
   }
 
@@ -520,7 +528,8 @@ async function getPrice(url) {
   } catch (error) {
     if (error.message.includes('out-of-stock') ||
       error.message.includes('third-party') ||
-      error.message.includes('unavailable')) {
+      error.message.includes('unavailable') ||
+      error.message.includes('no-buybox')) {
       // This is an expected "error" - product is just not available
       throw error;
     }
