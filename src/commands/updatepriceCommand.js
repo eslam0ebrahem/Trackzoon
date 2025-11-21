@@ -49,7 +49,7 @@ export default (bot) => {
                 '✅ *Price Alert Updated\\!*',
                 '',
                 `📦 ${escapeMarkdownV2(product.name)}`,
-                `🎯 New Alert Price: £${escapeMarkdownV2(newPrice.toFixed(2))}`,
+                `🎯 New Alert Price: EGP${escapeMarkdownV2(newPrice.toFixed(2))}`,
                 '',
                 '🔔 You will be notified when the price drops to this level\\!'
             ].join('\n');

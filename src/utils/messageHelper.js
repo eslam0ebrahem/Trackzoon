@@ -8,9 +8,9 @@ const escapeMarkdownV2 = (text = '') => {
     return preProcessed.replace(/([_*\[\]()~`>#+=|{}.!-])/g, '\\$1');
 };
 
-const formatPrice = (price, currency = '£', showTrend = false, oldPrice = null) => {
+const formatPrice = (price, currency = 'EGP', showTrend = false, oldPrice = null) => {
     let formatted = `${currency}${price.toFixed(2)}`;
-    
+
     if (showTrend && oldPrice !== null) {
         if (price < oldPrice) {
             formatted = `${formatted} 📉`; // Decreasing
@@ -20,7 +20,7 @@ const formatPrice = (price, currency = '£', showTrend = false, oldPrice = null)
             formatted = `${formatted} ➡️`; // No change
         }
     }
-    
+
     return formatted;
 };
 
@@ -32,26 +32,26 @@ const formatPercentage = (oldPrice, newPrice) => {
 };
 
 const formatProductLine = (index, product, tracker, showCurrentPrice = true) => {
-  const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
-  const url = product.url || '';
-  const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');    
+    const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
+    const url = product.url || '';
+    const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');
     // Get the previous price for trend
-    const previousPrice = product.priceHistory && product.priceHistory.length > 1 
-        ? product.priceHistory[product.priceHistory.length - 2].price 
+    const previousPrice = product.priceHistory && product.priceHistory.length > 1
+        ? product.priceHistory[product.priceHistory.length - 2].price
         : null;
 
     let message = `${index}\\. 📦 [${name}](${url})`;
 
     if (showCurrentPrice && product.currentPrice) {
-        message += `\n   💰 Price: *${escapeMarkdownV2(formatPrice(product.currentPrice, '£', true, previousPrice))}*`;
+        message += `\n   💰 Price: *${escapeMarkdownV2(formatPrice(product.currentPrice, 'EGP', true, previousPrice))}*`;
         message += `\n   🎯 Alert: ${escapeMarkdownV2(formatPrice(threshold))}`;
-        
+
         // Add rating if available
         if (product.rating && product.rating.stars > 0) {
             const ratingEmoji = product.rating.stars >= 4.5 ? '🌟' : product.rating.stars >= 4.0 ? '⭐' : product.rating.stars >= 3.5 ? '✨' : product.rating.stars >= 3.0 ? '💫' : '⚠️';
             message += `\n   ${ratingEmoji} Rating: ${escapeMarkdownV2(product.rating.stars.toFixed(1))}/5 \\(${escapeMarkdownV2(product.rating.count.toLocaleString())} reviews\\)`;
         }
-        
+
         // Add price difference from threshold
         const diffFromThreshold = ((product.currentPrice - threshold) / threshold) * 100;
         if (diffFromThreshold > 0) {
@@ -65,22 +65,22 @@ const formatProductLine = (index, product, tracker, showCurrentPrice = true) => 
 };
 
 const formatProductDetails = (product, tracker) => {
-  const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
-  const url = product.url || ''; // URL should not be escaped for Markdown links
-  const currentPrice = product.currentPrice;
-  const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');
+    const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
+    const url = product.url || ''; // URL should not be escaped for Markdown links
+    const currentPrice = product.currentPrice;
+    const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');
 
     // Calculate price statistics
     let lowestPrice = currentPrice;
     let highestPrice = currentPrice;
     let priceChange = '';
     let thirtyDayLow = currentPrice;
-    
+
     if (product.priceHistory && product.priceHistory.length > 0) {
         const prices = product.priceHistory.map(h => h.price);
         lowestPrice = Math.min(...prices);
         highestPrice = Math.max(...prices);
-        
+
         // Calculate 30-day low
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -88,7 +88,7 @@ const formatProductDetails = (product, tracker) => {
             .filter(h => new Date(h.date) >= thirtyDaysAgo)
             .map(h => h.price);
         thirtyDayLow = Math.min(...recentPrices);
-        
+
         // Get price change
         const oldestPrice = product.priceHistory[0].price;
         const latestPrice = product.priceHistory[product.priceHistory.length - 1].price;
@@ -97,20 +97,20 @@ const formatProductDetails = (product, tracker) => {
 
     let message = `🛍️ *Product Details*\n\n`;
     message += `📦 *Name:* [${name}](${url})\n\n`;
-    
+
     // Add rating if available
     if (product.rating && product.rating.stars > 0) {
         const ratingEmoji = product.rating.stars >= 4.5 ? '🌟' : product.rating.stars >= 4.0 ? '⭐' : product.rating.stars >= 3.5 ? '✨' : product.rating.stars >= 3.0 ? '💫' : '⚠️';
         message += `${ratingEmoji} *Rating:* ${escapeMarkdownV2(product.rating.stars.toFixed(1))}/5\\.0 \\(${escapeMarkdownV2(product.rating.count.toLocaleString())} reviews\\)\n\n`;
     }
-    
+
     message += `💰 *Current Price:* ${escapeMarkdownV2(formatPrice(currentPrice))}\n`;
     message += `🎯 *Alert Price:* ${escapeMarkdownV2(formatPrice(threshold))}\n\n`;
     message += `📊 *Price Statistics:*\n`;
     message += `   • Lowest: ${escapeMarkdownV2(formatPrice(lowestPrice))}\n`;
     message += `   • Highest: ${escapeMarkdownV2(formatPrice(highestPrice))}\n`;
     message += `   • 30\\-Day Low: ${escapeMarkdownV2(formatPrice(thirtyDayLow))}\n`;
-    
+
     if (priceChange) {
         message += `   • Overall Change: ${escapeMarkdownV2(priceChange)}\n`;
     }
@@ -133,11 +133,11 @@ const buildProductListMessage = (products, chatId, options = { showCurrentPrice:
     }
 
     let message = '📋 *Your Tracked Products*\n\n';
-    
+
     // Group products by status (below threshold, above threshold)
     const belowThreshold = [];
     const aboveThreshold = [];
-    
+
     products.forEach((p, idx) => {
         const tracker = Array.isArray(p.trackedBy) ? p.trackedBy.find(t => t.chatId === chatId) : null;
         if (tracker && p.currentPrice <= tracker.thresholdPrice) {
@@ -182,14 +182,14 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
     const change = ((newPrice - oldPrice) / oldPrice) * 100;
     const isDecrease = newPrice < oldPrice;
     const absChange = Math.abs(change);
-    
+
     // Find tracker info for better messaging
-    const hasThresholdMet = product.trackedBy && product.trackedBy.some(t => 
+    const hasThresholdMet = product.trackedBy && product.trackedBy.some(t =>
         newPrice <= t.thresholdPrice && oldPrice > t.thresholdPrice
     );
-    
+
     let message = '';
-    
+
     if (isDecrease) {
         if (absChange >= 30) {
             message = `🔥 *HUGE PRICE DROP\\!*\n\n`;
@@ -201,21 +201,21 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
     } else {
         message = `📈 *Price Increase Alert*\n\n`;
     }
-    
+
     message += `📦 [${name}](${escapeMarkdownV2(url)})\n\n`;
-    
+
     // Price comparison
     message += `� *Price Change:*\n`;
-    message += `├ Was: ~~£${escapeMarkdownV2(oldPrice.toFixed(2))}~~\n`;
-    message += `├ Now: *£${escapeMarkdownV2(newPrice.toFixed(2))}*\n`;
+    message += `├ Was: ~~EGP${escapeMarkdownV2(oldPrice.toFixed(2))}~~\n`;
+    message += `├ Now: *EGP${escapeMarkdownV2(newPrice.toFixed(2))}*\n`;
     message += `└ Change: ${isDecrease ? '⬇️' : '⬆️'} ${escapeMarkdownV2(absChange.toFixed(1))}%\n\n`;
-    
+
     // Savings or loss
     const diff = Math.abs(newPrice - oldPrice);
     if (isDecrease) {
-        message += `💸 *You Save:* £${escapeMarkdownV2(diff.toFixed(2))}\n\n`;
+        message += `💸 *You Save:* EGP${escapeMarkdownV2(diff.toFixed(2))}\n\n`;
     }
-    
+
     // Add contextual recommendation
     if (isDecrease) {
         if (hasThresholdMet) {
@@ -243,7 +243,7 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
             message += `We'll notify you when it drops back down\\.\n\n`;
         }
     }
-    
+
     message += `🔗 [View on Amazon](${escapeMarkdownV2(url)})`;
 
     return message;
@@ -251,7 +251,7 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
 
 const buildWelcomeMessage = (username) => {
     const escapedName = escapeMarkdownV2(username || 'there');
-    
+
     let message = `👋 *Welcome ${escapedName}\\!*\n\n`;
     message += `I'm your personal Amazon price tracker\\. I'll help you track product prices and notify you when they drop to your desired level\\.\n\n`;
     message += `🌟 *What I can do:*\n`;
@@ -264,33 +264,33 @@ const buildWelcomeMessage = (username) => {
     message += `2\\. Set your desired price alert\n`;
     message += `3\\. Wait for price drop notifications\\!\n\n`;
     message += `Type /help anytime to see all available commands\\.`;
-    
+
     return message;
 };
 
 const buildHelpMessage = () => {
     let message = `🔍 *Available Commands:*\n\n`;
-    
+
     message += `*Basic Commands:*\n`;
     message += `• /start \\- Start the bot\n`;
     message += `• /help \\- Show this help message\n`;
     message += `• /settings \\- Manage your preferences\n\n`;
-    
+
     message += `*Product Management:*\n`;
     message += `• /add \\- Track a new product\n`;
     message += `• /list \\- View your tracked products\n`;
     message += `• /view \\- View detailed product info\n`;
     message += `• /remove \\- Stop tracking a product\n\n`;
-    
+
     message += `*Price Alerts:*\n`;
     message += `• /setthreshold \\- Change price alert\n`;
     message += `• /history \\- View price history\n\n`;
-    
+
     message += `*Tips:*\n`;
     message += `• Send an Amazon product link to add it quickly\n`;
     message += `• Use inline buttons when available for faster navigation\n`;
     message += `• Check /list regularly for price updates and deals`;
-    
+
     return message;
 };
 
@@ -308,11 +308,11 @@ const safeEditMessageText = async (ctx, text, options = {}) => {
     } catch (error) {
         // If message content is the same, just acknowledge it silently
         if (error.description && error.description.includes('message is not modified')) {
-            await ctx.answerCbQuery().catch(() => {}); // Silent acknowledgment
+            await ctx.answerCbQuery().catch(() => { }); // Silent acknowledgment
         } else if (error.description && error.description.includes('no text in the message to edit')) {
             // Message is a photo/media, send new message instead
-            await ctx.answerCbQuery().catch(() => {});
-            await ctx.reply(text, options).catch(() => {});
+            await ctx.answerCbQuery().catch(() => { });
+            await ctx.reply(text, options).catch(() => { });
         } else {
             // Re-throw other errors
             throw error;
@@ -323,7 +323,7 @@ const safeEditMessageText = async (ctx, text, options = {}) => {
 // Build daily report message
 const buildDailyReportMessage = (products, userName = 'there') => {
     const escapedName = escapeMarkdownV2(userName);
-    
+
     if (!products || products.length === 0) {
         return [
             `📊 *Daily Report*`,
@@ -334,40 +334,40 @@ const buildDailyReportMessage = (products, userName = 'there') => {
             'Use /add to start tracking Amazon products\\!'
         ].join('\n');
     }
-    
+
     // Helper function to get price from ~24 hours ago
     const getPriceFrom24HoursAgo = (priceHistory) => {
         if (!priceHistory || priceHistory.length === 0) return null;
-        
+
         const now = new Date();
         const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        
+
         // Find the closest price entry to 24 hours ago (within 26 hours to be safe)
         let closestEntry = null;
         let closestDiff = Infinity;
-        
+
         for (const entry of priceHistory) {
             const entryDate = new Date(entry.date);
             const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
-            
+
             // Only consider entries from 20-28 hours ago (buffer for scheduler timing)
             if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
                 closestDiff = timeDiff;
                 closestEntry = entry;
             }
         }
-        
+
         // If no entry found in the time window, use the oldest available entry
         if (!closestEntry && priceHistory.length > 0) {
             closestEntry = priceHistory[0];
         }
-        
+
         return closestEntry;
     };
-    
+
     // Categorize products
     const today = new Date();
-    
+
     const priceDrops = [];
     const atTarget = [];
     const priceIncreases = [];
@@ -376,38 +376,38 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     const outOfStock = [];
     let totalSavings = 0;
     let potentialSavings = 0;
-    
+
     products.forEach(product => {
         const tracker = product.trackedBy[0]; // Assuming first tracker is the user's
-        
+
         // Check out of stock status
         if (product.isOutOfStock) {
             outOfStock.push({ product, tracker });
             return;
         }
-        
+
         const currentPrice = product.currentPrice;
         const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
-        
+
         // Skip if no historical data or current price unavailable
         if (!oldPriceEntry || !currentPrice) {
             noChange.push({ product, price: currentPrice, tracker });
             return;
         }
-        
+
         const oldPrice = oldPriceEntry.price;
-        
+
         // Note: Back-in-stock notifications are handled by the real-time price tracker
         // We don't duplicate that logic here to avoid false positives
-        
+
         const change = ((currentPrice - oldPrice) / oldPrice) * 100;
         const priceDiff = oldPrice - currentPrice;
-        
+
         if (currentPrice < oldPrice) {
             priceDrops.push({ product, oldPrice, newPrice: currentPrice, change: Math.abs(change), priceDiff, tracker });
             totalSavings += priceDiff;
-            
-            // Check if it's a really good deal (>15% drop or >£10 off)
+
+            // Check if it's a really good deal (>15% drop or >EGP10 off)
             if (Math.abs(change) >= 15 || priceDiff >= 10) {
                 bestDeals.push({ product, oldPrice, newPrice: currentPrice, change: Math.abs(change), priceDiff, tracker });
             }
@@ -416,7 +416,7 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         } else {
             noChange.push({ product, price: currentPrice, tracker });
         }
-        
+
         // Check if at or below target
         if (tracker && tracker.thresholdPrice && currentPrice <= tracker.thresholdPrice) {
             const savings = currentPrice < tracker.thresholdPrice ? tracker.thresholdPrice - currentPrice : 0;
@@ -424,7 +424,7 @@ const buildDailyReportMessage = (products, userName = 'there') => {
             potentialSavings += savings;
         }
     });
-    
+
     // Get time-based greeting
     const hour = today.getHours();
     let greeting = '☀️';
@@ -432,7 +432,7 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     else if (hour < 17) greeting = '☀️';
     else if (hour < 21) greeting = '🌆';
     else greeting = '🌙';
-    
+
     let message = [
         `📊 *Daily Price Report*`,
         `Good morning ${escapedName}\\! ${greeting}`,
@@ -440,18 +440,18 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         `📅 ${escapeMarkdownV2(today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}`,
         ''
     ].join('\n');
-    
+
     // Highlights section
     const highlights = [];
     if (bestDeals.length > 0) highlights.push(`🔥 ${bestDeals.length} hot deal${bestDeals.length > 1 ? 's' : ''}`);
     if (atTarget.length > 0) highlights.push(`✅ ${atTarget.length} at target`);
     if (outOfStock.length > 0) highlights.push(`⚠️ ${outOfStock.length} out of stock`);
-    
+
     if (highlights.length > 0) {
         message += `*Quick Highlights:* ${highlights.join(' • ')}\n\n`;
         message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     }
-    
+
     // Hot deals section
     if (bestDeals.length > 0) {
         message += `🔥 *HOT DEALS \\- Don't Miss These\\!*\n\n`;
@@ -459,20 +459,20 @@ const buildDailyReportMessage = (products, userName = 'there') => {
             const name = escapeMarkdownV2(product.name.substring(0, 45) + (product.name.length > 45 ? '...' : ''));
             const icon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔸';
             message += `${icon} [${name}](${escapeMarkdownV2(product.url)})\n`;
-            message += `   ~~£${escapeMarkdownV2(oldPrice.toFixed(2))}~~ → *£${escapeMarkdownV2(newPrice.toFixed(2))}*\n`;
-            message += `   💰 Save £${escapeMarkdownV2(priceDiff.toFixed(2))} \\(${escapeMarkdownV2(change.toFixed(0))}% off\\)\n\n`;
+            message += `   ~~EGP${escapeMarkdownV2(oldPrice.toFixed(2))}~~ → *EGP${escapeMarkdownV2(newPrice.toFixed(2))}*\n`;
+            message += `   💰 Save EGP${escapeMarkdownV2(priceDiff.toFixed(2))} \\(${escapeMarkdownV2(change.toFixed(0))}% off\\)\n\n`;
         });
     }
-    
+
     // At target section
     if (atTarget.length > 0) {
         message += `✅ *Target Price Reached* \\(${atTarget.length}\\)\n\n`;
         atTarget.slice(0, 5).forEach(({ product, price, target, savings }) => {
             const name = escapeMarkdownV2(product.name.substring(0, 40) + (product.name.length > 40 ? '...' : ''));
             message += `🎯 [${name}](${escapeMarkdownV2(product.url)})\n`;
-            message += `   Current: *£${escapeMarkdownV2(price.toFixed(2))}* \\| Target: £${escapeMarkdownV2(target.toFixed(2))}\n`;
+            message += `   Current: *EGP${escapeMarkdownV2(price.toFixed(2))}* \\| Target: EGP${escapeMarkdownV2(target.toFixed(2))}\n`;
             if (savings > 0) {
-                message += `   💚 Even £${escapeMarkdownV2(savings.toFixed(2))} below target\\!\n`;
+                message += `   💚 Even EGP${escapeMarkdownV2(savings.toFixed(2))} below target\\!\n`;
             }
             message += `\n`;
         });
@@ -480,7 +480,7 @@ const buildDailyReportMessage = (products, userName = 'there') => {
             message += `   \\+${atTarget.length - 5} more ready to buy\\!\n\n`;
         }
     }
-    
+
     // Out of stock warning
     if (outOfStock.length > 0) {
         message += `⚠️ *Out of Stock* \\(${outOfStock.length}\\)\n\n`;
@@ -493,11 +493,11 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         }
         message += `\n_We'll notify you when they're back\\!_\n\n`;
     }
-    
+
     // Summary section with visual bars
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `📊 *Daily Summary*\n\n`;
-    
+
     const inStockCount = products.length - outOfStock.length;
     message += `📦 *Total Products:* ${products.length}\n`;
     if (inStockCount > 0) {
@@ -507,7 +507,7 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         message += `   └ 🔴 Out of Stock: ${outOfStock.length}\n`;
     }
     message += `\n`;
-    
+
     if (priceDrops.length > 0) {
         message += `� *Price Drops:* ${priceDrops.length}\n`;
     }
@@ -518,31 +518,31 @@ const buildDailyReportMessage = (products, userName = 'there') => {
         message += `😴 *No Change:* ${noChange.length}\n`;
     }
     message += `\n`;
-    
+
     // Savings section
     if (totalSavings > 0 || potentialSavings > 0) {
         message += `💰 *Your Savings*\n`;
         if (totalSavings > 0) {
-            message += `   • 24h Savings: *£${escapeMarkdownV2(totalSavings.toFixed(2))}*\n`;
+            message += `   • 24h Savings: *EGP${escapeMarkdownV2(totalSavings.toFixed(2))}*\n`;
         }
         if (potentialSavings > 0) {
-            message += `   • Extra Savings: £${escapeMarkdownV2(potentialSavings.toFixed(2))} \\(below target\\)\n`;
+            message += `   • Extra Savings: EGP${escapeMarkdownV2(potentialSavings.toFixed(2))} \\(below target\\)\n`;
         }
         message += `\n`;
     }
-    
+
     // Trending section
     if (priceDrops.length > 3) {
         message += `📉 *Trending Down* \\- More drops than usual\\!\n\n`;
     } else if (priceIncreases.length > priceDrops.length && priceIncreases.length > 3) {
         message += `📈 *Trending Up* \\- Prices rising\\. Consider buying soon\\!\n\n`;
     }
-    
+
     // Action items
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `💡 *What to Do Next*\n\n`;
     let actionCount = 0;
-    
+
     if (atTarget.length > 0) {
         actionCount++;
         message += `${actionCount}\\. 🛒 *Buy now* \\- ${atTarget.length} product${atTarget.length > 1 ? 's' : ''} at your target price\\!\n`;
@@ -558,9 +558,9 @@ const buildDailyReportMessage = (products, userName = 'there') => {
     if (actionCount === 0) {
         message += `😊 *Relax\\!* No urgent actions needed\\. Keep tracking\\!\n`;
     }
-    
+
     message += `\n📋 Type /list to see all your products\\.`;
-    
+
     return message;
 };
 
@@ -568,16 +568,16 @@ const buildDailyReportMessage = (products, userName = 'there') => {
  * Send message helper function
  */
 export const sendMessage = async (bot, chatId, text, options = {}) => {
-  try {
-    return await bot.telegram.sendMessage(chatId, text, {
-      parse_mode: 'Markdown',
-      disable_web_page_preview: true,
-      ...options
-    });
-  } catch (error) {
-    console.error(`Error sending message to ${chatId}:`, error.message);
-    throw error;
-  }
+    try {
+        return await bot.telegram.sendMessage(chatId, text, {
+            parse_mode: 'Markdown',
+            disable_web_page_preview: true,
+            ...options
+        });
+    } catch (error) {
+        console.error(`Error sending message to ${chatId}:`, error.message);
+        throw error;
+    }
 };
 
 export {

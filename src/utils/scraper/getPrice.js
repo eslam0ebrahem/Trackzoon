@@ -486,7 +486,7 @@ async function getPrice(url) {
     if (!priceResult) {
       // Last resort: check if we can find any price-like text in buy box
       const buyBoxText = $('#buybox, #centerCol').text();
-      const priceMatch = buyBoxText.match(/[£$€EGP]+\s*(\d{1,6}(?:[.,]\d{2})?)/);
+      const priceMatch = buyBoxText.match(/[EGP$€EGP]+\s*(\d{1,6}(?:[.,]\d{2})?)/);
 
       if (priceMatch) {
         logger.warn(`⚠️ Fallback regex found price: ${priceMatch[0]}`);

@@ -11,30 +11,56 @@ export default (bot) => {
             paginateItems(deals, page, 5); // 5 deals per page
 
         const builder = new MessageBuilder();
-        builder.setHeader('Top Price Drops (24h)', '🔥');
+
+        // Calculate total potential savings across ALL deals
+        const totalSavings = deals.reduce((sum, deal) => sum + deal.priceDiff, 0);
+        const avgDiscount = deals.reduce((sum, deal) => sum + deal.percentChange, 0) / deals.length;
+        const biggestDeal = deals[0]; // Already sorted by percentage
+
+        builder.setHeader('🔥 Hot Deals Alert', '💰');
 
         if (totalItems === 0) {
             builder.addLine('No price drops found in the last 24 hours.');
-            builder.addTip('We check prices every 30 minutes. Stay tuned!');
+            builder.addTip('We check prices every 30 minutes. New deals coming soon!');
             return { message: builder.toString(), keyboard: mainKeyboard().reply_markup };
         }
 
-        builder.addLine(`Found ${totalItems} deal${totalItems > 1 ? 's' : ''}!`);
+        // Smart summary
+        builder.addLine(`💎 *${totalItems} Active Deal${totalItems > 1 ? 's' : ''}* • Save up to *${biggestDeal.percentChange.toFixed(0)}%*`);
+        builder.addLine(`💰 Total Savings: *EGP ${totalSavings.toFixed(2)}*`);
         builder.addDivider();
 
         items.forEach((deal, index) => {
             const rank = startIndex + index + 1;
             const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🔸';
 
-            builder.addLine(`${icon} *${deal.product.name.substring(0, 40)}...*`);
-            builder.addLine(`   ~~£${deal.oldPrice.toFixed(2)}~~ → *£${deal.currentPrice.toFixed(2)}*`);
-            builder.addLine(`   💰 Save £${deal.priceDiff.toFixed(2)} (${deal.percentChange.toFixed(1)}% off)`);
-            builder.addLine(`   [View on Amazon](${deal.product.url})`);
+            // Determine urgency badge
+            let urgencyBadge = '';
+            if (deal.percentChange >= 40) {
+                urgencyBadge = ' 🔥 *MEGA DEAL*';
+            } else if (deal.percentChange >= 25) {
+                urgencyBadge = ' ⚡ *HOT*';
+            }
+
+            builder.addLine(`${icon} *${deal.product.name.substring(0, 38)}...*${urgencyBadge}`);
+            builder.addLine(`   ~~EGP ${deal.oldPrice.toFixed(2)}~~ → *EGP ${deal.currentPrice.toFixed(2)}*`);
+            builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
+            builder.addLine(`   [🛒 View Deal](${deal.product.url})`);
             builder.addSpacer();
         });
 
         builder.addDivider();
-        builder.addLine(`📄 Page ${currentPage} of ${totalPages}`);
+
+        // Calculate total savings for current page
+        const pageSavings = items.reduce((sum, deal) => sum + deal.priceDiff, 0);
+        builder.addLine(`💰 *This Page:* EGP ${pageSavings.toFixed(2)} saved`);
+
+        if (totalPages > 1) {
+            builder.addLine(`📄 Page ${currentPage} of ${totalPages} • ${totalItems} total deals`);
+        }
+
+        builder.addSpacer();
+        builder.addTip('⏰ Prices update every 30 min • Grab deals before they expire!');
 
         const keyboard = {
             inline_keyboard: [

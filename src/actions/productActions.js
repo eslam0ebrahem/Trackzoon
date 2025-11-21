@@ -79,7 +79,7 @@ export default (bot) => {
 
       const productButtons = items.map(p => [
         {
-          text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
+          text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `EGP${p.currentPrice.toFixed(2)}` : 'N/A'}`,
           callback_data: `action_view_${p.asin}`
         }
       ]);
@@ -123,7 +123,7 @@ export default (bot) => {
 
       const productButtons = items.map(p => [
         {
-          text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
+          text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `EGP${p.currentPrice.toFixed(2)}` : 'N/A'}`,
           callback_data: `action_view_${p.asin}`
         }
       ]);
@@ -226,7 +226,7 @@ export default (bot) => {
       }
 
       await safeEditMessageText(ctx,
-        `Current price: £${product.currentPrice.toFixed(2)}
+        `Current price: EGP${product.currentPrice.toFixed(2)}
 Choose a threshold or set a custom one:`,
         {
           ...thresholdKeyboard(asin, product.currentPrice)
@@ -312,7 +312,7 @@ Choose a threshold or set a custom one:`,
 
       await ProductService.updateThreshold(asin, ctx.chat.id, price);
 
-      const message = escapeMarkdownV2(`✅ Threshold updated to £${price.toFixed(2)}`);
+      const message = escapeMarkdownV2(`✅ Threshold updated to EGP${price.toFixed(2)}`);
       await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
@@ -355,7 +355,7 @@ Choose a threshold or set a custom one:`,
 
       stateManager.clearState(ctx.chat.id);
 
-      const message = escapeMarkdownV2(`✅ Alert price updated successfully to £${newThreshold.toFixed(2)}!`);
+      const message = escapeMarkdownV2(`✅ Alert price updated successfully to EGP${newThreshold.toFixed(2)}!`);
       await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         ...backToMainKeyboard()
@@ -454,12 +454,18 @@ Choose a threshold or set a custom one:`,
       paginateItems(deals, page, 5); // 5 deals per page
 
     const builder = new MessageBuilder();
-    builder.setHeader('Top Price Drops (24h)', '🔥');
+
+    // Calculate total potential savings across ALL deals
+    const totalSavings = deals.reduce((sum, deal) => sum + deal.priceDiff, 0);
+    const avgDiscount = deals.reduce((sum, deal) => sum + deal.percentChange, 0) / deals.length;
+    const biggestDeal = deals[0]; // Already sorted by percentage
+
+    builder.setHeader('🔥 Hot Deals Alert', '💰');
 
     if (totalItems === 0) {
       builder.addLine('No price drops found in the last 24 hours.');
       builder.addSpacer();
-      builder.addTip('We check prices every 30 minutes. Stay tuned!');
+      builder.addTip('We check prices every 30 minutes. New deals coming soon!');
       return {
         message: builder.toString(),
         keyboard: {
@@ -471,23 +477,33 @@ Choose a threshold or set a custom one:`,
       };
     }
 
-    builder.addLine(`Found ${totalItems} deal${totalItems > 1 ? 's' : ''}!`);
+    // Smart summary
+    builder.addLine(`💎 *${totalItems} Active Deal${totalItems > 1 ? 's' : ''}* • Save up to *${biggestDeal.percentChange.toFixed(0)}%*`);
+    builder.addLine(`💰 Total Savings: *EGP ${totalSavings.toFixed(2)}*`);
     builder.addDivider();
 
     items.forEach((deal, index) => {
       const rank = startIndex + index + 1;
       const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🔸';
 
-      builder.addLine(`${icon} *${deal.product.name.substring(0, 40)}...*`);
-      builder.addLine(`   ~~£${deal.oldPrice.toFixed(2)}~~ → *£${deal.currentPrice.toFixed(2)}*`);
-      builder.addLine(`   💰 Save £${deal.priceDiff.toFixed(2)} (${deal.percentChange.toFixed(1)}% off)`);
+      // Determine urgency badge
+      let urgencyBadge = '';
+      if (deal.percentChange >= 40) {
+        urgencyBadge = ' 🔥 *MEGA DEAL*';
+      } else if (deal.percentChange >= 25) {
+        urgencyBadge = ' ⚡ *HOT*';
+      }
+
+      builder.addLine(`${icon} *${deal.product.name.substring(0, 38)}...*${urgencyBadge}`);
+      builder.addLine(`   ~~EGP ${deal.oldPrice.toFixed(2)}~~ → *EGP ${deal.currentPrice.toFixed(2)}*`);
+      builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
 
       // Check if at or below target
       if (deal.tracker?.thresholdPrice && deal.currentPrice <= deal.tracker.thresholdPrice) {
-        builder.addLine(`   ✅ *At your target price!*`);
+        builder.addLine(`   ✅ *Hit your target price!*`);
       }
 
-      builder.addLine(`   [View on Amazon](${deal.product.url})`);
+      builder.addLine(`   [🛒 View Deal](${deal.product.url})`);
       builder.addSpacer();
     });
 
@@ -495,10 +511,14 @@ Choose a threshold or set a custom one:`,
 
     // Calculate total savings for current page
     const pageSavings = items.reduce((sum, deal) => sum + deal.priceDiff, 0);
-    builder.addLine(`💸 *Page Savings:* £${pageSavings.toFixed(2)}`);
-    builder.addLine(`📄 Page ${currentPage} of ${totalPages}`);
+    builder.addLine(`💰 *This Page:* EGP ${pageSavings.toFixed(2)} saved`);
+
+    if (totalPages > 1) {
+      builder.addLine(`📄 Page ${currentPage} of ${totalPages} • ${totalItems} total deals`);
+    }
+
     builder.addSpacer();
-    builder.addTip('Prices checked every 30 minutes');
+    builder.addTip('⏰ Prices update every 30 min • Grab deals before they expire!');
 
     const keyboard = {
       inline_keyboard: [

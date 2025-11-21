@@ -30,7 +30,7 @@ export default (bot) => {
   bot.action('action_view_stats', async (ctx) => {
     try {
       const products = await ProductService.getUserProducts(ctx.chat.id);
-      
+
       if (products.length === 0) {
         const message = escapeMarkdownV2([
           '📊 *Your Statistics*',
@@ -71,7 +71,7 @@ export default (bot) => {
         '',
         `📦 Products Tracked: ${totalProducts}`,
         `🎯 Below Threshold: ${productsWithPriceDrops}`,
-        `💰 Potential Savings: £${totalSavings.toFixed(2)}`,
+        `💰 Potential Savings: EGP${totalSavings.toFixed(2)}`,
         `📈 Avg\\. Price Checks: ${avgPriceHistory.toFixed(0)}`,
         '',
         'Keep tracking to maximize your savings\\!'
@@ -91,7 +91,7 @@ export default (bot) => {
   bot.action('action_report', async (ctx) => {
     try {
       const products = await ProductService.getUserProducts(ctx.chat.id);
-      
+
       if (products.length === 0) {
         const message = escapeMarkdownV2([
           '📊 *Daily Report*',
@@ -123,7 +123,7 @@ export default (bot) => {
 
         const priceHistory = product.priceHistory || [];
         const recentPrices = priceHistory.slice(-2);
-        
+
         if (recentPrices.length >= 2) {
           const priceDrop = recentPrices[0].price - recentPrices[1].price;
           if (priceDrop > 0) {
@@ -146,7 +146,7 @@ export default (bot) => {
       if (report.priceDrops.length > 0) {
         message += `🔥 *Recent Price Drops:*\n`;
         report.priceDrops.slice(0, 5).forEach(({ product, drop }) => {
-          message += `• ${product.name.substring(0, 30)}... \\-£${drop.toFixed(2)}\n`;
+          message += `• ${product.name.substring(0, 30)}... \\-EGP${drop.toFixed(2)}\n`;
         });
         message += '\n';
       }
@@ -154,7 +154,7 @@ export default (bot) => {
       if (report.belowThreshold.length > 0) {
         message += `✅ *Products at Target Price:*\n`;
         report.belowThreshold.slice(0, 3).forEach(product => {
-          message += `• ${product.name.substring(0, 30)}... £${product.currentPrice}\n`;
+          message += `• ${product.name.substring(0, 30)}... EGP${product.currentPrice}\n`;
         });
       }
 

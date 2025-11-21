@@ -211,9 +211,9 @@ async function handleUrlAndPrice(ctx) {
                 '',
                 `📦 [${productName}](${escapeMarkdownV2(product.url)})`,
                 '',
-                `💵 *Current Price:* £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
-                `🎯 *Your Alert:* £${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
-                `🆕 *Proposed Alert:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
+                `💵 *Current Price:* EGP${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+                `🎯 *Your Alert:* EGP${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
+                `🆕 *Proposed Alert:* EGP${escapeMarkdownV2(threshold.toFixed(2))}`,
                 '',
                 escapeMarkdownV2('Would you like to update your alert price?')
             ].join('\n');
@@ -268,8 +268,8 @@ async function handleUrlAndPrice(ctx) {
             '',
             `📦 [${productName}](${escapeMarkdownV2(product.url)})`,
             '',
-            `💰 *Current Price:* £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
-            `🎯 *Alert Price:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
+            `💰 *Current Price:* EGP${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+            `🎯 *Alert Price:* EGP${escapeMarkdownV2(threshold.toFixed(2))}`,
             '',
             priceStatus,
             priceWarning,
@@ -347,9 +347,9 @@ async function handleThresholdInput(ctx) {
             '',
             `📦 [${productName}](${escapeMarkdownV2(productUrlFromProduct)})`,
             '',
-            `💵 *Current Price:* £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
-            `🎯 *Your Alert:* £${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
-            `🆕 *New Alert:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
+            `💵 *Current Price:* EGP${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+            `🎯 *Your Alert:* EGP${escapeMarkdownV2(oldThreshold.toFixed(2))}`,
+            `🆕 *New Alert:* EGP${escapeMarkdownV2(threshold.toFixed(2))}`,
             '',
             escapeMarkdownV2('Would you like to update your alert price?')
         ].join('\n');
@@ -394,8 +394,8 @@ async function handleThresholdInput(ctx) {
         '',
         `📦 [${productName}](${escapeMarkdownV2(productUrlFromProduct)})`,
         '',
-        ` *Current Price:* £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
-        `🎯 *Alert Price:* £${escapeMarkdownV2(threshold.toFixed(2))}`,
+        ` *Current Price:* EGP${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+        `🎯 *Alert Price:* EGP${escapeMarkdownV2(threshold.toFixed(2))}`,
         '',
         priceStatus,
         '',
@@ -460,8 +460,8 @@ async function handleThresholdUpdate(ctx) {
         '',
         `📦 [${productName}](${escapeMarkdownV2(productUrl)})`,
         '',
-        `💰 *Current Price:* £${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
-        `🎯 *New Alert:* £${escapeMarkdownV2(newThreshold.toFixed(2))}`,
+        `💰 *Current Price:* EGP${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
+        `🎯 *New Alert:* EGP${escapeMarkdownV2(newThreshold.toFixed(2))}`,
         '',
         priceComparison
     ].join('\n');

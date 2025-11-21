@@ -57,7 +57,7 @@ export default (bot) => {
         await sendMessage(bot, chatId,
           `📊 *${product.name}*\n\n` +
           'Not enough price history data yet. Charts will be available after a few price checks.\n\n' +
-          `Current Price: £${product.currentPrice.toFixed(2)}`
+          `Current Price: EGP${product.currentPrice.toFixed(2)}`
         );
         return;
       }
@@ -90,16 +90,16 @@ export default (bot) => {
 
 [${product.name}](${product.url})
 
-${trendEmoji} *Current:* £${currentPrice.toFixed(2)} (${priceChange >= 0 ? '+' : ''}${priceChangePercent}%)
-💰 *Average:* £${avgPrice.toFixed(2)}
-🔻 *Lowest:* £${minPrice.toFixed(2)}
-🔺 *Highest:* £${maxPrice.toFixed(2)}
+${trendEmoji} *Current:* EGP${currentPrice.toFixed(2)} (${priceChange >= 0 ? '+' : ''}${priceChangePercent}%)
+💰 *Average:* EGP${avgPrice.toFixed(2)}
+🔻 *Lowest:* EGP${minPrice.toFixed(2)}
+🔺 *Highest:* EGP${maxPrice.toFixed(2)}
 
 📊 *Trend:* ${trend}
 📅 *Tracking Since:* ${new Date(product.priceHistory[0].date).toLocaleDateString()}
 📈 *Data Points:* ${product.priceHistory.length}
 
-${tracker?.thresholdPrice ? `🎯 *Your Target:* £${tracker.thresholdPrice.toFixed(2)}` : ''}
+${tracker?.thresholdPrice ? `🎯 *Your Target:* EGP${tracker.thresholdPrice.toFixed(2)}` : ''}
 `;
 
         await bot.telegram.sendPhoto(chatId, chartUrl, {

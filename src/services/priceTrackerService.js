@@ -79,7 +79,7 @@ export class PriceTrackerService {
               // Only send alert if price is at or below target price
               // No point alerting if it's too expensive anyway
               if (!tracker.thresholdPrice || currentPrice > tracker.thresholdPrice) {
-                logger.info(`Skipping back-in-stock notification for user ${tracker.chatId} - price £${currentPrice} is above target £${tracker.thresholdPrice}`);
+                logger.info(`Skipping back-in-stock notification for user ${tracker.chatId} - price EGP${currentPrice} is above target EGP${tracker.thresholdPrice}`);
                 continue;
               }
 
@@ -279,11 +279,11 @@ export class PriceTrackerService {
         '',
         '✅ This product is now available and within your budget\\!',
         '',
-        `💰 *Current Price:* £${escapeMarkdownV2(currentPrice.toFixed(2))}`,
-        `🎯 *Your Target:* £${escapeMarkdownV2(thresholdPrice.toFixed(2))}`,
+        `💰 *Current Price:* EGP${escapeMarkdownV2(currentPrice.toFixed(2))}`,
+        `🎯 *Your Target:* EGP${escapeMarkdownV2(thresholdPrice.toFixed(2))}`,
         '',
         savings > 0
-          ? `🎊 *Great Deal\\!* You save £${escapeMarkdownV2(savings.toFixed(2))} \\(${escapeMarkdownV2(percentSavings)}% below target\\)\\!`
+          ? `🎊 *Great Deal\\!* You save EGP${escapeMarkdownV2(savings.toFixed(2))} \\(${escapeMarkdownV2(percentSavings)}% below target\\)\\!`
           : `✨ *Perfect Price\\!* Exactly at your target\\!`,
         '',
         '🛒 Click the product name above to buy now before it sells out again\\!'

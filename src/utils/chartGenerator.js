@@ -23,7 +23,7 @@ async function generatePriceHistoryChart(productName, history, thresholdPrice = 
   const priceChangePercent = data.length > 1 ? ((priceChange / data[0]) * 100).toFixed(1) : 0;
 
   const chart = new QuickChart();
-  
+
   // Build datasets
   const datasets = [
     {
@@ -70,7 +70,7 @@ async function generatePriceHistoryChart(productName, history, thresholdPrice = 
     options: {
       title: {
         display: true,
-        text: `${productName.substring(0, 60)}${productName.length > 60 ? '...' : ''}\nCurrent: £${currentPrice.toFixed(2)} (${priceChange >= 0 ? '+' : ''}${priceChangePercent}%) | Avg: £${avgPrice.toFixed(2)} | Low: £${lowPrice.toFixed(2)} | High: £${highPrice.toFixed(2)}`,
+        text: `${productName.substring(0, 60)}${productName.length > 60 ? '...' : ''}\nCurrent: EGP${currentPrice.toFixed(2)} (${priceChange >= 0 ? '+' : ''}${priceChangePercent}%) | Avg: EGP${avgPrice.toFixed(2)} | Low: EGP${lowPrice.toFixed(2)} | High: EGP${highPrice.toFixed(2)}`,
         fontSize: 13,
         fontColor: priceChange < 0 ? '#28a745' : priceChange > 0 ? '#dc3545' : '#6c757d'
       },
@@ -85,7 +85,7 @@ async function generatePriceHistoryChart(productName, history, thresholdPrice = 
       scales: {
         yAxes: [{
           ticks: {
-            callback: (value) => '£' + value.toFixed(2),
+            callback: (value) => 'EGP' + value.toFixed(2),
             fontSize: 11
           }
         }],
@@ -108,7 +108,7 @@ async function generatePriceHistoryChart(productName, history, thresholdPrice = 
  */
 async function generateSavingsChart(totalSavings, savingsBreakdown) {
   const chart = new QuickChart();
-  
+
   chart.setConfig({
     type: 'doughnut',
     data: {
@@ -128,7 +128,7 @@ async function generateSavingsChart(totalSavings, savingsBreakdown) {
     options: {
       title: {
         display: true,
-        text: `Total Savings: £${totalSavings.toFixed(2)}`,
+        text: `Total Savings: EGP${totalSavings.toFixed(2)}`,
         fontSize: 16,
         fontColor: '#28a745'
       },
@@ -138,7 +138,7 @@ async function generateSavingsChart(totalSavings, savingsBreakdown) {
       },
       plugins: {
         datalabels: {
-          formatter: (value) => '£' + value.toFixed(2),
+          formatter: (value) => 'EGP' + value.toFixed(2),
           color: '#fff',
           font: {
             weight: 'bold',
@@ -211,7 +211,7 @@ async function generateComparisonChart(products) {
       scales: {
         yAxes: [{
           ticks: {
-            callback: (value) => '£' + value.toFixed(2),
+            callback: (value) => 'EGP' + value.toFixed(2),
             beginAtZero: true
           }
         }]
@@ -222,7 +222,7 @@ async function generateComparisonChart(products) {
   return chart.getShortUrl();
 }
 
-export { 
+export {
   generatePriceHistoryChart,
   generateSavingsChart,
   generateComparisonChart

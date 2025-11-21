@@ -22,7 +22,7 @@ export const Messages = {
   notAvailable: 'N/A',
   notEnoughData: '📊 Not enough price history data to generate a chart.',
   historyCaption: ({ name }) => `📈 Price History for ${name}`,
-  
+
   welcome: (username) => [
     `👋 Welcome ${username} to Amazon Price Tracker!`,
     '',
@@ -182,15 +182,15 @@ export const Messages = {
     '✅ *Product Added Successfully*',
     '',
     `📦 Product: [${escapeMarkdownV2(product.name)}](${product.url})`,
-    `💵 Current Price: £${product.currentPrice.toFixed(2)}`,
-    `🎯 Alert Price: £${threshold.toFixed(2)}`,
+    `💵 Current Price: EGP${product.currentPrice.toFixed(2)}`,
+    `🎯 Alert Price: EGP${threshold.toFixed(2)}`,
     '',
     product.currentPrice <= threshold
       ? '🎉 Good news! The current price is already below your alert threshold!'
       : [
-          `📈 Current price is ${difference.toFixed(1)}% above your threshold.`,
-          '🔔 I\'ll notify you when the price drops below your threshold!'
-        ].join('\\n')
+        `📈 Current price is ${difference.toFixed(1)}% above your threshold.`,
+        '🔔 I\'ll notify you when the price drops below your threshold!'
+      ].join('\\n')
   ].join('\\n'),
 
   unknownCommand: '❓ I don\'t understand that command. Use /help to see available commands.',

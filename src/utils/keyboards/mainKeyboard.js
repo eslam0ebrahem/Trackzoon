@@ -21,7 +21,7 @@ export const mainKeyboard = () => {
   };
 };
 
-export const productActionsKeyboard = (asin) => { 
+export const productActionsKeyboard = (asin) => {
   return {
     reply_markup: {
       inline_keyboard: [
@@ -34,17 +34,17 @@ export const productActionsKeyboard = (asin) => {
         ],
         [{ text: '🔙 Back to Products', callback_data: 'action_list_products' }]
       ]
-    } 
+    }
   };
 };
 
 export const thresholdKeyboard = (asin, currentPrice) => {
   const suggestedPercentages = [5, 10, 20];
   const buttons = suggestedPercentages.map(percent => {
-    const price = (currentPrice * (1 - percent/100)).toFixed(2);
-    return { 
-      text: `${percent}% (£${price})`, 
-      callback_data: `action_set_threshold_${asin}_${price}` 
+    const price = (currentPrice * (1 - percent / 100)).toFixed(2);
+    return {
+      text: `${percent}% (EGP${price})`,
+      callback_data: `action_set_threshold_${asin}_${price}`
     };
   });
 
