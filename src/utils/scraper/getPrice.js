@@ -74,10 +74,16 @@ function checkBuyBoxPresence($) {
  * Strategy 3: Check for third-party seller only
  */
 function checkThirdPartySeller($) {
+  // Comprehensive list of selectors where third-party messages appear
   const selectors = [
     '#alternativeOfferEligibilityMessaging_feature_div',
     '#buybox-see-all-buying-choices',
-    '.a-declarative[data-action="show-all-offers-display"]'
+    '.a-declarative[data-action="show-all-offers-display"]',
+    '#merchant-info',  // Often contains seller info
+    '#tabular-buybox', // New buybox design
+    '#buybox',         // Main buybox area
+    '#availability',   // Availability section
+    '#buyBoxAccordion' // Accordion-style buybox
   ];
 
   for (const selector of selectors) {
@@ -87,10 +93,26 @@ function checkThirdPartySeller($) {
       clone.find('script, style').remove();
       const text = clone.text().toLowerCase();
 
+      // Check for various third-party messages
       if (text.includes('only available from third-party sellers') ||
+        text.includes('only available from third-party') ||
         text.includes('this item is only available from third-party')) {
+        logger.info(`🚫 Third-party only detected: "${text.substring(0, 80).trim()}"`);
         return { isThirdParty: true, text: text.substring(0, 100) };
       }
+    }
+  }
+
+  // Additional broad search in the entire product details area as a last resort
+  const productDetails = $('#dp-container, #ppd').first();
+  if (productDetails.length) {
+    const clone = productDetails.clone();
+    clone.find('script, style').remove();
+    const text = clone.text().toLowerCase();
+
+    if (text.includes('this item is only available from third-party sellers')) {
+      logger.info('🚫 Third-party only detected in product details area');
+      return { isThirdParty: true, text: 'Found in product details area' };
     }
   }
 
