@@ -9,10 +9,10 @@ import cache, { CacheKeys, CacheTTL } from '../config/cache.js';
 export function cleanAmazonUrl(url) {
   try {
     const urlObj = new URL(url);
-    
+
     // Keep only the pathname (removes all query parameters)
     const cleanUrl = `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}`;
-    
+
     // Remove trailing slash if present
     return cleanUrl.endsWith('/') ? cleanUrl.slice(0, -1) : cleanUrl;
   } catch (error) {
@@ -20,6 +20,16 @@ export function cleanAmazonUrl(url) {
     return url; // Return original URL if parsing fails
   }
 }
+/**
+ * Validates if a string is a valid Amazon URL
+ * @param {string} url - The URL to validate
+ * @returns {boolean} True if valid, false otherwise
+ */
+export function isValidAmazonUrl(url) {
+  if (!url) return false;
+  return !!url.match(/^https?:\/\/(www\.)?(amazon\.|amzn\.)/i);
+}
+
 
 /**
  * Resolves shortened Amazon URLs and extracts the ASIN.
@@ -41,7 +51,7 @@ export async function resolveAmazonUrl(url) {
     // Clean the URL first
     let cleanUrl = url.trim();
     console.log('Cleaned URL:', cleanUrl);
-    
+
     // Handle mobile URLs
     if (cleanUrl.startsWith('m.')) {
       cleanUrl = cleanUrl.replace('m.', 'www.');
@@ -96,7 +106,7 @@ export async function resolveAmazonUrl(url) {
             return status >= 200 && status < 400;
           }
         });
-        
+
         const resolvedUrl = res.request.res.responseUrl;
         console.log('Resolved to:', resolvedUrl);
 

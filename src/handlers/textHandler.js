@@ -1,7 +1,7 @@
 import { stateManager, BotStates } from '../utils/stateManager.js';
 import { mainKeyboard } from '../utils/keyboards/mainKeyboard.js';
 import { handleError, BotError, ErrorCodes } from '../utils/errorHandler.js';
-import { resolveAmazonUrl } from '../utils/url.js';
+import { resolveAmazonUrl, isValidAmazonUrl } from '../utils/url.js';
 import { getProductName } from '../utils/scraper/getProductName.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { escapeMarkdownV2 } from '../utils/messageHelper.js';
@@ -14,7 +14,7 @@ async function handleProductUrl(ctx) {
         // console.log('\nProcessing new URL request:', productUrl);
 
         // Basic URL validation first
-        if (!productUrl.match(/^https?:\/\/(www\.)?(amazon\.|amzn\.)/i)) {
+        if (!isValidAmazonUrl(productUrl)) {
             throw new BotError('Invalid URL format', ErrorCodes.INVALID_URL);
         }
 
@@ -140,7 +140,7 @@ async function handleUrlAndPrice(ctx) {
         const productUrl = parts.slice(0, -1).join(' ');
 
         // Basic URL validation
-        if (!productUrl.match(/^https?:\/\/(www\.)?(amazon\.|amzn\.)/i)) {
+        if (!isValidAmazonUrl(productUrl)) {
             throw new BotError('Invalid URL format', ErrorCodes.INVALID_URL);
         }
 
