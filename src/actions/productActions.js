@@ -434,13 +434,19 @@ Choose a threshold or set a custom one:`,
       // Only include if price dropped
       if (priceDiff > 0) {
         // Smart Validation: Check against 30-day average
-        const stats = calculatePriceStats(product.priceHistory, 30);
+        const stats30d = calculatePriceStats(product.priceHistory, 30);
+        const statsAll = calculatePriceStats(product.priceHistory, 365); // All time
 
         // If we have stats, ensure current price is not significantly higher than average
         // We allow a small buffer (e.g., 5%) but generally it should be a real deal
-        if (stats) {
+        if (stats30d) {
           // If current price is > 5% above average, it's likely a fake deal
-          if (currentPrice > stats.average * 1.05) {
+          if (currentPrice > stats30d.average * 1.05) {
+            return; // Skip this deal
+          }
+
+          // Stricter check: If current price is > 40% above the 30-day LOW, it's not a "hot deal"
+          if (currentPrice > stats30d.min * 1.4) {
             return; // Skip this deal
           }
         }
@@ -451,7 +457,9 @@ Choose a threshold or set a custom one:`,
           currentPrice,
           priceDiff,
           percentChange: Math.abs(percentChange),
-          tracker
+          tracker,
+          stats30d,
+          statsAll
         });
       }
     });
@@ -496,6 +504,8 @@ Choose a threshold or set a custom one:`,
     builder.addLine(`💰 Total Savings: *EGP ${totalSavings.toFixed(2)}*`);
     builder.addDivider();
 
+    const chartButtons = [];
+
     items.forEach((deal, index) => {
       const rank = startIndex + index + 1;
       const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🔸';
@@ -512,6 +522,10 @@ Choose a threshold or set a custom one:`,
       builder.addLine(`   Was EGP ${deal.oldPrice.toFixed(2)} → *Now EGP ${deal.currentPrice.toFixed(2)}*`);
       builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
 
+      if (deal.statsAll && deal.stats30d) {
+        builder.addLine(`   📉 Low: ${deal.statsAll.min.toFixed(0)} • High: ${deal.statsAll.max.toFixed(0)} • 30d Low: ${deal.stats30d.min.toFixed(0)}`);
+      }
+
       // Check if at or below target
       if (deal.tracker?.thresholdPrice && deal.currentPrice <= deal.tracker.thresholdPrice) {
         builder.addLine(`   ✅ *Hit your target price!*`);
@@ -519,6 +533,12 @@ Choose a threshold or set a custom one:`,
 
       builder.addLine(`   [🛒 View Deal](${deal.product.url})`);
       builder.addSpacer();
+
+      // Add chart button for this deal
+      chartButtons.push({
+        text: `${rank}. 📈 Chart`,
+        callback_data: `action_chart_${deal.product.asin}`
+      });
     });
 
     builder.addDivider();
@@ -534,8 +554,15 @@ Choose a threshold or set a custom one:`,
     builder.addSpacer();
     builder.addTip('⏰ Prices update every 30 min • Grab deals before they expire!');
 
+    // Organize chart buttons in rows of 2
+    const chartRows = [];
+    for (let i = 0; i < chartButtons.length; i += 2) {
+      chartRows.push(chartButtons.slice(i, i + 2));
+    }
+
     const keyboard = {
       inline_keyboard: [
+        ...chartRows,
         ...createPaginationKeyboard(currentPage, totalPages, 'action_top_deals_page'),
         [{ text: '📋 All Products', callback_data: 'action_list_products' }],
         [{ text: '🔙 Main Menu', callback_data: 'action_main_menu' }]
