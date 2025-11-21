@@ -140,6 +140,21 @@ function smartAvailabilityCheck($) {
   const availText = checkAvailabilityText($);
   logger.info(`📝 Availability text: "${availText.text}" (from ${availText.source})`);
 
+  // Strategy 2.5: Check for "No featured offers available" (no buybox)
+  const noFeaturedOffers = $('#fod-cx-box, #fodcx_feature_div').first();
+  if (noFeaturedOffers.length) {
+    const messageText = noFeaturedOffers.text().toLowerCase();
+    if (messageText.includes('no featured offers available') ||
+      messageText.includes('no featured offers')) {
+      logger.info('📦 No featured offers available detected (no buybox)');
+      return {
+        isAvailable: false,
+        reason: 'no-buybox',
+        details: 'No featured offers available'
+      };
+    }
+  }
+
   const outOfStockPatterns = [
     /\bcurrently unavailable\b/,
     /\btemporarily unavailable\b/,
@@ -223,6 +238,9 @@ function extractPriceFromSelectors($) {
     '.a-carousel-container',
     '#sponsoredProducts',
     '#session-recommendations',
+    '#rightCol',  // Exclude entire right column (contains ads)
+    '#amsDetailRight-dramabot_feature_div',  // Specific ad placements
+    '.celwidget[data-feature-name*="ams"]',  // Amazon Marketing Services ads
   ];
 
   const selectors = [
