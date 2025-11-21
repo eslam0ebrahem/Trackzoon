@@ -1,14 +1,16 @@
 import { ProductService } from '../services/productService.js';
-import { 
-  productActionsKeyboard, 
-  thresholdKeyboard, 
+import {
+  productActionsKeyboard,
+  thresholdKeyboard,
   confirmationKeyboard,
-  backToMainKeyboard 
+  backToMainKeyboard
 } from '../utils/keyboards/mainKeyboard.js';
-import { buildProductListMessage, formatProductDetails, escapeMarkdownV2, safeEditMessageText, formatProductLine } from '../utils/messageHelper.js';
-import { buildPaginatedProductList, createPaginationKeyboard } from '../utils/pagination.js';
+import { formatProductDetails, escapeMarkdownV2, safeEditMessageText, formatProductLine } from '../utils/messageHelper.js';
+import { paginateItems, createPaginationKeyboard } from '../utils/pagination.js';
+import { MessageBuilder } from '../utils/messageDesign.js';
 import { stateManager, BotStates } from '../utils/stateManager.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
+import { handleError } from '../utils/errorHandler.js';
 
 export default (bot) => {
   // Price history action
@@ -50,48 +52,42 @@ export default (bot) => {
   bot.action('action_list_products', async (ctx) => {
     try {
       const products = await ProductService.getUserProducts(ctx.chat.id);
-      
-      if (products.length === 0) {
-        return await safeEditMessageText(ctx, 
-          escapeMarkdownV2([
-            '📭 *No Products Being Tracked*',
-            '',
-            'You are not tracking any products yet\.',
-            'Click the button below to start tracking\!'
-          ].join('\n')),
-          {
-            parse_mode: 'MarkdownV2',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '🛍️ Track New Product', callback_data: 'action_add_product' }],
-                [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
-              ]
-            }
+      const { items, currentPage, totalPages, totalItems, startIndex, endIndex } =
+        paginateItems(products, 1);
+
+      const builder = new MessageBuilder();
+      builder.setHeader('Your Tracked Products', '📋');
+
+      if (totalItems === 0) {
+        builder.addLine('You are not tracking any products yet.');
+        builder.addTip('Use /add to start tracking!');
+
+        await safeEditMessageText(ctx, builder.toString(), {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🛍️ Track New Product', callback_data: 'action_add_product' }],
+              [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
+            ]
           }
-        );
+        });
+        return;
       }
 
-      const { message, pagination } = buildPaginatedProductList(
-        products,
-        ctx.chat.id,
-        1,
-        formatProductLine,
-        escapeMarkdownV2
-      );
+      builder.addLine(`_Showing ${startIndex + 1}-${endIndex} of ${totalItems}_`);
+      builder.addSpacer();
 
-      // Create inline keyboard with product buttons and pagination
-      const productButtons = pagination.items.map(p => [
+      const productButtons = items.map(p => [
         {
           text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
           callback_data: `action_view_${p.asin}`
         }
       ]);
 
-      const paginationButtons = createPaginationKeyboard(
-        pagination.currentPage,
-        pagination.totalPages,
-        'action_list_page'
-      );
+      builder.addDivider();
+      builder.addLine(`📄 Page ${currentPage} of ${totalPages}`);
+
+      const paginationButtons = createPaginationKeyboard(currentPage, totalPages, 'action_list_page');
 
       const keyboard = [
         ...productButtons,
@@ -99,8 +95,8 @@ export default (bot) => {
         [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
       ];
 
-      await safeEditMessageText(ctx, message, {
-        parse_mode: 'MarkdownV2',
+      await safeEditMessageText(ctx, builder.toString(), {
+        parse_mode: 'Markdown',
         disable_web_page_preview: true,
         reply_markup: {
           inline_keyboard: keyboard
@@ -117,28 +113,25 @@ export default (bot) => {
     try {
       const page = parseInt(ctx.match[1]);
       const products = await ProductService.getUserProducts(ctx.chat.id);
+      const { items, currentPage, totalPages, totalItems, startIndex, endIndex } =
+        paginateItems(products, page);
 
-      const { message, pagination } = buildPaginatedProductList(
-        products,
-        ctx.chat.id,
-        page,
-        formatProductLine,
-        escapeMarkdownV2
-      );
+      const builder = new MessageBuilder();
+      builder.setHeader('Your Tracked Products', '📋');
+      builder.addLine(`_Showing ${startIndex + 1}-${endIndex} of ${totalItems}_`);
+      builder.addSpacer();
 
-      // Create inline keyboard with product buttons and pagination
-      const productButtons = pagination.items.map(p => [
+      const productButtons = items.map(p => [
         {
           text: `${p.name.substring(0, 35)}${p.name.length > 35 ? '...' : ''} - ${p.currentPrice ? `£${p.currentPrice.toFixed(2)}` : 'N/A'}`,
           callback_data: `action_view_${p.asin}`
         }
       ]);
 
-      const paginationButtons = createPaginationKeyboard(
-        pagination.currentPage,
-        pagination.totalPages,
-        'action_list_page'
-      );
+      builder.addDivider();
+      builder.addLine(`📄 Page ${currentPage} of ${totalPages}`);
+
+      const paginationButtons = createPaginationKeyboard(currentPage, totalPages, 'action_list_page');
 
       const keyboard = [
         ...productButtons,
@@ -146,8 +139,8 @@ export default (bot) => {
         [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
       ];
 
-      await safeEditMessageText(ctx, message, {
-        parse_mode: 'MarkdownV2',
+      await safeEditMessageText(ctx, builder.toString(), {
+        parse_mode: 'Markdown',
         disable_web_page_preview: true,
         reply_markup: {
           inline_keyboard: keyboard
@@ -201,13 +194,13 @@ export default (bot) => {
       const asin = ctx.match[1];
       const product = await ProductService.getProduct(asin, ctx.chat.id);
       const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-      
+
       const message = formatProductDetails(product, tracker);
-      
+
       await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: false,
-        ...productActionsKeyboard(asin)
+        ...productActionsKeyboard(asin, product.url)
       });
     } catch (error) {
       console.error('Error in view product action:', error);
@@ -220,10 +213,10 @@ export default (bot) => {
     try {
       const asin = ctx.match[1];
       const product = await ProductService.getProduct(asin, ctx.chat.id);
-      
+
       if (!product.currentPrice) {
         stateManager.setState(ctx.chat.id, BotStates.SETTING_THRESHOLD, { asin });
-        return await safeEditMessageText(ctx, 
+        return await safeEditMessageText(ctx,
           'Enter your desired price alert threshold:',
           {
             parse_mode: 'MarkdownV2',
@@ -232,7 +225,7 @@ export default (bot) => {
         );
       }
 
-      await safeEditMessageText(ctx, 
+      await safeEditMessageText(ctx,
         `Current price: £${product.currentPrice.toFixed(2)}
 Choose a threshold or set a custom one:`,
         {
@@ -352,14 +345,14 @@ Choose a threshold or set a custom one:`,
     try {
       const asin = ctx.match[1];
       const state = stateManager.getState(ctx.chat.id);
-      
+
       if (!state || !state.data) {
         return await ctx.answerCbQuery('⚠️ Session expired. Please try again.');
       }
 
       const { newThreshold } = state.data;
       await ProductService.updateThreshold(asin, ctx.chat.id, newThreshold);
-      
+
       stateManager.clearState(ctx.chat.id);
 
       const message = escapeMarkdownV2(`✅ Alert price updated successfully to £${newThreshold.toFixed(2)}!`);
@@ -396,9 +389,9 @@ Choose a threshold or set a custom one:`,
   bot.action('action_top_deals', async (ctx) => {
     try {
       const products = await ProductService.getUserProducts(ctx.chat.id);
-      
+
       if (products.length === 0) {
-        return await safeEditMessageText(ctx, 
+        return await safeEditMessageText(ctx,
           escapeMarkdownV2([
             '📭 *No Products Being Tracked*',
             '',
@@ -420,46 +413,46 @@ Choose a threshold or set a custom one:`,
       // Helper function to get price from ~24 hours ago
       const getPriceFrom24HoursAgo = (priceHistory) => {
         if (!priceHistory || priceHistory.length === 0) return null;
-        
+
         const now = new Date();
         const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        
+
         let closestEntry = null;
         let closestDiff = Infinity;
-        
+
         for (const entry of priceHistory) {
           const entryDate = new Date(entry.date);
           const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
-          
+
           if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
             closestDiff = timeDiff;
             closestEntry = entry;
           }
         }
-        
+
         if (!closestEntry && priceHistory.length > 0) {
           closestEntry = priceHistory[0];
         }
-        
+
         return closestEntry;
       };
 
       // Calculate price drops for all products
       const dealsData = [];
-      
+
       products.forEach(product => {
         if (product.isOutOfStock || !product.currentPrice) return;
-        
+
         const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
         const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
-        
+
         if (!oldPriceEntry) return;
-        
+
         const oldPrice = oldPriceEntry.price;
         const currentPrice = product.currentPrice;
         const priceDiff = oldPrice - currentPrice;
         const percentChange = ((currentPrice - oldPrice) / oldPrice) * 100;
-        
+
         // Only include if price dropped
         if (priceDiff > 0) {
           dealsData.push({
@@ -498,7 +491,7 @@ Choose a threshold or set a custom one:`,
 
       // Sort by price difference (biggest savings first)
       dealsData.sort((a, b) => b.priceDiff - a.priceDiff);
-      
+
       // Take top 5
       const topDeals = dealsData.slice(0, 5);
 
@@ -515,16 +508,16 @@ Choose a threshold or set a custom one:`,
       topDeals.forEach((deal, index) => {
         const rank = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}\\.`;
         const name = escapeMarkdownV2(deal.product.name.substring(0, 50) + (deal.product.name.length > 50 ? '...' : ''));
-        
+
         message += `${rank} [${name}](${escapeMarkdownV2(deal.product.url)})\n`;
         message += `   ~~£${escapeMarkdownV2(deal.oldPrice.toFixed(2))}~~ → *£${escapeMarkdownV2(deal.currentPrice.toFixed(2))}*\n`;
         message += `   💰 Save £${escapeMarkdownV2(deal.priceDiff.toFixed(2))} \\(${escapeMarkdownV2(deal.percentChange.toFixed(1))}% off\\)\n`;
-        
+
         // Check if at or below target
         if (deal.tracker?.thresholdPrice && deal.currentPrice <= deal.tracker.thresholdPrice) {
           message += `   ✅ *At your target price\\!*\n`;
         }
-        
+
         message += `\n`;
       });
 
@@ -532,11 +525,11 @@ Choose a threshold or set a custom one:`,
       const totalSavings = topDeals.reduce((sum, deal) => sum + deal.priceDiff, 0);
       message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
       message += `💸 *Total Potential Savings:* £${escapeMarkdownV2(totalSavings.toFixed(2))}\n`;
-      
+
       if (dealsData.length > 5) {
         message += `\n_\\+${dealsData.length - 5} more deal${dealsData.length - 5 > 1 ? 's' : ''} available\\!_\n`;
       }
-      
+
       message += `\n💡 Prices checked every 30 minutes\\.`;
 
       // Create buttons for each deal
@@ -569,11 +562,11 @@ Choose a threshold or set a custom one:`,
     try {
       const asin = ctx.match[1];
       await ctx.answerCbQuery('⏳ Generating chart...');
-      
+
       // Import and use the chart command handler
       const handleChartCommand = (await import('../commands/chartCommand.js')).default;
       await handleChartCommand(bot, ctx.chat.id, asin);
-      
+
     } catch (error) {
       console.error('Error in chart action:', error);
       await ctx.answerCbQuery('⚠️ Error generating chart. Please try again.');
@@ -585,14 +578,13 @@ Choose a threshold or set a custom one:`,
     try {
       const asin = ctx.match[1];
       await ctx.answerCbQuery('⏳ Generating chart...');
-      
+
       const handleChartCommand = (await import('../commands/chartCommand.js')).default;
       await handleChartCommand(bot, ctx.chat.id, asin);
-      
+
     } catch (error) {
       console.error('Error in view history action:', error);
       await ctx.answerCbQuery('⚠️ Error generating chart. Please try again.');
     }
   });
 };
-
