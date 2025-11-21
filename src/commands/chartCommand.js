@@ -29,7 +29,7 @@ export default (bot) => {
         // Show keyboard with products
         const keyboard = products.slice(0, 10).map((product, index) => ([{
           text: `${index + 1}. ${product.name.substring(0, 40)}${product.name.length > 40 ? '...' : ''}`,
-          callback_data: `chart_${product.asin}`
+          callback_data: `action_chart_${product.asin}`
         }]));
 
         await sendMessage(bot, chatId,
@@ -109,11 +109,11 @@ ${tracker?.thresholdPrice ? `🎯 *Your Target:* EGP${tracker.thresholdPrice.toF
             inline_keyboard: [
               [
                 { text: '🛒 View Product', url: product.url },
-                { text: '🔄 Refresh', callback_data: `chart_${product.asin}` }
+                { text: '🔄 Refresh', callback_data: `action_chart_${product.asin}` }
               ],
               [
-                { text: '⚙️ Set Target', callback_data: `setthreshold_${product.asin}` },
-                { text: '🗑️ Remove', callback_data: `remove_${product.asin}` }
+                { text: '⚙️ Set Target', callback_data: `action_threshold_${product.asin}` },
+                { text: '🗑️ Remove', callback_data: `action_remove_${product.asin}` }
               ]
             ]
           }

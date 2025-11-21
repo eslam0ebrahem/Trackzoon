@@ -470,7 +470,7 @@ Choose a threshold or set a custom one:`,
   });
 
   // Chart action - view price chart for a specific product
-  bot.action(/chart_(\w+)/, async (ctx) => {
+  bot.action(/action_chart_(\w+)/, async (ctx) => {
     try {
       const asin = ctx.match[1];
       await ctx.answerCbQuery('⏳ Generating chart...');
