@@ -1,6 +1,5 @@
 import { UserService } from '../services/userService.js';
-import { escapeMarkdownV2 } from '../utils/messageHelper.js';
-import { mainKeyboard } from '../utils/keyboards/mainKeyboard.js';
+import { MessageBuilder } from '../utils/messageDesign.js';
 import { handleError } from '../utils/errorHandler.js';
 
 /**
@@ -10,24 +9,22 @@ import { handleError } from '../utils/errorHandler.js';
 export default (bot) => {
   bot.command('start', async (ctx) => {
     try {
-      const username = ctx.from?.first_name || ctx.from?.username;
+      const username = ctx.from?.first_name || ctx.from?.username || 'there';
 
       // Register user if new
       await UserService.getOrCreateUser(ctx.chat.id, username);
 
-      const welcomeMessage = [
-        `👋 *Hi ${escapeMarkdownV2(username)}!*`,
-        '',
-        'I\'m *Trackzoon*, your personal Amazon price tracker. 🕵️‍♂️',
-        '',
-        'I check prices 24/7 and notify you the moment they drop. 📉',
-        '',
-        '*🚀 Ready to save money?*',
-        'Click the button below to track your first product, or just paste an Amazon link here!',
-      ].join('\n');
+      const builder = new MessageBuilder();
+      builder.setHeader(`Hi ${username}!`, '👋');
+      builder.addLine("I'm *Trackzoon*, your personal Amazon price tracker. 🕵️‍♂️");
+      builder.addSpacer();
+      builder.addLine('I check prices 24/7 and notify you the moment they drop. 📉');
+      builder.addSpacer();
+      builder.addSection('🚀 Ready to save money?');
+      builder.addLine('Click the button below to track your first product, or just paste an Amazon link here!');
 
-      await ctx.reply(welcomeMessage, {
-        parse_mode: 'MarkdownV2',
+      await ctx.reply(builder.toString(), {
+        parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [

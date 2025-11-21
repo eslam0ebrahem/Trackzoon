@@ -26,3 +26,24 @@
     at async Polling.loop (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/polling.js:73:30)
     at async Telegraf.launch (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/telegraf.js:194:13) 
 [2025-11-21T10:44:24.512Z] [ERROR] Another bot instance is already running. Exiting...  
+[2025-11-21T10:47:12.709Z] [ERROR] Failed to launch bot: Error: 409: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+    at Telegram.callApi (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/client.js:315:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async [Symbol.asyncIterator] (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/polling.js:30:33)
+    at async Polling.loop (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/polling.js:73:30)
+    at async Telegraf.launch (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/telegraf.js:194:13) 
+[2025-11-21T10:47:12.711Z] [ERROR] Another bot instance is already running. Exiting...  
+[2025-11-21T10:47:42.117Z] [ERROR] Failed to launch bot: Error: 409: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+    at Telegram.callApi (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/client.js:315:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async [Symbol.asyncIterator] (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/polling.js:30:33)
+    at async Polling.loop (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/polling.js:73:30)
+    at async Telegraf.launch (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/telegraf.js:194:13) 
+[2025-11-21T10:47:42.119Z] [ERROR] Another bot instance is already running. Exiting...  
+[2025-11-21T10:48:18.875Z] [ERROR] Failed to launch bot: Error: 409: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+    at Telegram.callApi (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/client.js:315:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async [Symbol.asyncIterator] (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/polling.js:30:33)
+    at async Polling.loop (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/core/network/polling.js:73:30)
+    at async Telegraf.launch (/Users/IslamIbrahim/Work/Projects/Trackzoon/node_modules/telegraf/lib/telegraf.js:194:13) 
+[2025-11-21T10:48:18.878Z] [ERROR] Another bot instance is already running. Exiting...  
