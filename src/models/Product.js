@@ -33,7 +33,10 @@ const ProductSchema = new mongoose.Schema({
     stars: { type: Number, min: 0, max: 5 },
     count: { type: Number, default: 0 },
     lastUpdated: { type: Date }
-  }
+  },
+  // Smart Tracking Fields
+  volatilityScore: { type: Number, default: 0 }, // 0 to 10 scale of price volatility
+  checkInterval: { type: Number, default: 30 } // Minutes between checks (dynamic)
 });
 
 // Indexes for performance optimization (Phase 1)

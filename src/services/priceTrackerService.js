@@ -6,7 +6,9 @@ import { buildPriceAlertMessage } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
 import pLimit from 'p-limit';
 import { updateProductRating } from './ratingScraper.js';
+import { updateProductRating } from './ratingScraper.js';
 import { logger } from '../utils/logger.js';
+import { calculateVolatility } from '../utils/priceUtils.js';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
 const scrapingLimit = pLimit(3);
@@ -144,16 +146,30 @@ export class PriceTrackerService {
         throw priceError; // Re-throw other errors
       }
 
-      // No price change - atomic update of lastChecked only
+      // No price change
       if (currentPrice === previousPrice) {
+        // Still recalculate volatility to allow products to "cool down"
+        // If price hasn't changed in a while, the score should drop and interval increase
+        const { score: volatilityScore, interval: checkInterval } = calculateVolatility(product.priceHistory);
+
         await Product.findOneAndUpdate(
           { asin: asin },
-          { $set: { lastChecked: new Date() } }
+          {
+            $set: {
+              lastChecked: new Date(),
+              volatilityScore,
+              checkInterval
+            }
+          }
         );
         return null;
       }
 
-      // Price changed - atomic update with history push
+      // Calculate new volatility score
+      const newHistory = [...product.priceHistory, { price: currentPrice, date: new Date() }];
+      const { score: volatilityScore, interval: checkInterval } = calculateVolatility(newHistory);
+
+      // Price changed - atomic update with history push and volatility update
       const updatedProduct = await Product.findOneAndUpdate(
         { asin: asin },
         {
@@ -167,6 +183,8 @@ export class PriceTrackerService {
             currentPrice: currentPrice,
             currentPrice: currentPrice,
             lastChecked: new Date(),
+            volatilityScore,
+            checkInterval,
             ...(imageUrl && { imageUrl })
           }
         },

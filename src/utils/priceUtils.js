@@ -43,3 +43,48 @@ export const calculatePriceStats = (priceHistory, days = 30) => {
         count: prices.length
     };
 };
+
+/**
+ * Calculate volatility score and recommended check interval
+ * @param {Array} priceHistory - Array of price history objects
+ * @returns {Object} - { score, interval }
+ */
+export const calculateVolatility = (priceHistory) => {
+    if (!priceHistory || priceHistory.length < 2) {
+        return { score: 0, interval: 30 }; // Default to frequent checks for new products
+    }
+
+    const now = new Date();
+    const daysToAnalyze = 14;
+    const cutoffDate = new Date(now.getTime() - daysToAnalyze * 24 * 60 * 60 * 1000);
+
+    // Get recent history sorted by date
+    const recentHistory = priceHistory
+        .filter(entry => new Date(entry.date) >= cutoffDate)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    if (recentHistory.length < 2) {
+        return { score: 0, interval: 60 }; // Low data, check hourly
+    }
+
+    // Count price changes
+    let changes = 0;
+    for (let i = 1; i < recentHistory.length; i++) {
+        if (recentHistory[i].price !== recentHistory[i - 1].price) {
+            changes++;
+        }
+    }
+
+    // Calculate score (0-10)
+    // If it changes more than 5 times in 14 days, it's very volatile (Score 10)
+    const score = Math.min((changes / 5) * 10, 10);
+
+    // Determine interval (minutes)
+    let interval;
+    if (score >= 8) interval = 30;      // Very Volatile: Check every 30 mins
+    else if (score >= 4) interval = 60; // Moderately Volatile: Check every hour
+    else if (score >= 1) interval = 120; // Low Volatility: Check every 2 hours
+    else interval = 240;                // Stable: Check every 4 hours
+
+    return { score, interval };
+};
