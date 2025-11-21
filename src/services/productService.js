@@ -5,22 +5,23 @@ import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { getProductName } from '../utils/scraper/getProductName.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { resolveAmazonUrl } from '../utils/url.js';
+import { logger } from '../utils/logger.js';
 
 export class ProductService {
   static async addProduct(productUrl, chatId, threshold) {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
       const { resolvedUrl, asin } = await resolveAmazonUrl(productUrl);
-      
+
       if (!asin) {
         throw new BotError('Invalid Amazon URL', ErrorCodes.INVALID_URL);
       }
 
       let isNew = false;
       let isAlreadyTracked = false;
-      
+
       // Check if product exists and is already tracked by user
       let product = await Product.findOne({ asin }).session(session);
       if (product) {
@@ -38,14 +39,14 @@ export class ProductService {
         const name = await getProductName(resolvedUrl);
         let currentPrice;
         let isOutOfStock = false;
-        
+
         // Try to get price, but handle out-of-stock gracefully
         try {
           currentPrice = await getPrice(resolvedUrl);
         } catch (priceError) {
           // If out of stock, use threshold as placeholder
           if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
-            console.log(`Product ${asin} is out of stock, tracking with threshold as placeholder`);
+            logger.info(`Product ${asin} is out of stock, tracking with threshold as placeholder`);
             currentPrice = threshold;
             isOutOfStock = true;
           } else {
@@ -63,16 +64,16 @@ export class ProductService {
           priceHistory: [{ price: currentPrice, date: new Date() }],
           trackedBy: [{ chatId, thresholdPrice: threshold }]
         });
-        
+
         await product.save({ session });
       } else {
         // If product exists but not tracked by user, add the new tracker atomically
         product = await Product.findOneAndUpdate(
           { asin: asin },
-          { 
-            $push: { 
-              trackedBy: { chatId, thresholdPrice: threshold } 
-            } 
+          {
+            $push: {
+              trackedBy: { chatId, thresholdPrice: threshold }
+            }
           },
           { new: true, session }
         );
@@ -81,14 +82,14 @@ export class ProductService {
       // Update user's product list if User model exists
       await User.findOneAndUpdate(
         { chatId: chatId },
-        { 
+        {
           $addToSet: { products: product._id },
           $set: { lastActive: new Date() }
         },
         { session, upsert: false }
       ).catch(() => {
         // Ignore if user doesn't exist yet
-        console.log(`User ${chatId} not found, skipping user update`);
+        logger.warn(`User ${chatId} not found, skipping user update`);
       });
 
       await session.commitTransaction();
@@ -96,10 +97,10 @@ export class ProductService {
 
     } catch (error) {
       await session.abortTransaction();
-      
+
       if (error instanceof BotError) throw error;
-      
-      console.error('Error adding product:', error);
+
+      logger.error('Error adding product:', error);
       throw new BotError(
         'Failed to add product',
         ErrorCodes.DATABASE_ERROR,
@@ -113,7 +114,7 @@ export class ProductService {
   static async removeProduct(asin, chatId) {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
       const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId }).session(session);
       if (!product) {
@@ -127,7 +128,7 @@ export class ProductService {
 
       // Check if this is the last tracker
       const remainingTrackers = product.trackedBy.filter(t => t.chatId !== chatId);
-      
+
       if (remainingTrackers.length === 0) {
         // Delete product if no one else is tracking it
         await Product.deleteOne({ _id: product._id }).session(session);
@@ -146,7 +147,7 @@ export class ProductService {
         { $pull: { products: product._id } },
         { session }
       ).catch(() => {
-        console.log(`User ${chatId} not found, skipping user update`);
+        logger.warn(`User ${chatId} not found, skipping user update`);
       });
 
       await session.commitTransaction();
@@ -154,10 +155,10 @@ export class ProductService {
 
     } catch (error) {
       await session.abortTransaction();
-      
+
       if (error instanceof BotError) throw error;
-      
-      console.error('Error removing product:', error);
+
+      logger.error('Error removing product:', error);
       throw new BotError(
         'Failed to remove product',
         ErrorCodes.DATABASE_ERROR,
@@ -176,7 +177,7 @@ export class ProductService {
         { $set: { 'trackedBy.$.thresholdPrice': newThreshold } },
         { new: true }
       );
-      
+
       if (!product) {
         throw new BotError(
           'Product not found',
@@ -184,13 +185,13 @@ export class ProductService {
           'Product not found or not tracked by you'
         );
       }
-      
+
       return product;
 
     } catch (error) {
       if (error instanceof BotError) throw error;
-      
-      console.error('Error updating threshold:', error);
+
+      logger.error('Error updating threshold:', error);
       throw new BotError(
         'Failed to update threshold',
         ErrorCodes.DATABASE_ERROR,
@@ -203,7 +204,7 @@ export class ProductService {
     try {
       return await Product.find({ 'trackedBy.chatId': chatId });
     } catch (error) {
-      console.error('Error fetching user products:', error);
+      logger.error('Error fetching user products:', error);
       throw new BotError(
         'Failed to fetch products',
         ErrorCodes.DATABASE_ERROR,
@@ -225,8 +226,8 @@ export class ProductService {
       return product;
     } catch (error) {
       if (error instanceof BotError) throw error;
-      
-      console.error('Error fetching product:', error);
+
+      logger.error('Error fetching product:', error);
       throw new BotError(
         'Failed to fetch product',
         ErrorCodes.DATABASE_ERROR,

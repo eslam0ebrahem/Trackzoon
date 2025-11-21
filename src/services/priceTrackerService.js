@@ -6,6 +6,7 @@ import { buildPriceAlertMessage } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
 import pLimit from 'p-limit';
 import { updateProductRating } from './ratingScraper.js';
+import { logger } from '../utils/logger.js';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
 const scrapingLimit = pLimit(3);
@@ -21,25 +22,25 @@ export class PriceTrackerService {
       const wasOutOfStock = product.isOutOfStock || false;
       const previousPrice = product.currentPrice;
       const asin = product.asin;
-      
+
       try {
         currentPrice = await getPrice(product.url);
-        
+
         // Product is now available (no error thrown)
         if (wasOutOfStock) {
-          console.log(`Product ${product.asin} is now back in stock!`);
-          
+          logger.info(`Product ${product.asin} is now back in stock!`);
+
           // Check if product was actually tracked as in-stock before
           // (has real price history, not just added while out of stock)
-          const hasBeenInStockBefore = product.priceHistory && 
-                                       product.priceHistory.length > 0 && 
-                                       product.outOfStockSince != null;
-          
+          const hasBeenInStockBefore = product.priceHistory &&
+            product.priceHistory.length > 0 &&
+            product.outOfStockSince != null;
+
           // Only add to price history if price actually changed or this is first real price
-          const shouldAddToHistory = !previousPrice || 
-                                     previousPrice === 0 || 
-                                     currentPrice !== previousPrice;
-          
+          const shouldAddToHistory = !previousPrice ||
+            previousPrice === 0 ||
+            currentPrice !== previousPrice;
+
           // Atomic update to prevent race conditions
           const updateOps = {
             $set: {
@@ -49,7 +50,7 @@ export class PriceTrackerService {
               lastChecked: new Date()
             }
           };
-          
+
           if (shouldAddToHistory) {
             updateOps.$push = {
               priceHistory: {
@@ -58,13 +59,13 @@ export class PriceTrackerService {
               }
             };
           }
-          
+
           const updatedProduct = await Product.findOneAndUpdate(
             { asin: asin },
             updateOps,
             { new: true }
           );
-          
+
           // Only notify if product was genuinely out of stock before
           // (not just added while unavailable) AND price is reasonable
           if (hasBeenInStockBefore) {
@@ -73,30 +74,30 @@ export class PriceTrackerService {
               // Only send alert if price is at or below target price
               // No point alerting if it's too expensive anyway
               if (!tracker.thresholdPrice || currentPrice > tracker.thresholdPrice) {
-                console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - price £${currentPrice} is above target £${tracker.thresholdPrice}`);
+                logger.info(`Skipping back-in-stock notification for user ${tracker.chatId} - price £${currentPrice} is above target £${tracker.thresholdPrice}`);
                 continue;
               }
-              
+
               // Check if we already notified recently (within 7 days to reduce spam)
-              const shouldNotifyRestock = !tracker.lastAlertedAt || 
+              const shouldNotifyRestock = !tracker.lastAlertedAt ||
                 (Date.now() - tracker.lastAlertedAt.getTime()) > 7 * 24 * 60 * 60 * 1000;
-              
+
               if (shouldNotifyRestock) {
                 await this.notifyBackInStock(tracker.chatId, updatedProduct, currentPrice, tracker.thresholdPrice);
-                
+
                 // Update lastAlertedAt atomically
                 await Product.updateOne(
                   { asin: asin, 'trackedBy.chatId': tracker.chatId },
                   { $set: { 'trackedBy.$.lastAlertedAt': new Date() } }
                 );
               } else {
-                console.log(`Skipping back-in-stock notification for user ${tracker.chatId} - already notified within 7 days`);
+                logger.info(`Skipping back-in-stock notification for user ${tracker.chatId} - already notified within 7 days`);
               }
             }
           } else {
-            console.log(`Product ${product.asin} is now available, but was added while out of stock - not sending back-in-stock alert`);
+            logger.info(`Product ${product.asin} is now available, but was added while out of stock - not sending back-in-stock alert`);
           }
-          
+
           return {
             product: updatedProduct,
             previousPrice,
@@ -104,12 +105,12 @@ export class PriceTrackerService {
             wasOutOfStock: true
           };
         }
-        
+
       } catch (priceError) {
         // Handle out-of-stock products gracefully
         if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
-          console.log(`Product ${asin} is out of stock, skipping price check`);
-          
+          logger.info(`Product ${asin} is out of stock, skipping price check`);
+
           // Mark as out of stock if not already (atomic update)
           if (!wasOutOfStock) {
             await Product.findOneAndUpdate(
@@ -122,7 +123,7 @@ export class PriceTrackerService {
                 }
               }
             );
-            console.log(`Marked product ${asin} as out of stock`);
+            logger.info(`Marked product ${asin} as out of stock`);
           } else {
             // Just update lastChecked
             await Product.findOneAndUpdate(
@@ -165,10 +166,10 @@ export class PriceTrackerService {
       // Check thresholds and notify users
       for (const tracker of updatedProduct.trackedBy) {
         const shouldNotify = await this.shouldNotifyUser(tracker, previousPrice, currentPrice);
-        
+
         if (shouldNotify) {
           await this.notifyUser(tracker.chatId, updatedProduct, previousPrice, currentPrice);
-          
+
           // Update last alerted time atomically
           await Product.updateOne(
             { asin: asin, 'trackedBy.chatId': tracker.chatId },
@@ -183,7 +184,7 @@ export class PriceTrackerService {
         currentPrice
       };
     } catch (error) {
-      console.error(`Error checking price for product ${product.asin}:`, error);
+      logger.error(`Error checking price for product ${product.asin}:`, error);
       throw new BotError(
         'Failed to check price',
         ErrorCodes.SCRAPING_ERROR,
@@ -195,7 +196,7 @@ export class PriceTrackerService {
   async shouldNotifyUser(tracker, oldPrice, newPrice) {
     const priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
     const isDecrease = newPrice < oldPrice;
-    
+
     // Don't spam - wait at least 3 hours between alerts for the same product
     if (tracker.lastAlertedAt) {
       const hoursSinceLastAlert = (Date.now() - tracker.lastAlertedAt.getTime()) / (1000 * 60 * 60);
@@ -203,17 +204,17 @@ export class PriceTrackerService {
         return false;
       }
     }
-    
+
     // Always notify if threshold is met
     if (tracker.thresholdPrice && oldPrice > tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
       return true;
     }
-    
+
     // Check if price drop is significant (>= 10%)
     if (isDecrease && Math.abs(priceChange) >= 10) {
       return true;
     }
-    
+
     // Notify on any price drop if close to threshold (within 5%)
     if (tracker.thresholdPrice && isDecrease) {
       const percentFromThreshold = ((newPrice - tracker.thresholdPrice) / tracker.thresholdPrice) * 100;
@@ -222,7 +223,7 @@ export class PriceTrackerService {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -234,7 +235,7 @@ export class PriceTrackerService {
         disable_web_page_preview: false
       });
     } catch (error) {
-      console.error(`Error notifying user ${chatId} about product ${product.asin}:`, error);
+      logger.error(`Error notifying user ${chatId} about product ${product.asin}:`, error);
       // Don't throw - continue processing other notifications
     }
   }
@@ -242,11 +243,11 @@ export class PriceTrackerService {
   async notifyBackInStock(chatId, product, currentPrice, thresholdPrice) {
     try {
       const { escapeMarkdownV2 } = await import('../utils/messageHelper.js');
-      
+
       // At this point, price is always at or below threshold (checked before calling)
       const savings = thresholdPrice - currentPrice;
       const percentSavings = ((savings / thresholdPrice) * 100).toFixed(1);
-      
+
       const message = [
         '🎉 *Back in Stock at Great Price\\!*',
         '',
@@ -257,7 +258,7 @@ export class PriceTrackerService {
         `💰 *Current Price:* £${escapeMarkdownV2(currentPrice.toFixed(2))}`,
         `🎯 *Your Target:* £${escapeMarkdownV2(thresholdPrice.toFixed(2))}`,
         '',
-        savings > 0 
+        savings > 0
           ? `🎊 *Great Deal\\!* You save £${escapeMarkdownV2(savings.toFixed(2))} \\(${escapeMarkdownV2(percentSavings)}% below target\\)\\!`
           : `✨ *Perfect Price\\!* Exactly at your target\\!`,
         '',
@@ -269,14 +270,14 @@ export class PriceTrackerService {
         disable_web_page_preview: false
       });
     } catch (error) {
-      console.error(`Error notifying user ${chatId} about back-in-stock for ${product.asin}:`, error);
+      logger.error(`Error notifying user ${chatId} about back-in-stock for ${product.asin}:`, error);
       // Don't throw - continue processing other notifications
     }
   }
 
   async checkAllPrices() {
     const products = await Product.find({});
-    console.log(`Checking prices for ${products.length} products...`);
+    logger.info(`Checking prices for ${products.length} products...`);
 
     // Use rate limiter to batch requests (3 concurrent max)
     const results = await Promise.allSettled(
@@ -287,19 +288,19 @@ export class PriceTrackerService {
     const failed = results.filter(r => r.status === 'rejected').length;
     const unchanged = results.filter(r => r.status === 'fulfilled' && !r.value).length;
 
-    console.log(`Price check completed:
+    logger.info(`Price check completed:
       - ${succeeded} prices updated
       - ${unchanged} prices unchanged
       - ${failed} checks failed`);
 
     // After price checks, scan for flash deals (async, don't block)
-    this.scanForFlashDeals().catch(err => 
-      console.error('Error scanning for flash deals:', err)
+    this.scanForFlashDeals().catch(err =>
+      logger.error('Error scanning for flash deals:', err)
     );
 
     // Update ratings for a few products (async, don't block)
-    this.updateSomeRatings().catch(err => 
-      console.error('Error updating ratings:', err)
+    this.updateSomeRatings().catch(err =>
+      logger.error('Error updating ratings:', err)
     );
 
     return {
@@ -314,7 +315,7 @@ export class PriceTrackerService {
    */
   async scanForFlashDeals() {
     // Flash deals feature has been removed
-    console.log('⚠️ Flash deals feature is disabled');
+    logger.info('⚠️ Flash deals feature is disabled');
     return 0;
   }
 
@@ -323,11 +324,11 @@ export class PriceTrackerService {
    */
   async updateSomeRatings() {
     try {
-      console.log('⭐ Updating product ratings...');
-      
+      logger.info('⭐ Updating product ratings...');
+
       // Get products that need rating updates (no rating or >7 days old)
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      
+
       const products = await Product.find({
         'trackedBy.0': { $exists: true },
         isOutOfStock: false,
@@ -345,15 +346,15 @@ export class PriceTrackerService {
           // Add delay between requests
           await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
-          console.error(`Error updating rating for ${product.name}:`, error.message);
+          logger.error(`Error updating rating for ${product.name}:`, error.message);
         }
       }
 
-      console.log(`✅ Updated ${updated} product ratings.`);
+      logger.info(`✅ Updated ${updated} product ratings.`);
       return updated;
 
     } catch (error) {
-      console.error('Error in updateSomeRatings:', error);
+      logger.error('Error in updateSomeRatings:', error);
       return 0;
     }
   }

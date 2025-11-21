@@ -1,1 +1,0 @@
-    if (!productUrl.match(/^https?:\/\/(www\.)?(amazon\.|amzn\.)/i)) {

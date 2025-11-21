@@ -1,4 +1,6 @@
+import 'dotenv/config';
 import { initSentry, captureError } from './config/sentry.js';
+import { logger } from './utils/logger.js';
 import cache from './config/cache.js';
 import connectDB from './config/db.js';
 import commands from './config/commands.js';
@@ -40,7 +42,7 @@ stateManager.on('stateTimeout', async ({ chatId, state }) => {
     await bot.telegram.sendMessage(
       chatId,
       escapeMarkdownV2('⏰ Your session has timed out\\. Please use the menu to start over\\.'),
-      { 
+      {
         parse_mode: 'MarkdownV2',
         ...mainKeyboard()
       }
@@ -68,42 +70,42 @@ bot.telegram.setMyCommands([
 });
 
 // Launch the bot
-console.log('Launching Trackzoon bot...');
+logger.info('Launching Trackzoon bot...');
 bot.launch().then(() => {
-  console.log('Bot successfully launched!');
+  logger.info('Bot successfully launched!');
 }).catch(error => {
-  console.error('Failed to launch bot:', error);
+  logger.error('Failed to launch bot:', error);
   captureError(error, { operation: 'bot_launch' });
-  
+
   // If there's a conflict (409), it means another instance is running
   // Exit without retrying to prevent multiple instances
   if (error.response?.error_code === 409) {
-    console.error('Another bot instance is already running. Exiting...');
+    logger.error('Another bot instance is already running. Exiting...');
     process.exit(1);
   }
-  
+
   process.exit(1);
 });
 
 // Enable graceful shutdown
 const shutdown = (signal) => {
-  console.log(`Received ${signal}. Stopping bot...`);
-  
+  logger.info(`Received ${signal}. Stopping bot...`);
+
   // Stop scheduler tasks
   if (stopScheduler) {
     stopScheduler();
   }
-  
+
   // Close cache connection
   cache.close();
-  
+
   // Stop bot
   bot.stop(signal);
-  
+
   // Clear all states
   stateManager.clearAllStates?.();
-  
-  console.log('Graceful shutdown complete');
+
+  logger.info('Graceful shutdown complete');
   process.exit(0);
 };
 
