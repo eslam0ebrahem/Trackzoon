@@ -3,7 +3,9 @@ import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 import { mainKeyboard } from '../utils/keyboards/mainKeyboard.js';
 import { paginateItems, createPaginationKeyboard } from '../utils/pagination.js';
 import { MessageBuilder } from '../utils/messageDesign.js';
+import { MessageBuilder } from '../utils/messageDesign.js';
 import { handleError } from '../utils/errorHandler.js';
+import { calculatePriceStats } from '../utils/priceUtils.js';
 
 export default (bot) => {
     const renderDealsList = (deals, page) => {
@@ -105,6 +107,18 @@ export default (bot) => {
             const priceDiff = oldPrice - currentPrice;
 
             if (priceDiff > 0) {
+                // Smart Validation: Check against 30-day average
+                const stats = calculatePriceStats(product.priceHistory, 30);
+
+                // If we have stats, ensure current price is not significantly higher than average
+                // We allow a small buffer (e.g., 5%) but generally it should be a real deal
+                if (stats) {
+                    // If current price is > 5% above average, it's likely a fake deal (price spiked then dropped but still high)
+                    if (currentPrice > stats.average * 1.05) {
+                        return; // Skip this deal
+                    }
+                }
+
                 dealsData.push({
                     product,
                     oldPrice,

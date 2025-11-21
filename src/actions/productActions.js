@@ -12,6 +12,8 @@ import { stateManager, BotStates } from '../utils/stateManager.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 import { handleError } from '../utils/errorHandler.js';
 
+import { calculatePriceStats } from '../utils/priceUtils.js';
+
 export default (bot) => {
   // Price history action
   bot.action(/action_history_(\w+)/, async (ctx) => {
@@ -431,6 +433,18 @@ Choose a threshold or set a custom one:`,
 
       // Only include if price dropped
       if (priceDiff > 0) {
+        // Smart Validation: Check against 30-day average
+        const stats = calculatePriceStats(product.priceHistory, 30);
+
+        // If we have stats, ensure current price is not significantly higher than average
+        // We allow a small buffer (e.g., 5%) but generally it should be a real deal
+        if (stats) {
+          // If current price is > 5% above average, it's likely a fake deal
+          if (currentPrice > stats.average * 1.05) {
+            return; // Skip this deal
+          }
+        }
+
         dealsData.push({
           product,
           oldPrice,
