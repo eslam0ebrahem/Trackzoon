@@ -19,6 +19,7 @@ export class PriceTrackerService {
   async checkPrice(product) {
     try {
       let currentPrice;
+      let imageUrl = null; // Declare in outer scope so it's available for all update operations
       const wasOutOfStock = product.isOutOfStock || false;
       const previousPrice = product.currentPrice;
       const asin = product.asin;
@@ -26,7 +27,7 @@ export class PriceTrackerService {
       try {
         const scrapeResult = await getPrice(product.url);
         currentPrice = scrapeResult.currentPrice;
-        const imageUrl = scrapeResult.imageUrl || null; // Optional field
+        imageUrl = scrapeResult.imageUrl || null; // Optional field
 
         // Product is now available (no error thrown)
         if (wasOutOfStock) {
