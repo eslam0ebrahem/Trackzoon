@@ -8,71 +8,7 @@ import { handleError } from '../utils/errorHandler.js';
 import { calculatePriceStats } from '../utils/priceUtils.js';
 
 export default (bot) => {
-    const renderDealsList = (deals, page) => {
-        const { items, currentPage, totalPages, totalItems, startIndex, endIndex } =
-            paginateItems(deals, page, 5); // 5 deals per page
 
-        const builder = new MessageBuilder();
-
-        // Calculate total potential savings across ALL deals
-        const totalSavings = deals.reduce((sum, deal) => sum + deal.priceDiff, 0);
-        const avgDiscount = deals.reduce((sum, deal) => sum + deal.percentChange, 0) / deals.length;
-        const biggestDeal = deals[0]; // Already sorted by percentage
-
-        builder.setHeader('🔥 Hot Deals Alert', '💰');
-
-        if (totalItems === 0) {
-            builder.addLine('No price drops found in the last 24 hours.');
-            builder.addTip('We check prices every 30 minutes. New deals coming soon!');
-            return { message: builder.toString(), keyboard: mainKeyboard().reply_markup };
-        }
-
-        // Smart summary
-        builder.addLine(`💎 *${totalItems} Active Deal${totalItems > 1 ? 's' : ''}* • Save up to *${biggestDeal.percentChange.toFixed(0)}%*`);
-        builder.addLine(`💰 Total Savings: *EGP ${totalSavings.toFixed(2)}*`);
-        builder.addDivider();
-
-        items.forEach((deal, index) => {
-            const rank = startIndex + index + 1;
-            const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🔸';
-
-            // Determine urgency badge
-            let urgencyBadge = '';
-            if (deal.percentChange >= 40) {
-                urgencyBadge = ' 🔥 *MEGA DEAL*';
-            } else if (deal.percentChange >= 25) {
-                urgencyBadge = ' ⚡ *HOT*';
-            }
-
-            builder.addLine(`${icon} *${deal.product.name.substring(0, 38)}...*${urgencyBadge}`);
-            builder.addLine(`   Was EGP ${deal.oldPrice.toFixed(2)} → *Now EGP ${deal.currentPrice.toFixed(2)}*`);
-            builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
-            builder.addLine(`   [🛒 View Deal](${deal.product.url})`);
-            builder.addSpacer();
-        });
-
-        builder.addDivider();
-
-        // Calculate total savings for current page
-        const pageSavings = items.reduce((sum, deal) => sum + deal.priceDiff, 0);
-        builder.addLine(`💰 *This Page:* EGP ${pageSavings.toFixed(2)} saved`);
-
-        if (totalPages > 1) {
-            builder.addLine(`📄 Page ${currentPage} of ${totalPages} • ${totalItems} total deals`);
-        }
-
-        builder.addSpacer();
-        builder.addTip('⏰ Prices update every 30 min • Grab deals before they expire!');
-
-        const keyboard = {
-            inline_keyboard: [
-                ...createPaginationKeyboard(currentPage, totalPages, 'deals_page'),
-                [{ text: '🔙 Main Menu', callback_data: 'action_main_menu' }]
-            ]
-        };
-
-        return { message: builder.toString(), keyboard };
-    };
 
     const getDealsData = async (chatId) => {
         const products = await ProductService.getUserProducts(chatId);
@@ -108,19 +44,20 @@ export default (bot) => {
 
             if (priceDiff > 0) {
                 // Smart Validation: Check against 30-day average
-                const stats = calculatePriceStats(product.priceHistory, 30);
+                const stats30d = calculatePriceStats(product.priceHistory, 30);
+                const statsAll = calculatePriceStats(product.priceHistory, 365); // All time (1 year)
 
                 // If we have stats, ensure current price is not significantly higher than average
                 // We allow a small buffer (e.g., 5%) but generally it should be a real deal
-                if (stats) {
+                if (stats30d) {
                     // If current price is > 5% above average, it's likely a fake deal (price spiked then dropped but still high)
-                    if (currentPrice > stats.average * 1.05) {
+                    if (currentPrice > stats30d.average * 1.05) {
                         return; // Skip this deal
                     }
 
                     // Stricter check: If current price is > 40% above the 30-day LOW, it's not a "hot deal"
                     // This catches cases where price spiked huge (e.g. 65 -> 300) then dropped (300 -> 137), but 137 is still way above 65
-                    if (currentPrice > stats.min * 1.4) {
+                    if (currentPrice > stats30d.min * 1.4) {
                         return; // Skip this deal
                     }
                 }
@@ -130,13 +67,101 @@ export default (bot) => {
                     oldPrice,
                     currentPrice,
                     priceDiff,
-                    percentChange: ((currentPrice - oldPrice) / oldPrice) * 100 * -1 // Positive percentage
+                    percentChange: ((currentPrice - oldPrice) / oldPrice) * 100 * -1, // Positive percentage
+                    stats30d,
+                    statsAll
                 });
             }
         });
 
         // Sort by biggest savings
         return dealsData.sort((a, b) => b.priceDiff - a.priceDiff);
+    };
+
+    const renderDealsList = (deals, page) => {
+        const { items, currentPage, totalPages, totalItems, startIndex, endIndex } =
+            paginateItems(deals, page, 5); // 5 deals per page
+
+        const builder = new MessageBuilder();
+
+        // Calculate total potential savings across ALL deals
+        const totalSavings = deals.reduce((sum, deal) => sum + deal.priceDiff, 0);
+        const avgDiscount = deals.reduce((sum, deal) => sum + deal.percentChange, 0) / deals.length;
+        const biggestDeal = deals[0]; // Already sorted by percentage
+
+        builder.setHeader('🔥 Hot Deals Alert', '💰');
+
+        if (totalItems === 0) {
+            builder.addLine('No price drops found in the last 24 hours.');
+            builder.addTip('We check prices every 30 minutes. New deals coming soon!');
+            return { message: builder.toString(), keyboard: mainKeyboard().reply_markup };
+        }
+
+        // Smart summary
+        builder.addLine(`💎 *${totalItems} Active Deal${totalItems > 1 ? 's' : ''}* • Save up to *${biggestDeal.percentChange.toFixed(0)}%*`);
+        builder.addLine(`💰 Total Savings: *EGP ${totalSavings.toFixed(2)}*`);
+        builder.addDivider();
+
+        const chartButtons = [];
+
+        items.forEach((deal, index) => {
+            const rank = startIndex + index + 1;
+            const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🔸';
+
+            // Determine urgency badge
+            let urgencyBadge = '';
+            if (deal.percentChange >= 40) {
+                urgencyBadge = ' 🔥 *MEGA DEAL*';
+            } else if (deal.percentChange >= 25) {
+                urgencyBadge = ' ⚡ *HOT*';
+            }
+
+            builder.addLine(`${icon} *${deal.product.name.substring(0, 38)}...*${urgencyBadge}`);
+            builder.addLine(`   Was EGP ${deal.oldPrice.toFixed(2)} → *Now EGP ${deal.currentPrice.toFixed(2)}*`);
+            builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
+
+            if (deal.statsAll && deal.stats30d) {
+                builder.addLine(`   📉 Low: ${deal.statsAll.min.toFixed(0)} • High: ${deal.statsAll.max.toFixed(0)} • 30d Low: ${deal.stats30d.min.toFixed(0)}`);
+            }
+
+            builder.addLine(`   [🛒 View Deal](${deal.product.url})`);
+            builder.addSpacer();
+
+            // Add chart button for this deal
+            chartButtons.push({
+                text: `${rank}. 📈 Chart`,
+                callback_data: `action_chart_${deal.product.asin}`
+            });
+        });
+
+        builder.addDivider();
+
+        // Calculate total savings for current page
+        const pageSavings = items.reduce((sum, deal) => sum + deal.priceDiff, 0);
+        builder.addLine(`💰 *This Page:* EGP ${pageSavings.toFixed(2)} saved`);
+
+        if (totalPages > 1) {
+            builder.addLine(`📄 Page ${currentPage} of ${totalPages} • ${totalItems} total deals`);
+        }
+
+        builder.addSpacer();
+        builder.addTip('⏰ Prices update every 30 min • Grab deals before they expire!');
+
+        // Organize chart buttons in rows of 2
+        const chartRows = [];
+        for (let i = 0; i < chartButtons.length; i += 2) {
+            chartRows.push(chartButtons.slice(i, i + 2));
+        }
+
+        const keyboard = {
+            inline_keyboard: [
+                ...chartRows,
+                ...createPaginationKeyboard(currentPage, totalPages, 'deals_page'),
+                [{ text: '🔙 Main Menu', callback_data: 'action_main_menu' }]
+            ]
+        };
+
+        return { message: builder.toString(), keyboard };
     };
 
     bot.command('deals', async (ctx) => {
