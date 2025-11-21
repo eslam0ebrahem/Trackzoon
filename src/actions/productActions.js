@@ -386,100 +386,168 @@ Choose a threshold or set a custom one:`,
   });
 
   // Top 5 Deals - Best Price Drops
+  // Helper function to calculate deals
+  const calculateDeals = (products, chatId) => {
+    const getPriceFrom24HoursAgo = (priceHistory) => {
+      if (!priceHistory || priceHistory.length === 0) return null;
+
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      let closestEntry = null;
+      let closestDiff = Infinity;
+
+      for (const entry of priceHistory) {
+        const entryDate = new Date(entry.date);
+        const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
+
+        if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
+          closestDiff = timeDiff;
+          closestEntry = entry;
+        }
+      }
+
+      if (!closestEntry && priceHistory.length > 0) {
+        closestEntry = priceHistory[0];
+      }
+
+      return closestEntry;
+    };
+
+    const dealsData = [];
+
+    products.forEach(product => {
+      if (product.isOutOfStock || !product.currentPrice) return;
+
+      const tracker = product.trackedBy.find(t => t.chatId === chatId);
+      const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
+
+      if (!oldPriceEntry) return;
+
+      const oldPrice = oldPriceEntry.price;
+      const currentPrice = product.currentPrice;
+      const priceDiff = oldPrice - currentPrice;
+      const percentChange = ((currentPrice - oldPrice) / oldPrice) * 100;
+
+      // Only include if price dropped
+      if (priceDiff > 0) {
+        dealsData.push({
+          product,
+          oldPrice,
+          currentPrice,
+          priceDiff,
+          percentChange: Math.abs(percentChange),
+          tracker
+        });
+      }
+    });
+
+    // Sort by price difference (biggest savings first)
+    dealsData.sort((a, b) => b.priceDiff - a.priceDiff);
+
+    return dealsData;
+  };
+
+  // Render deals list with pagination
+  const renderDealsList = (deals, page) => {
+    const { items, currentPage, totalPages, totalItems, startIndex, endIndex } =
+      paginateItems(deals, page, 5); // 5 deals per page
+
+    const builder = new MessageBuilder();
+    builder.setHeader('Top Price Drops (24h)', '🔥');
+
+    if (totalItems === 0) {
+      builder.addLine('No price drops found in the last 24 hours.');
+      builder.addSpacer();
+      builder.addTip('We check prices every 30 minutes. Stay tuned!');
+      return {
+        message: builder.toString(),
+        keyboard: {
+          inline_keyboard: [
+            [{ text: '📋 My Products', callback_data: 'action_list_products' }],
+            [{ text: '🔙 Main Menu', callback_data: 'action_main_menu' }]
+          ]
+        }
+      };
+    }
+
+    builder.addLine(`Found ${totalItems} deal${totalItems > 1 ? 's' : ''}!`);
+    builder.addDivider();
+
+    items.forEach((deal, index) => {
+      const rank = startIndex + index + 1;
+      const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🔸';
+
+      builder.addLine(`${icon} *${deal.product.name.substring(0, 40)}...*`);
+      builder.addLine(`   ~~£${deal.oldPrice.toFixed(2)}~~ → *£${deal.currentPrice.toFixed(2)}*`);
+      builder.addLine(`   💰 Save £${deal.priceDiff.toFixed(2)} (${deal.percentChange.toFixed(1)}% off)`);
+
+      // Check if at or below target
+      if (deal.tracker?.thresholdPrice && deal.currentPrice <= deal.tracker.thresholdPrice) {
+        builder.addLine(`   ✅ *At your target price!*`);
+      }
+
+      builder.addLine(`   [View on Amazon](${deal.product.url})`);
+      builder.addSpacer();
+    });
+
+    builder.addDivider();
+
+    // Calculate total savings for current page
+    const pageSavings = items.reduce((sum, deal) => sum + deal.priceDiff, 0);
+    builder.addLine(`💸 *Page Savings:* £${pageSavings.toFixed(2)}`);
+    builder.addLine(`📄 Page ${currentPage} of ${totalPages}`);
+    builder.addSpacer();
+    builder.addTip('Prices checked every 30 minutes');
+
+    const keyboard = {
+      inline_keyboard: [
+        ...createPaginationKeyboard(currentPage, totalPages, 'action_top_deals_page'),
+        [{ text: '📋 All Products', callback_data: 'action_list_products' }],
+        [{ text: '🔙 Main Menu', callback_data: 'action_main_menu' }]
+      ]
+    };
+
+    return { message: builder.toString(), keyboard };
+  };
+
+  // Top deals action - initial load
   bot.action('action_top_deals', async (ctx) => {
     try {
       const products = await ProductService.getUserProducts(ctx.chat.id);
 
       if (products.length === 0) {
-        return await safeEditMessageText(ctx,
-          escapeMarkdownV2([
-            '📭 *No Products Being Tracked*',
-            '',
-            'You need to track products first to see deals!',
-            'Click the button below to start tracking.'
-          ].join('\n')),
-          {
-            parse_mode: 'MarkdownV2',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '🛍️ Track New Product', callback_data: 'action_add_product' }],
-                [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
-              ]
-            }
+        const builder = new MessageBuilder();
+        builder.setHeader('No Products', '📭');
+        builder.addLine('You need to track products first to see deals!');
+        builder.addSpacer();
+        builder.addTip('Click below to start tracking');
+
+        return await safeEditMessageText(ctx, builder.toString(), {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🛍️ Track New Product', callback_data: 'action_add_product' }],
+              [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
+            ]
           }
-        );
+        });
       }
 
-      // Helper function to get price from ~24 hours ago
-      const getPriceFrom24HoursAgo = (priceHistory) => {
-        if (!priceHistory || priceHistory.length === 0) return null;
+      const deals = calculateDeals(products, ctx.chat.id);
 
-        const now = new Date();
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      if (deals.length === 0) {
+        const builder = new MessageBuilder();
+        builder.setHeader('No Price Drops Today', '😊');
+        builder.addLine('None of your tracked products have dropped in price in the last 24 hours.');
+        builder.addSpacer();
+        builder.addLine('💡 Don\'t worry! We\'re monitoring them every 30 minutes.');
+        builder.addLine('You\'ll be notified instantly when prices drop!');
+        builder.addSpacer();
+        builder.addTip('Use /list to see all your tracked products');
 
-        let closestEntry = null;
-        let closestDiff = Infinity;
-
-        for (const entry of priceHistory) {
-          const entryDate = new Date(entry.date);
-          const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
-
-          if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
-            closestDiff = timeDiff;
-            closestEntry = entry;
-          }
-        }
-
-        if (!closestEntry && priceHistory.length > 0) {
-          closestEntry = priceHistory[0];
-        }
-
-        return closestEntry;
-      };
-
-      // Calculate price drops for all products
-      const dealsData = [];
-
-      products.forEach(product => {
-        if (product.isOutOfStock || !product.currentPrice) return;
-
-        const tracker = product.trackedBy.find(t => t.chatId === ctx.chat.id);
-        const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
-
-        if (!oldPriceEntry) return;
-
-        const oldPrice = oldPriceEntry.price;
-        const currentPrice = product.currentPrice;
-        const priceDiff = oldPrice - currentPrice;
-        const percentChange = ((currentPrice - oldPrice) / oldPrice) * 100;
-
-        // Only include if price dropped
-        if (priceDiff > 0) {
-          dealsData.push({
-            product,
-            oldPrice,
-            currentPrice,
-            priceDiff,
-            percentChange: Math.abs(percentChange),
-            tracker
-          });
-        }
-      });
-
-      if (dealsData.length === 0) {
-        const message = [
-          '😊 *No Price Drops Today*',
-          '',
-          'None of your tracked products have dropped in price in the last 24 hours\\.',
-          '',
-          '💡 Don\'t worry\\! We\'re monitoring them every 30 minutes\\.',
-          'You\'ll be notified instantly when prices drop\\!',
-          '',
-          '📋 Use /list to see all your tracked products\\.'
-        ].join('\n');
-
-        return await safeEditMessageText(ctx, message, {
-          parse_mode: 'MarkdownV2',
+        return await safeEditMessageText(ctx, builder.toString(), {
+          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [{ text: '📋 My Products', callback_data: 'action_list_products' }],
@@ -489,71 +557,40 @@ Choose a threshold or set a custom one:`,
         });
       }
 
-      // Sort by price difference (biggest savings first)
-      dealsData.sort((a, b) => b.priceDiff - a.priceDiff);
-
-      // Take top 5
-      const topDeals = dealsData.slice(0, 5);
-
-      let message = [
-        '🔥 *Top 5 Price Drops \\(24h\\)*',
-        '',
-        `Found ${dealsData.length} deal${dealsData.length > 1 ? 's' : ''} in the last 24 hours\\!`,
-        '',
-        '━━━━━━━━━━━━━━━━━━━━',
-        ''
-      ].join('\n');
-
-      // Add each deal
-      topDeals.forEach((deal, index) => {
-        const rank = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}\\.`;
-        const name = escapeMarkdownV2(deal.product.name.substring(0, 50) + (deal.product.name.length > 50 ? '...' : ''));
-
-        message += `${rank} [${name}](${escapeMarkdownV2(deal.product.url)})\n`;
-        message += `   ~~£${escapeMarkdownV2(deal.oldPrice.toFixed(2))}~~ → *£${escapeMarkdownV2(deal.currentPrice.toFixed(2))}*\n`;
-        message += `   💰 Save £${escapeMarkdownV2(deal.priceDiff.toFixed(2))} \\(${escapeMarkdownV2(deal.percentChange.toFixed(1))}% off\\)\n`;
-
-        // Check if at or below target
-        if (deal.tracker?.thresholdPrice && deal.currentPrice <= deal.tracker.thresholdPrice) {
-          message += `   ✅ *At your target price\\!*\n`;
-        }
-
-        message += `\n`;
-      });
-
-      // Add summary
-      const totalSavings = topDeals.reduce((sum, deal) => sum + deal.priceDiff, 0);
-      message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-      message += `💸 *Total Potential Savings:* £${escapeMarkdownV2(totalSavings.toFixed(2))}\n`;
-
-      if (dealsData.length > 5) {
-        message += `\n_\\+${dealsData.length - 5} more deal${dealsData.length - 5 > 1 ? 's' : ''} available\\!_\n`;
-      }
-
-      message += `\n💡 Prices checked every 30 minutes\\.`;
-
-      // Create buttons for each deal
-      const dealButtons = topDeals.map(deal => [{
-        text: `View ${deal.product.name.substring(0, 30)}${deal.product.name.length > 30 ? '...' : ''}`,
-        callback_data: `action_view_${deal.product.asin}`
-      }]);
+      const { message, keyboard } = renderDealsList(deals, 1);
 
       await safeEditMessageText(ctx, message, {
-        parse_mode: 'MarkdownV2',
+        parse_mode: 'Markdown',
         disable_web_page_preview: true,
-        reply_markup: {
-          inline_keyboard: [
-            ...dealButtons,
-            [{ text: '📋 All Products', callback_data: 'action_list_products' }],
-            [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
-          ]
-        }
+        reply_markup: keyboard
       });
 
       await ctx.answerCbQuery('🔥 Top deals loaded!');
     } catch (error) {
       console.error('Error in top deals action:', error);
       await ctx.answerCbQuery('⚠️ Error loading deals. Please try again.');
+    }
+  });
+
+  // Top deals pagination handler
+  bot.action(/action_top_deals_page_(\d+)/, async (ctx) => {
+    try {
+      const page = parseInt(ctx.match[1]);
+      const products = await ProductService.getUserProducts(ctx.chat.id);
+      const deals = calculateDeals(products, ctx.chat.id);
+
+      const { message, keyboard } = renderDealsList(deals, page);
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'Markdown',
+        disable_web_page_preview: true,
+        reply_markup: keyboard
+      });
+
+      await ctx.answerCbQuery();
+    } catch (error) {
+      console.error('Error in top deals pagination:', error);
+      await ctx.answerCbQuery('⚠️ Error loading page. Please try again.');
     }
   });
 
