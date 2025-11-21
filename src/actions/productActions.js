@@ -11,8 +11,7 @@ import { MessageBuilder } from '../utils/messageDesign.js';
 import { stateManager, BotStates } from '../utils/stateManager.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 import { handleError } from '../utils/errorHandler.js';
-
-import { calculatePriceStats } from '../utils/priceUtils.js';
+import { renderDealsList } from '../utils/dealsRenderer.js';
 
 export default (bot) => {
   // Price history action
@@ -388,190 +387,6 @@ Choose a threshold or set a custom one:`,
   });
 
   // Top 5 Deals - Best Price Drops
-  // Helper function to calculate deals
-  const calculateDeals = (products, chatId) => {
-    const getPriceFrom24HoursAgo = (priceHistory) => {
-      if (!priceHistory || priceHistory.length === 0) return null;
-
-      const now = new Date();
-      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-      let closestEntry = null;
-      let closestDiff = Infinity;
-
-      for (const entry of priceHistory) {
-        const entryDate = new Date(entry.date);
-        const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
-
-        if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
-          closestDiff = timeDiff;
-          closestEntry = entry;
-        }
-      }
-
-      if (!closestEntry && priceHistory.length > 0) {
-        closestEntry = priceHistory[0];
-      }
-
-      return closestEntry;
-    };
-
-    const dealsData = [];
-
-    products.forEach(product => {
-      if (product.isOutOfStock || !product.currentPrice) return;
-
-      const tracker = product.trackedBy.find(t => t.chatId === chatId);
-      const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
-
-      if (!oldPriceEntry) return;
-
-      const oldPrice = oldPriceEntry.price;
-      const currentPrice = product.currentPrice;
-      const priceDiff = oldPrice - currentPrice;
-      const percentChange = ((currentPrice - oldPrice) / oldPrice) * 100;
-
-      // Only include if price dropped
-      if (priceDiff > 0) {
-        // Smart Validation: Check against 30-day average
-        const stats30d = calculatePriceStats(product.priceHistory, 30);
-        const statsAll = calculatePriceStats(product.priceHistory, 365); // All time
-
-        // If we have stats, ensure current price is not significantly higher than average
-        // We allow a small buffer (e.g., 5%) but generally it should be a real deal
-        if (stats30d) {
-          // If current price is > 5% above average, it's likely a fake deal
-          if (currentPrice > stats30d.average * 1.05) {
-            return; // Skip this deal
-          }
-
-          // Stricter check: If current price is > 40% above the 30-day LOW, it's not a "hot deal"
-          if (currentPrice > stats30d.min * 1.4) {
-            return; // Skip this deal
-          }
-        }
-
-        dealsData.push({
-          product,
-          oldPrice,
-          currentPrice,
-          priceDiff,
-          percentChange: Math.abs(percentChange),
-          tracker,
-          stats30d,
-          statsAll
-        });
-      }
-    });
-
-    // Sort by percentage discount (biggest percentage first)
-    dealsData.sort((a, b) => b.percentChange - a.percentChange);
-
-    return dealsData;
-  };
-
-  // Render deals list with pagination
-  const renderDealsList = (deals, page) => {
-    const { items, currentPage, totalPages, totalItems, startIndex, endIndex } =
-      paginateItems(deals, page, 5); // 5 deals per page
-
-    const builder = new MessageBuilder();
-
-    // Calculate total potential savings across ALL deals
-    const totalSavings = deals.reduce((sum, deal) => sum + deal.priceDiff, 0);
-    const avgDiscount = deals.reduce((sum, deal) => sum + deal.percentChange, 0) / deals.length;
-    const biggestDeal = deals[0]; // Already sorted by percentage
-
-    builder.setHeader('🔥 Hot Deals Alert', '💰');
-
-    if (totalItems === 0) {
-      builder.addLine('No price drops found in the last 24 hours.');
-      builder.addSpacer();
-      builder.addTip('We check prices every 30 minutes. New deals coming soon!');
-      return {
-        message: builder.toString(),
-        keyboard: {
-          inline_keyboard: [
-            [{ text: '📋 My Products', callback_data: 'action_list_products' }],
-            [{ text: '🔙 Main Menu', callback_data: 'action_main_menu' }]
-          ]
-        }
-      };
-    }
-
-    // Smart summary
-    builder.addLine(`💎 *${totalItems} Active Deal${totalItems > 1 ? 's' : ''}* • Save up to *${biggestDeal.percentChange.toFixed(0)}%*`);
-    builder.addLine(`💰 Total Savings: *EGP ${totalSavings.toFixed(2)}*`);
-    builder.addDivider();
-
-    const chartButtons = [];
-
-    items.forEach((deal, index) => {
-      const rank = startIndex + index + 1;
-      const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🔸';
-
-      // Determine urgency badge
-      let urgencyBadge = '';
-      if (deal.percentChange >= 40) {
-        urgencyBadge = ' 🔥 *MEGA DEAL*';
-      } else if (deal.percentChange >= 25) {
-        urgencyBadge = ' ⚡ *HOT*';
-      }
-
-      builder.addLine(`${icon} *${deal.product.name.substring(0, 38)}...*${urgencyBadge}`);
-      builder.addLine(`   Was EGP ${deal.oldPrice.toFixed(2)} → *Now EGP ${deal.currentPrice.toFixed(2)}*`);
-      builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
-
-      if (deal.statsAll && deal.stats30d) {
-        builder.addLine(`   📉 Low: ${deal.statsAll.min.toFixed(0)} • High: ${deal.statsAll.max.toFixed(0)} • 30d Low: ${deal.stats30d.min.toFixed(0)}`);
-      }
-
-      // Check if at or below target
-      if (deal.tracker?.thresholdPrice && deal.currentPrice <= deal.tracker.thresholdPrice) {
-        builder.addLine(`   ✅ *Hit your target price!*`);
-      }
-
-      builder.addLine(`   [🛒 View Deal](${deal.product.url})`);
-      builder.addSpacer();
-
-      // Add chart button for this deal
-      chartButtons.push({
-        text: `${rank}. 📈 Chart`,
-        callback_data: `action_chart_${deal.product.asin}`
-      });
-    });
-
-    builder.addDivider();
-
-    // Calculate total savings for current page
-    const pageSavings = items.reduce((sum, deal) => sum + deal.priceDiff, 0);
-    builder.addLine(`💰 *This Page:* EGP ${pageSavings.toFixed(2)} saved`);
-
-    if (totalPages > 1) {
-      builder.addLine(`📄 Page ${currentPage} of ${totalPages} • ${totalItems} total deals`);
-    }
-
-    builder.addSpacer();
-    builder.addTip('⏰ Prices update every 30 min • Grab deals before they expire!');
-
-    // Organize chart buttons in rows of 2
-    const chartRows = [];
-    for (let i = 0; i < chartButtons.length; i += 2) {
-      chartRows.push(chartButtons.slice(i, i + 2));
-    }
-
-    const keyboard = {
-      inline_keyboard: [
-        ...chartRows,
-        ...createPaginationKeyboard(currentPage, totalPages, 'action_top_deals_page'),
-        [{ text: '📋 All Products', callback_data: 'action_list_products' }],
-        [{ text: '🔙 Main Menu', callback_data: 'action_main_menu' }]
-      ]
-    };
-
-    return { message: builder.toString(), keyboard };
-  };
-
   // Top deals action - initial load
   bot.action('action_top_deals', async (ctx) => {
     try {
@@ -595,7 +410,7 @@ Choose a threshold or set a custom one:`,
         });
       }
 
-      const deals = calculateDeals(products, ctx.chat.id);
+      const deals = await ProductService.getDeals(ctx.chat.id);
 
       if (deals.length === 0) {
         const builder = new MessageBuilder();
@@ -618,7 +433,7 @@ Choose a threshold or set a custom one:`,
         });
       }
 
-      const { message, keyboard } = renderDealsList(deals, 1);
+      const { message, keyboard } = renderDealsList(deals, 1, 'action_top_deals_page');
 
       await safeEditMessageText(ctx, message, {
         parse_mode: 'Markdown',
@@ -637,10 +452,9 @@ Choose a threshold or set a custom one:`,
   bot.action(/action_top_deals_page_(\d+)/, async (ctx) => {
     try {
       const page = parseInt(ctx.match[1]);
-      const products = await ProductService.getUserProducts(ctx.chat.id);
-      const deals = calculateDeals(products, ctx.chat.id);
+      const deals = await ProductService.getDeals(ctx.chat.id);
 
-      const { message, keyboard } = renderDealsList(deals, page);
+      const { message, keyboard } = renderDealsList(deals, page, 'action_top_deals_page');
 
       await safeEditMessageText(ctx, message, {
         parse_mode: 'Markdown',

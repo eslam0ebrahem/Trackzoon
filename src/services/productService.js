@@ -6,6 +6,7 @@ import { getProductName } from '../utils/scraper/getProductName.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { resolveAmazonUrl } from '../utils/url.js';
 import { logger } from '../utils/logger.js';
+import { calculatePriceStats } from '../utils/priceUtils.js';
 
 export class ProductService {
   static async addProduct(productUrl, chatId, threshold) {
@@ -241,5 +242,75 @@ export class ProductService {
         'Failed to fetch the product. Please try again later.'
       );
     }
+  }
+
+  static async getDeals(chatId) {
+    const products = await this.getUserProducts(chatId);
+    const dealsData = [];
+
+    // Helper to get old price
+    const getPriceFrom24HoursAgo = (priceHistory) => {
+      if (!priceHistory || priceHistory.length === 0) return null;
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      let closestEntry = null;
+      let closestDiff = Infinity;
+
+      for (const entry of priceHistory) {
+        const entryDate = new Date(entry.date);
+        const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
+        if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
+          closestDiff = timeDiff;
+          closestEntry = entry;
+        }
+      }
+      return closestEntry || (priceHistory.length > 0 ? priceHistory[0] : null);
+    };
+
+    products.forEach(product => {
+      if (product.isOutOfStock || !product.currentPrice) return;
+      const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
+      if (!oldPriceEntry) return;
+
+      const oldPrice = oldPriceEntry.price;
+      const currentPrice = product.currentPrice;
+      const priceDiff = oldPrice - currentPrice;
+
+      if (priceDiff > 0) {
+        // Smart Validation: Check against 30-day average
+        const stats30d = calculatePriceStats(product.priceHistory, 30);
+        const statsAll = calculatePriceStats(product.priceHistory, 365); // All time
+
+        // If we have stats, ensure current price is not significantly higher than average
+        // We allow a small buffer (e.g., 5%) but generally it should be a real deal
+        if (stats30d) {
+          // If current price is > 5% above average, it's likely a fake deal
+          if (currentPrice > stats30d.average * 1.05) {
+            return; // Skip this deal
+          }
+
+          // Stricter check: If current price is > 40% above the 30-day LOW, it's not a "hot deal"
+          if (currentPrice > stats30d.min * 1.4) {
+            return; // Skip this deal
+          }
+        }
+
+        const tracker = product.trackedBy.find(t => t.chatId === chatId);
+
+        dealsData.push({
+          product,
+          oldPrice,
+          currentPrice,
+          priceDiff,
+          percentChange: ((currentPrice - oldPrice) / oldPrice) * 100 * -1, // Positive percentage
+          stats30d,
+          statsAll,
+          tracker
+        });
+      }
+    });
+
+    // Sort by biggest savings
+    return dealsData.sort((a, b) => b.priceDiff - a.priceDiff);
   }
 }
