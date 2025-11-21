@@ -10,36 +10,42 @@ export default (bot) => {
   bot.command('help', async (ctx) => {
     try {
       const helpMessage = [
-        '📚 *Help & Commands*',
+        '📚 *Trackzoon Help Center*',
         '',
-        '*Basic Commands:*',
-        '/start \\- Welcome message and main menu',
-        '/help \\- Show this help message',
-        '/list \\- View all your tracked products',
-        '/deals \\- View top 5 price drops',
-        '/report \\- Get your daily summary',
+        'I can help you track Amazon prices and save money! 💸',
         '',
-        '*Adding Products:*',
-        '/add <URL> <price> \\- Track a product',
-        '   Example: `/add https://amzn\\.to/xxx 99\\.99`',
-        '/removeone <ASIN> \\- Stop tracking a product',
+        '*🚀 Getting Started*',
+        '1️⃣ Find a product on Amazon',
+        '2️⃣ Share the link with me',
+        '3️⃣ Set your target price',
         '',
-        '*Settings:*',
-        '/settings \\- Manage preferences',
+        '*📋 Commands*',
+        '/add <link> - Track a new product',
+        '/list - View your tracked items',
+        '/deals - See top price drops',
+        '/report - Daily price summary',
+        '/settings - Configure alerts',
         '',
-        '💡 *Pro Tips:*',
-        '• Set realistic price alerts',
-        '• Check /deals daily for best savings',
-        '• Enable daily reports in /settings',
-        '• Products are checked every 30 minutes',
-        '• You get instant notifications',
-        '',
-        '❓ Need more help? Just ask\\!'
+        '*💡 Tips*',
+        '• You can just paste a link to track it!',
+        '• Use /chart to see price history',
+        '• Enable daily reports in settings'
       ].join('\n');
 
       await ctx.reply(helpMessage, {
-        parse_mode: 'MarkdownV2',
-        ...mainKeyboard()
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '🛍️ Track Product', callback_data: 'action_add_product' },
+              { text: '📋 My List', callback_data: 'action_list_products' }
+            ],
+            [
+              { text: '⚙️ Settings', callback_data: 'action_settings' },
+              { text: '📞 Support', url: 'https://t.me/TrackzoonSupport' }
+            ]
+          ]
+        }
       });
     } catch (error) {
       handleError(ctx, error);

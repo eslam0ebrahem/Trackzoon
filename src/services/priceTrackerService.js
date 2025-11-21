@@ -24,7 +24,9 @@ export class PriceTrackerService {
       const asin = product.asin;
 
       try {
-        currentPrice = await getPrice(product.url);
+        const scrapeResult = await getPrice(product.url);
+        currentPrice = scrapeResult.price;
+        const imageUrl = scrapeResult.imageUrl;
 
         // Product is now available (no error thrown)
         if (wasOutOfStock) {
@@ -47,7 +49,9 @@ export class PriceTrackerService {
               isOutOfStock: false,
               outOfStockSince: null,
               currentPrice: currentPrice,
-              lastChecked: new Date()
+              currentPrice: currentPrice,
+              lastChecked: new Date(),
+              ...(imageUrl && { imageUrl }) // Update image if found
             }
           };
 
@@ -157,7 +161,9 @@ export class PriceTrackerService {
           },
           $set: {
             currentPrice: currentPrice,
-            lastChecked: new Date()
+            currentPrice: currentPrice,
+            lastChecked: new Date(),
+            ...(imageUrl && { imageUrl })
           }
         },
         { new: true }
@@ -230,10 +236,24 @@ export class PriceTrackerService {
   async notifyUser(chatId, product, oldPrice, newPrice) {
     try {
       const message = buildPriceAlertMessage(product, oldPrice, newPrice);
-      await sendMessageWithRetry(this.bot, chatId, message, {
-        parse_mode: 'MarkdownV2',
-        disable_web_page_preview: false
-      });
+
+      if (product.imageUrl) {
+        await this.bot.telegram.sendPhoto(chatId, product.imageUrl, {
+          caption: message,
+          parse_mode: 'MarkdownV2',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🛒 Buy Now', url: product.url }],
+              [{ text: '📈 View Chart', callback_data: `action_chart_${product.asin}` }]
+            ]
+          }
+        });
+      } else {
+        await sendMessageWithRetry(this.bot, chatId, message, {
+          parse_mode: 'MarkdownV2',
+          disable_web_page_preview: false
+        });
+      }
     } catch (error) {
       logger.error(`Error notifying user ${chatId} about product ${product.asin}:`, error);
       // Don't throw - continue processing other notifications

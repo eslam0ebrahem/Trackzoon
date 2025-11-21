@@ -6,14 +6,34 @@ export default (bot) => {
     bot.command('settings', async (ctx) => {
         try {
             const user = await UserService.getUserSettings(ctx.chat.id);
-            const message = buildSettingsMessage(user);
+
+            const message = [
+                '⚙️ *Settings*',
+                '',
+                '*Notification Settings*',
+                `🔔 Price Alerts: ${user.settings.notifications ? 'Enabled' : 'Disabled'}`,
+                `📊 Daily Reports: ${user.settings.dailyReport ? 'Enabled' : 'Disabled'}`,
+                '',
+                'Click the buttons below to change settings:'
+            ].join('\n');
 
             await ctx.reply(message, {
-                parse_mode: 'MarkdownV2',
+                parse_mode: 'Markdown',
                 reply_markup: {
-                    inline_keyboard: [[
-                        { text: '⚙️ Settings', callback_data: 'action_settings' }
-                    ]]
+                    inline_keyboard: [
+                        [
+                            {
+                                text: `${user.settings.notifications ? '🔕' : '🔔'} ${user.settings.notifications ? 'Disable' : 'Enable'} Alerts`,
+                                callback_data: 'action_toggle_notifications'
+                            }
+                        ],
+                        [
+                            {
+                                text: `${user.settings.dailyReport ? '📊' : '📈'} ${user.settings.dailyReport ? 'Disable' : 'Enable'} Daily Report`,
+                                callback_data: 'action_toggle_daily_report'
+                            }
+                        ]
+                    ]
                 }
             });
         } catch (error) {

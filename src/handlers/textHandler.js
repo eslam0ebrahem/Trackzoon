@@ -164,7 +164,11 @@ async function handleUrlAndPrice(ctx) {
         let isOutOfStock = false;
 
         try {
-            currentPrice = await getPrice(resolvedUrl);
+            const scrapeResult = await getPrice(resolvedUrl);
+            currentPrice = scrapeResult.price;
+            // You might want to pass imageUrl to the next step if needed, 
+            // but for now just getting price is enough for this flow
+            // or save it to session if you create product here
         } catch (err) {
             // Check if it's an out-of-stock error
             if (err.message.includes('out of stock') || err.message.includes('unavailable')) {

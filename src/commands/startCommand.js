@@ -11,30 +11,34 @@ export default (bot) => {
   bot.command('start', async (ctx) => {
     try {
       const username = ctx.from?.first_name || ctx.from?.username;
-      
+
       // Register user if new
       await UserService.getOrCreateUser(ctx.chat.id, username);
-      
+
       const welcomeMessage = [
-        `👋 *Welcome ${escapeMarkdownV2(username)}\\!*`,
+        `👋 *Hi ${escapeMarkdownV2(username)}!*`,
         '',
-        `I'm your personal Amazon price tracker\\. I'll help you save money by tracking product prices and notifying you when they drop\\!`,
+        'I\'m *Trackzoon*, your personal Amazon price tracker. 🕵️‍♂️',
         '',
-        `🌟 *What I can do:*`,
-        `• Track Amazon product prices 24/7`,
-        `• Send instant alerts when prices drop`,
-        `• Show price history and trends`,
-        `• Help you find the best time to buy`,
+        'I check prices 24/7 and notify you the moment they drop. 📉',
         '',
-        `🚀 *Quick Start:*`,
-        `Just send me any Amazon product link to start tracking\\!`,
-        '',
-        `Or use the menu below to explore more options\\.\\.\\.`
+        '*🚀 Ready to save money?*',
+        'Click the button below to track your first product, or just paste an Amazon link here!',
       ].join('\n');
 
       await ctx.reply(welcomeMessage, {
         parse_mode: 'MarkdownV2',
-        ...mainKeyboard()
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '🛍️ Track My First Product', callback_data: 'action_add_product' }
+            ],
+            [
+              { text: '📚 How it Works', callback_data: 'action_help' },
+              { text: '🏆 See Top Deals', callback_data: 'action_top_deals' }
+            ]
+          ]
+        }
       });
     } catch (error) {
       handleError(ctx, error);

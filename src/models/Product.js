@@ -9,6 +9,7 @@ const ProductSchema = new mongoose.Schema({
   asin: { type: String, required: true },
   url: { type: String, required: true },
   name: { type: String, required: true },
+  imageUrl: { type: String },
   currentPrice: { type: Number, default: 0 },
   isOutOfStock: { type: Boolean, default: false },
   outOfStockSince: { type: Date, default: null }, // Track when product went out of stock
@@ -42,23 +43,23 @@ ProductSchema.index({ asin: 1, 'trackedBy.chatId': 1 });
 ProductSchema.index({ lastChecked: 1 }); // For finding stale products
 
 // Pre-save hook to limit price history size
-ProductSchema.pre('save', function(next) {
+ProductSchema.pre('save', function (next) {
   if (this.priceHistory && this.priceHistory.length > 0) {
     // Strategy 1: Limit by count (keep last 1000 entries)
     if (this.priceHistory.length > MAX_PRICE_HISTORY_ENTRIES) {
       this.priceHistory = this.priceHistory.slice(-MAX_PRICE_HISTORY_ENTRIES);
       console.log(`Trimmed price history for ${this.asin} to ${MAX_PRICE_HISTORY_ENTRIES} entries`);
     }
-    
+
     // Strategy 2: Limit by age (keep last 90 days)
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - PRICE_HISTORY_DAYS_TO_KEEP);
-    
+
     const oldLength = this.priceHistory.length;
-    this.priceHistory = this.priceHistory.filter(entry => 
+    this.priceHistory = this.priceHistory.filter(entry =>
       new Date(entry.date) >= cutoffDate
     );
-    
+
     if (this.priceHistory.length < oldLength) {
       console.log(`Removed ${oldLength - this.priceHistory.length} old price entries for ${this.asin}`);
     }

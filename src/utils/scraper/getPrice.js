@@ -167,7 +167,13 @@ async function getPrice(url) {
     }
 
     logger.info(`Successfully extracted price: ${price} (selector: ${priceResult.selector})`);
-    return price;
+
+    // Extract image URL
+    let imageUrl = $('#landingImage').attr('src') ||
+      $('#imgBlkFront').attr('src') ||
+      $('.a-dynamic-image').first().attr('src');
+
+    return { price, imageUrl };
 
   } catch (error) {
     logger.error(`Error scraping ${url}:`, error);

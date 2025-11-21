@@ -30,8 +30,8 @@ export default (bot) => {
           '',
           '⚡ *One step \\- that\'s it\\!*'
         ].join('\n');
-        
-        return await ctx.reply(message, { 
+
+        return await ctx.reply(message, {
           parse_mode: 'MarkdownV2',
           ...mainKeyboard()
         });
@@ -55,7 +55,7 @@ export default (bot) => {
         // Clean and validate URL
         const { resolvedUrl, asin } = await resolveAmazonUrl(url);
         if (!asin) {
-          await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
+          await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
           return await ctx.reply(
             escapeMarkdownV2('❌ Invalid Amazon URL. Please provide a valid product link.'),
             { parse_mode: 'MarkdownV2', ...mainKeyboard() }
@@ -66,9 +66,10 @@ export default (bot) => {
         const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
         let currentPrice;
         let isOutOfStock = false;
-        
+
         try {
-          currentPrice = await getPrice(resolvedUrl);
+          const scrapeResult = await getPrice(resolvedUrl);
+          currentPrice = scrapeResult.price;
         } catch (priceError) {
           // Check if it's an out-of-stock error
           if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
@@ -87,7 +88,7 @@ export default (bot) => {
           threshold
         );
 
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
+        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
 
         if (isAlreadyTracked) {
           const message = [
@@ -108,8 +109,8 @@ export default (bot) => {
         }
 
         const statusEmoji = isOutOfStock ? '📭' : '✅';
-        const statusText = isOutOfStock 
-          ? 'Currently out of stock \\- we\'ll notify you when it\'s back\\!' 
+        const statusText = isOutOfStock
+          ? 'Currently out of stock \\- we\'ll notify you when it\'s back\\!'
           : 'Tracking active\\!';
 
         const message = [
@@ -132,8 +133,8 @@ export default (bot) => {
         });
 
       } catch (innerError) {
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
-        
+        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
+
         if (innerError instanceof BotError && innerError.code === 'PRODUCT_ALREADY_TRACKED') {
           return await ctx.reply(
             escapeMarkdownV2('❌ You are already tracking this product.'),

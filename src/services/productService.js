@@ -40,9 +40,13 @@ export class ProductService {
         let currentPrice;
         let isOutOfStock = false;
 
+        let imageUrl = null;
+
         // Try to get price, but handle out-of-stock gracefully
         try {
-          currentPrice = await getPrice(resolvedUrl);
+          const scrapeResult = await getPrice(resolvedUrl);
+          currentPrice = scrapeResult.price;
+          imageUrl = scrapeResult.imageUrl;
         } catch (priceError) {
           // If out of stock, use threshold as placeholder
           if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
@@ -59,6 +63,7 @@ export class ProductService {
           asin,
           name,
           url: resolvedUrl,
+          imageUrl,
           currentPrice,
           isOutOfStock,
           priceHistory: [{ price: currentPrice, date: new Date() }],

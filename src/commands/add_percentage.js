@@ -18,7 +18,7 @@ export default (bot) => {
       }
 
       let [, url, percentageStr] = parts;
-      
+
       // Validate and parse percentage first
       const percentage = validatePercentage(percentageStr);
       if (!percentage) {
@@ -42,7 +42,8 @@ export default (bot) => {
 
         // Get product details
         const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
-        const currentPrice = await getPrice(resolvedUrl).catch(() => 0);
+        const scrapeResult = await getPrice(resolvedUrl).catch(() => ({ price: 0 }));
+        const currentPrice = scrapeResult.price;
 
         if (currentPrice <= 0) {
           return await ctx.reply('Unable to fetch the current price. Please try again later.');
@@ -60,14 +61,14 @@ export default (bot) => {
         });
 
         const thresholdPrice = currentPrice * (1 - percentage / 100);
-        
-        const message = isNew 
+
+        const message = isNew
           ? `✅ Added price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
-            `Current Price: £${currentPrice.toFixed(2)}\n` +
-            `Alert at: ${percentage}% drop (£${thresholdPrice.toFixed(2)})`
+          `Current Price: £${currentPrice.toFixed(2)}\n` +
+          `Alert at: ${percentage}% drop (£${thresholdPrice.toFixed(2)})`
           : `✅ Updated price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
-            `Current Price: £${currentPrice.toFixed(2)}\n` +
-            `New alert: ${percentage}% drop (£${thresholdPrice.toFixed(2)})`;
+          `Current Price: £${currentPrice.toFixed(2)}\n` +
+          `New alert: ${percentage}% drop (£${thresholdPrice.toFixed(2)})`;
 
         await ctx.reply(message, { parse_mode: 'MarkdownV2' });
       } catch (error) {
