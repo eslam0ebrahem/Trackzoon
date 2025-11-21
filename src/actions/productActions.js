@@ -442,8 +442,8 @@ Choose a threshold or set a custom one:`,
       }
     });
 
-    // Sort by price difference (biggest savings first)
-    dealsData.sort((a, b) => b.priceDiff - a.priceDiff);
+    // Sort by percentage discount (biggest percentage first)
+    dealsData.sort((a, b) => b.percentChange - a.percentChange);
 
     return dealsData;
   };
