@@ -69,7 +69,7 @@ export default (bot) => {
 
         try {
           const scrapeResult = await getPrice(resolvedUrl);
-          currentPrice = scrapeResult.price;
+          currentPrice = scrapeResult.currentPrice;
         } catch (priceError) {
           // Check if it's an out-of-stock error
           if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
