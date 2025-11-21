@@ -35,18 +35,26 @@ async function fetchPage(url) {
 
 function checkAvailability($) {
   const availabilitySelectors = [
-    '#availability span',
-    '#availability',
-    '.availability span',
-    '[data-feature-name="availability"]'
+    '#availability span:not(script)',
+    '#availability:not(script)',
+    '.availability span:not(script)',
+    '[data-feature-name="availability"]:not(script)'
   ];
 
   let availabilityText = '';
   for (const selector of availabilitySelectors) {
     const element = $(selector).first();
     if (element.length) {
-      availabilityText = element.text().trim().toLowerCase();
-      if (availabilityText) break;
+      // Get text but exclude script/style tags content
+      const clone = element.clone();
+      clone.find('script, style').remove();
+      availabilityText = clone.text().trim().toLowerCase();
+
+      // Skip if it looks like JavaScript code
+      if (availabilityText && !availabilityText.includes('function') && !availabilityText.includes('p.when')) {
+        break;
+      }
+      availabilityText = ''; // Reset if it was JavaScript
     }
   }
 
