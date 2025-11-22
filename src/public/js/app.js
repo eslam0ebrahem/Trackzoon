@@ -16,6 +16,7 @@ window.openAddProductModal = UI.openAddProductModal;
 window.closeAddProductModal = UI.closeAddProductModal;
 window.submitNewProduct = submitNewProduct;
 window.downloadCSV = downloadCSV;
+window.fetchDeals = fetchDeals; // Expose for UI if needed
 // Management Functions
 window.openImportModal = () => document.getElementById('importModal').classList.remove('hidden');
 window.closeImportModal = () => document.getElementById('importModal').classList.add('hidden');

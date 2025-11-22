@@ -2,9 +2,7 @@ import { STATE } from './config.js';
 import { formatPrice, shareDeal } from './utils.js';
 import { API } from './api.js';
 import { updatePriceChart } from './charts.js';
-import { fetchDeals } from './app.js'; // Circular dependency, need to be careful or restructure. 
-// Better to pass fetchDeals as callback or event.
-// For simplicity, I'll export UI functions and bind events in app.js or pass callbacks.
+// Removed circular dependency import { fetchDeals } from './app.js'
 
 export const UI = {
     renderStats(data) {
