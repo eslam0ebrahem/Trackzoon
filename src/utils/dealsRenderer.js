@@ -1,7 +1,7 @@
 import { MessageBuilder } from './messageDesign.js';
 import { createPaginationKeyboard, paginateItems } from './pagination.js';
 
-export const renderDealsList = (deals, page, callbackPrefix) => {
+export const renderDealsList = (deals, page, callbackPrefix, title = '🔥 Hot Deals Alert') => {
     const { items, currentPage, totalPages, totalItems, startIndex, endIndex } =
         paginateItems(deals, page, 5); // 5 deals per page
 
@@ -11,7 +11,8 @@ export const renderDealsList = (deals, page, callbackPrefix) => {
     const totalSavings = deals.reduce((sum, deal) => sum + deal.priceDiff, 0);
     const biggestDeal = deals[0]; // Already sorted by percentage
 
-    builder.setHeader('🔥 Hot Deals Alert', '💰');
+    // Remove emojis from title for header function if needed, but MessageBuilder handles it
+    builder.setHeader(title.replace(/[*_]/g, ''), '');
 
     if (totalItems === 0) {
         builder.addLine('No price drops found in the last 24 hours.');
@@ -52,6 +53,19 @@ export const renderDealsList = (deals, page, callbackPrefix) => {
         builder.addLine(`${icon} [${productName}...](${deal.product.url})${urgencyBadge}`);
         builder.addLine(`   Was EGP ${deal.oldPrice.toFixed(2)} → *Now EGP ${deal.currentPrice.toFixed(2)}*`);
         builder.addLine(`   💸 *Save EGP ${deal.priceDiff.toFixed(2)}* (${deal.percentChange.toFixed(1)}% OFF)`);
+
+        // Show Deal Score if available
+        if (deal.dealScore) {
+            const scoreIcon = deal.dealScore >= 80 ? '🌟' : deal.dealScore >= 60 ? '⭐' : '📊';
+            builder.addLine(`   ${scoreIcon} Deal Score: *${deal.dealScore}/100*`);
+        }
+
+        // Show Trend if available
+        if (deal.trend) {
+            const trendIcon = deal.trend.trend === 'DOWN' ? '📉' : deal.trend.trend === 'UP' ? '📈' : '➡️';
+            const trendText = deal.trend.trend === 'DOWN' ? 'Falling' : deal.trend.trend === 'UP' ? 'Rising' : 'Stable';
+            builder.addLine(`   ${trendIcon} Trend: *${trendText}*`);
+        }
 
         if (deal.statsAll && deal.stats30d) {
             builder.addLine(`   📉 Low: ${deal.statsAll.min.toFixed(0)} • High: ${deal.statsAll.max.toFixed(0)} • 30d Low: ${deal.stats30d.min.toFixed(0)}`);

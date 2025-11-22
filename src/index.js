@@ -11,6 +11,7 @@ import { attachUser, attachState, errorHandler, timeoutHandler } from './middlew
 import { stateManager } from './utils/stateManager.js';
 import { escapeMarkdownV2 } from './utils/messageHelper.js';
 import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
+import { startServer } from './server.js';
 
 // Initialize Sentry error monitoring first
 initSentry();
@@ -73,6 +74,10 @@ bot.telegram.setMyCommands([
 logger.info('Launching Trackzoon bot...');
 bot.launch().then(() => {
   logger.info('Bot successfully launched!');
+
+  // Start Web Dashboard
+  startServer();
+
 }).catch(error => {
   logger.error('Failed to launch bot:', error);
   captureError(error, { operation: 'bot_launch' });

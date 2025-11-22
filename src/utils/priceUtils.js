@@ -88,3 +88,73 @@ export const calculateVolatility = (priceHistory) => {
 
     return { score, interval };
 };
+
+/**
+ * Predict price trend based on recent history
+ * @param {Array} priceHistory - Array of price history objects
+ * @returns {Object} - { trend: 'UP'|'DOWN'|'STABLE', confidence: number }
+ */
+export const predictPriceTrend = (priceHistory) => {
+    if (!priceHistory || priceHistory.length < 3) {
+        return { trend: 'STABLE', confidence: 0 };
+    }
+
+    // Use last 5 entries or all if less than 5
+    const recent = priceHistory.slice(-5);
+
+    // Simple linear regression slope
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    const n = recent.length;
+
+    recent.forEach((entry, index) => {
+        sumX += index;
+        sumY += entry.price;
+        sumXY += index * entry.price;
+        sumXX += index * index;
+    });
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+
+    // Determine trend
+    let trend = 'STABLE';
+    if (slope < -0.5) trend = 'DOWN';
+    else if (slope > 0.5) trend = 'UP';
+
+    // Calculate confidence based on consistency (R-squared would be better but this is simple)
+    // For now, just use sample size as proxy for confidence
+    const confidence = Math.min(n / 5, 1.0);
+
+    return { trend, confidence, slope };
+};
+
+/**
+ * Calculate a score for how good a deal is (0-100)
+ * @param {number} currentPrice 
+ * @param {Object} stats30d - { min, average, max }
+ * @returns {number} Score from 0 to 100
+ */
+export const calculateDealScore = (currentPrice, stats30d) => {
+    if (!stats30d) return 50; // Neutral score if no stats
+
+    // 1. Discount from Average (max 60 points)
+    const discountFromAvg = ((stats30d.average - currentPrice) / stats30d.average) * 100;
+    const avgScore = Math.max(0, Math.min(discountFromAvg * 2, 60));
+
+    // 2. Proximity to Low (max 40 points)
+    // If at or below low, full 40 points. If at average, 0 points.
+    const range = stats30d.average - stats30d.min;
+    let lowScore = 0;
+
+    if (range > 0) {
+        const distFromLow = currentPrice - stats30d.min;
+        if (distFromLow <= 0) {
+            lowScore = 40; // Best price!
+        } else {
+            // Linearly decrease score as we get closer to average
+            const pctOfRange = 1 - (distFromLow / range);
+            lowScore = Math.max(0, pctOfRange * 40);
+        }
+    }
+
+    return Math.round(avgScore + lowScore);
+};

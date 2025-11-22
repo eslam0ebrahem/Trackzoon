@@ -244,8 +244,16 @@ export class ProductService {
     }
   }
 
-  static async getDeals(chatId) {
-    const products = await this.getUserProducts(chatId);
+  static async getDeals(chatId, scope = 'user') {
+    let products;
+
+    if (scope === 'global') {
+      // Fetch all products that are not out of stock
+      products = await Product.find({ isOutOfStock: false });
+    } else {
+      products = await this.getUserProducts(chatId);
+    }
+
     const dealsData = [];
 
     // Helper to get old price
@@ -267,35 +275,45 @@ export class ProductService {
       return closestEntry || (priceHistory.length > 0 ? priceHistory[0] : null);
     };
 
-    products.forEach(product => {
-      if (product.isOutOfStock || !product.currentPrice) return;
+    // Import new utils dynamically to avoid circular deps if any (though imports are at top)
+    const { calculateDealScore, predictPriceTrend } = await import('../utils/priceUtils.js');
+
+    for (const product of products) {
+      if (product.isOutOfStock || !product.currentPrice) continue;
+
       const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
-      if (!oldPriceEntry) return;
+      if (!oldPriceEntry) continue;
 
       const oldPrice = oldPriceEntry.price;
       const currentPrice = product.currentPrice;
       const priceDiff = oldPrice - currentPrice;
 
-      if (priceDiff > 0) {
+      // For global deals, we want ONLY good deals
+      if (scope === 'global' && priceDiff <= 0) continue;
+
+      if (priceDiff > 0 || scope === 'user') { // Show even small changes for user if requested? No, usually deals means drops.
         // Smart Validation: Check against 30-day average
         const stats30d = calculatePriceStats(product.priceHistory, 30);
         const statsAll = calculatePriceStats(product.priceHistory, 365); // All time
 
         // If we have stats, ensure current price is not significantly higher than average
-        // We allow a small buffer (e.g., 5%) but generally it should be a real deal
         if (stats30d) {
           // If current price is > 5% above average, it's likely a fake deal
           if (currentPrice > stats30d.average * 1.05) {
-            return; // Skip this deal
+            continue; // Skip this deal
           }
 
           // Stricter check: If current price is > 40% above the 30-day LOW, it's not a "hot deal"
           if (currentPrice > stats30d.min * 1.4) {
-            return; // Skip this deal
+            continue; // Skip this deal
           }
         }
 
         const tracker = product.trackedBy.find(t => t.chatId === chatId);
+
+        // Calculate extra metrics
+        const dealScore = calculateDealScore(currentPrice, stats30d);
+        const trend = predictPriceTrend(product.priceHistory);
 
         dealsData.push({
           product,
@@ -305,12 +323,17 @@ export class ProductService {
           percentChange: ((currentPrice - oldPrice) / oldPrice) * 100 * -1, // Positive percentage
           stats30d,
           statsAll,
-          tracker
+          tracker,
+          dealScore,
+          trend
         });
       }
-    });
+    }
 
-    // Sort by biggest savings
-    return dealsData.sort((a, b) => b.priceDiff - a.priceDiff);
+    // Sort by Deal Score first, then by price difference
+    return dealsData.sort((a, b) => {
+      if (a.dealScore !== b.dealScore) return b.dealScore - a.dealScore;
+      return b.priceDiff - a.priceDiff;
+    });
   }
 }
