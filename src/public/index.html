@@ -160,49 +160,7 @@
                     </button>
 
                     <!-- Add Product Button -->
-                    <div class="flex flex-wrap gap-4 mb-6">
-                        <a id="chartLink" href="#" target="_blank"
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
-                            View on Amazon
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14">
-                                </path>
-                            </svg>
-                        </a>
-                        <button onclick="toggleArchive()" id="archiveBtn"
-                            class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-medium transition-colors">
-                            Archive
-                        </button>
-                    </div>
 
-                    <!-- Management Controls -->
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-750 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Tags
-                                (comma separated)</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="productTags"
-                                    class="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 text-sm"
-                                    placeholder="gaming, office...">
-                                <button onclick="saveTags()"
-                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Save</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label
-                                class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Target
-                                Price (EGP)</label>
-                            <div class="flex gap-2">
-                                <input type="number" id="productTargetPrice"
-                                    class="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 text-sm"
-                                    placeholder="0.00">
-                                <button onclick="saveTargetPrice()"
-                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Set</button>
-                            </div>
-                        </div>
-                    </div>
                     <button onclick="openAddProductModal()"
                         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -439,211 +397,268 @@
                                             d="M4 6h16M4 12h16M4 18h16"></path>
                                     </svg>
                                 </button>
-                                <div class="container mx-auto px-4 py-8">
-                                    <div class="flex justify-between items-center mb-8">
-                                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">System
-                                            Status</h2>
-                                        <button onclick="toggleSystemDashboard()"
-                                            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M6 18L18 6M6 6l12 12"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
 
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                                        <!-- Server Health -->
-                                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                                                Server Health</h3>
-                                            <div class="space-y-4">
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Status</span>
-                                                    <span class="text-green-500 font-bold">Online</span>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Uptime</span>
-                                                    <span id="sysUptime" class="font-mono">-</span>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Memory
-                                                        (Heap)</span>
-                                                    <span id="sysMemory" class="font-mono">-</span>
-                                                </div>
-                                            </div>
-                                        </div>
+                            </div>
 
-                                        <!-- Database Stats -->
-                                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                                                Database</h3>
-                                            <div class="space-y-4">
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Storage
-                                                        Size</span>
-                                                    <span id="dbSize" class="font-mono">-</span>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Products</span>
-                                                    <span id="dbProducts" class="font-mono">-</span>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Metrics</span>
-                                                    <span id="dbMetrics" class="font-mono">-</span>
-                                                </div>
-                                            </div>
-                                        </div>
+                            <!-- Sort Dropdown -->
+                            <select id="sortSelect" onchange="setSort(this.value)"
+                                class="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="discount">🔥 Best Discount</option>
+                                <option value="price_asc">💰 Price: Low to High</option>
+                                <option value="price_desc">💎 Price: High to Low</option>
+                                <option value="date">🕒 Newest First</option>
+                            </select>
 
-                                        <!-- Scraper Stats -->
-                                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                                                Last Scrape Cycle</h3>
-                                            <div class="space-y-4">
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Success</span>
-                                                    <span id="scrapeSuccess" class="text-green-500 font-bold">-</span>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Failed</span>
-                                                    <span id="scrapeFailed" class="text-red-500 font-bold">-</span>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500 dark:text-gray-400">Unchanged</span>
-                                                    <span id="scrapeUnchanged" class="text-gray-500 font-bold">-</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>th>
+                            <!-- Discount Filters -->
+                            <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                                <button onclick="setFilter(0)" id="filter-0"
+                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 shadow-sm transition">All</button>
+                                <button onclick="setFilter(10)" id="filter-10"
+                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>10%</button>
+                                <button onclick="setFilter(25)" id="filter-25"
+                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>25%</button>
+                                <button onclick="setFilter(50)" id="filter-50"
+                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>50%</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="max-h-[600px] overflow-y-auto p-2" id="dealsList">
+                        <div class="p-8 text-center text-gray-500 dark:text-gray-400">Loading deals...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Chart & Recent Activity (6 cols) -->
+            <div class="lg:col-span-6 space-y-8">
+
+                <!-- Price Chart -->
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                            <span class="mr-2">📈</span> Price History
+                        </h3>
+                        <button id="downloadCsvBtn" onclick="downloadCSV()"
+                            class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md transition flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                             </svg>
-                            </button>
+                            CSV
+                        </button>
+                    </div>
+                    <div class="relative h-64 w-full">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                    <div id="productInfo" class="mt-4 hidden animate-fade-in">
+                        <h4 class="font-medium text-gray-900 dark:text-white truncate text-lg mb-2" id="chartTitle">
+                            Product
+                            Name</h4>
+                        <div class="flex justify-between items-end mb-4">
+                            <p class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="chartPrice">EGP 0.00</p>
+                            <div class="flex gap-2">
+                                <a href="#" id="chartLink" target="_blank"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    View on Amazon
+                                </a>
+                                <button onclick="toggleArchive()" id="archiveBtn"
+                                    class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    Archive
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Sort Dropdown -->
-                        <select id="sortSelect" onchange="setSort(this.value)"
-                            class="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="discount">🔥 Best Discount</option>
-                            <option value="price_asc">💰 Price: Low to High</option>
-                            <option value="price_desc">💎 Price: High to Low</option>
-                            <option value="date">🕒 Newest First</option>
-                        </select>
-
-                        <!-- Discount Filters -->
-                        <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                            <button onclick="setFilter(0)" id="filter-0"
-                                class="filter-btn px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 shadow-sm transition">All</button>
-                            <button onclick="setFilter(10)" id="filter-10"
-                                class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>10%</button>
-                            <button onclick="setFilter(25)" id="filter-25"
-                                class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>25%</button>
-                            <button onclick="setFilter(50)" id="filter-50"
-                                class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>50%</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="max-h-[600px] overflow-y-auto p-2" id="dealsList">
-                    <div class="p-8 text-center text-gray-500 dark:text-gray-400">Loading deals...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Column: Chart & Recent Activity (6 cols) -->
-        <div class="lg:col-span-6 space-y-8">
-
-            <!-- Price Chart -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                        <span class="mr-2">📈</span> Price History
-                    </h3>
-                    <button id="downloadCsvBtn" onclick="downloadCSV()"
-                        class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md transition flex items-center">
-                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                        </svg>
-                        CSV
-                    </button>
-                </div>
-                <div class="relative h-64 w-full">
-                    <canvas id="priceChart"></canvas>
-                </div>
-                <div id="productInfo" class="mt-4 hidden animate-fade-in">
-                    <h4 class="font-medium text-gray-900 dark:text-white truncate" id="chartTitle">Product Name</h4>
-                    <div class="flex justify-between items-end mt-1">
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="chartPrice">EGP 0.00</p>
-                        <a href="#" id="chartLink" target="_blank" class="text-sm text-blue-500 hover:underline">View on
-                            Amazon &rarr;</a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Activity & Top Tracked Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-
-                <!-- Category Distribution -->
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                    <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📊 Categories</h3>
-                    <div class="relative h-40 w-full">
-                        <canvas id="categoryChart"></canvas>
-                    </div>
-                    <!-- Forecast Widget -->
-                    <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mt-4">
-                        <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">7-Day Forecast
-                        </h4>
-                        <div class="flex items-center justify-between">
-                            <span id="forecastTrend" class="text-sm font-medium">-</span>
-                            <span id="forecastConfidence" class="text-xs text-gray-500 dark:text-gray-400">Confidence:
-                                -</span>
+                        <!-- Management Controls -->
+                        <div
+                            class="grid grid-cols-1 gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                            <div class="flex items-center gap-2">
+                                <label
+                                    class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase w-20">Tags:</label>
+                                <input type="text" id="productTags"
+                                    class="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded px-2 py-1 text-xs"
+                                    placeholder="gaming, office...">
+                                <button onclick="saveTags()"
+                                    class="bg-blue-600 text-white px-2 py-1 rounded text-xs">Save</button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label
+                                    class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase w-20">Target:</label>
+                                <input type="number" id="productTargetPrice"
+                                    class="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded px-2 py-1 text-xs"
+                                    placeholder="0.00">
+                                <button onclick="saveTargetPrice()"
+                                    class="bg-blue-600 text-white px-2 py-1 rounded text-xs">Set</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Stock History Widget -->
-                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-6">
-                    <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Stock Availability
-                        History</h4>
-                    <div class="relative h-8 bg-gray-200 dark:bg-gray-600 rounded overflow-hidden flex"
-                        id="stockHistoryBar">
-                        <!-- Segments will be injected here -->
-                        <div class="w-full h-full flex items-center justify-center text-xs text-gray-500">No stock
-                            history available</div>
-                    </div>
-                    <div class="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Past</span>
-                        <span>Now</span>
-                    </div>
-                </div>
+                <!-- Recent Activity & Top Tracked Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-                <!-- Top Tracked -->
-                <div
-                    class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🏆 Most Popular</h3>
+                    <!-- Category Distribution -->
+                    <div
+                        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📊 Categories</h3>
+                        <div class="relative h-40 w-full">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                        <!-- Forecast Widget -->
+                        <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mt-4">
+                            <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">7-Day Forecast
+                            </h4>
+                            <div class="flex items-center justify-between">
+                                <span id="forecastTrend" class="text-sm font-medium">-</span>
+                                <span id="forecastConfidence"
+                                    class="text-xs text-gray-500 dark:text-gray-400">Confidence:
+                                    -</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-40 overflow-y-auto" id="topTracked">
-                        <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
-                    </div>
-                </div>
 
-                <!-- Recent Activity (Full Width) -->
-                <div
-                    class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🕒 Recent Updates</h3>
+                    <!-- Stock History Widget -->
+                    <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-6">
+                        <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Stock Availability
+                            History</h4>
+                        <div class="relative h-8 bg-gray-200 dark:bg-gray-600 rounded overflow-hidden flex"
+                            id="stockHistoryBar">
+                            <!-- Segments will be injected here -->
+                            <div class="w-full h-full flex items-center justify-center text-xs text-gray-500">No stock
+                                history available</div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>Past</span>
+                            <span>Now</span>
+                        </div>
                     </div>
-                    <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto"
-                        id="recentActivity">
-                        <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
-                    </div>
-                </div>
 
+                    <!-- Top Tracked -->
+                    <div
+                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div
+                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🏆 Most Popular</h3>
+                        </div>
+                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-40 overflow-y-auto"
+                            id="topTracked">
+                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity (Full Width) -->
+                    <div
+                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div
+                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🕒 Recent Updates</h3>
+                        </div>
+                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto"
+                            id="recentActivity">
+                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- System Dashboard Overlay -->
+    <div id="systemDashboard" class="fixed inset-0 bg-gray-100 dark:bg-gray-900 z-50 hidden overflow-y-auto">
+        <div class="container mx-auto px-4 py-8">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">System Status</h2>
+                <button onclick="toggleSystemDashboard()"
+                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Server Health -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Server Health</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Status</span>
+                            <span class="text-green-500 font-bold">Online</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Uptime</span>
+                            <span id="sysUptime" class="font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Memory (Heap)</span>
+                            <span id="sysMemory" class="font-mono">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Database Stats -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Database</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Storage Size</span>
+                            <span id="dbSize" class="font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Products</span>
+                            <span id="dbProducts" class="font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Metrics</span>
+                            <span id="dbMetrics" class="font-mono">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scraper Stats -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Last Scrape Cycle</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Success</span>
+                            <span id="scrapeSuccess" class="text-green-500 font-bold">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Failed</span>
+                            <span id="scrapeFailed" class="text-red-500 font-bold">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Unchanged</span>
+                            <span id="scrapeUnchanged" class="text-gray-500 font-bold">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queue Status -->
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-8">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Job Queue</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                        <p class="text-xs text-gray-500 uppercase">Active</p>
+                        <p class="text-xl font-bold text-blue-500" id="queueActive">-</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                        <p class="text-xs text-gray-500 uppercase">Waiting</p>
+                        <p class="text-xl font-bold text-yellow-500" id="queueWaiting">-</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                        <p class="text-xs text-gray-500 uppercase">Completed</p>
+                        <p class="text-xl font-bold text-green-500" id="queueCompleted">-</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                        <p class="text-xs text-gray-500 uppercase">Failed</p>
+                        <p class="text-xl font-bold text-red-500" id="queueFailed">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="js/app.js"></script>
