@@ -82,6 +82,7 @@ window.toggleSystemDashboard = async () => {
         dashboard.classList.remove('hidden');
         document.body.style.overflow = 'hidden'; // Prevent background scrolling
         await updateSystemStats();
+        fetchLogs(); // Fetch logs when dashboard opens
     } else {
         dashboard.classList.add('hidden');
         document.body.style.overflow = '';

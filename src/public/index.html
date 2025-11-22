@@ -661,6 +661,37 @@
                     </div>
                 </div>
             </div>
+
+            <!-- System Logs -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">System Logs</h3>
+                    <div class="flex gap-2">
+                        <select id="logLevelFilter" onchange="fetchLogs()"
+                            class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
+                            <option value="all">All Levels</option>
+                            <option value="info">Info</option>
+                            <option value="warn">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                        <input type="text" id="logSearch" name="log_search" onkeyup="fetchLogs()"
+                            placeholder="Search logs..."
+                            class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm w-48">
+                        <button onclick="fetchLogs()"
+                            class="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm h-96 overflow-y-auto" id="logsList">
+                    <!-- Logs will be injected here -->
+                    <div class="text-gray-500 text-center py-8">Loading logs...</div>
+                </div>
+            </div>
         </div>
     </div>
 
