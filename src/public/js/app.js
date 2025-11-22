@@ -194,7 +194,8 @@ async function init() {
         fetchRecent(),
         fetchTopTracked(),
         fetchCategoryStats(),
-        fetchLogs() // Initial logs fetch
+        fetchLogs(), // Initial logs fetch
+        fetchStats() // Fetch dashboard stats
     ]);
 
     // Refresh every 30s
