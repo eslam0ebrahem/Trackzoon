@@ -42,21 +42,33 @@ export const UI = {
                                 <p class="ml-2 text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</p>
                             </div>
                             <div class="mt-1 flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
-                                ${deal.dealScore ? `<span class="flex items-center text-yellow-600 dark:text-yellow-400 font-medium">★ ${deal.dealScore}</span>` : ''}
-                                ${deal.trend ? `<span class="${deal.trend.trend === 'DOWN' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
-                                    ${deal.trend.trend === 'DOWN' ? '📉 Falling' : deal.trend.trend === 'UP' ? '📈 Rising' : '➡️ Stable'}
-                                </span>` : ''}
-                                ${(deal.statsAll && deal.currentPrice <= deal.statsAll.min) ?
-                        `<span class="flex items-center text-purple-600 dark:text-purple-400 font-bold bg-purple-100 dark:bg-purple-900 px-1.5 rounded">🏆 ATL</span>`
-                        : ''}
                                 ${(() => {
-                        if (deal.stats30d && deal.currentPrice <= deal.stats30d.min * 1.02) {
-                            return `<span class="flex items-center text-green-700 dark:text-green-300 font-bold bg-green-100 dark:bg-green-900 px-1.5 rounded">✅ BUY NOW</span>`;
-                        } else if (deal.stats30d && deal.currentPrice > deal.stats30d.average) {
-                            return `<span class="flex items-center text-red-700 dark:text-red-300 font-bold bg-red-100 dark:bg-red-900 px-1.5 rounded">⏳ WAIT</span>`;
-                        } else {
-                            return `<span class="flex items-center text-blue-700 dark:text-blue-300 font-bold bg-blue-100 dark:bg-blue-900 px-1.5 rounded">👀 WATCH</span>`;
+                        const insights = [];
+
+                        // 1. Deal Score Insight
+                        if (deal.dealScore >= 8) insights.push(`<span class="flex items-center text-yellow-600 dark:text-yellow-400 font-bold">⭐ Top Pick (${deal.dealScore}/10)</span>`);
+
+                        // 2. Price History Insight
+                        if (deal.statsAll && deal.currentPrice <= deal.statsAll.min) {
+                            insights.push(`<span class="flex items-center text-purple-600 dark:text-purple-400 font-bold bg-purple-100 dark:bg-purple-900/50 px-1.5 rounded">🏆 All-Time Low</span>`);
+                        } else if (deal.stats30d && deal.currentPrice <= deal.stats30d.min) {
+                            insights.push(`<span class="flex items-center text-blue-600 dark:text-blue-400 font-bold bg-blue-100 dark:bg-blue-900/50 px-1.5 rounded">📉 Lowest in 30d</span>`);
+                        } else if (deal.stats30d && deal.currentPrice < deal.stats30d.average * 0.9) {
+                            const diff = Math.round((1 - (deal.currentPrice / deal.stats30d.average)) * 100);
+                            insights.push(`<span class="flex items-center text-green-600 dark:text-green-400 font-bold bg-green-100 dark:bg-green-900/50 px-1.5 rounded">🔥 ${diff}% Below Avg</span>`);
                         }
+
+                        // 3. Trend Insight
+                        if (deal.trend && deal.trend.trend === 'DOWN') {
+                            insights.push(`<span class="text-green-600 dark:text-green-400">📉 Dropping Fast</span>`);
+                        }
+
+                        // Default if no specific insights
+                        if (insights.length === 0) {
+                            insights.push(`<span class="text-gray-500">👀 Good Price</span>`);
+                        }
+
+                        return insights.join('<span class="mx-1 text-gray-300">•</span>');
                     })()}
                             </div>
                         </div>

@@ -309,22 +309,28 @@ export async function fetchDeals(page = 1) {
             deals = deals.filter(d => d.percentChange >= STATE.currentFilter);
         }
 
-        // Client-side Sort
-        if (STATE.currentSort === 'discount') {
+        // Apply Sorting
+        if (STATE.currentSort === 'smart') {
+            // Smart Score: Weighted average of Discount (40%), Deal Score (40%), and Recency (20%)
+            deals.sort((a, b) => {
+                const scoreA = (a.percentChange * 0.4) + ((a.dealScore || 0) * 4) + (new Date(a.lastChecked).getTime() > Date.now() - 3600000 ? 10 : 0);
+                const scoreB = (b.percentChange * 0.4) + ((b.dealScore || 0) * 4) + (new Date(b.lastChecked).getTime() > Date.now() - 3600000 ? 10 : 0);
+                return scoreB - scoreA;
+            });
+        } else if (STATE.currentSort === 'discount') {
             deals.sort((a, b) => b.percentChange - a.percentChange);
         } else if (STATE.currentSort === 'price_asc') {
             deals.sort((a, b) => a.currentPrice - b.currentPrice);
         } else if (STATE.currentSort === 'price_desc') {
             deals.sort((a, b) => b.currentPrice - a.currentPrice);
         } else if (STATE.currentSort === 'date') {
-            deals.sort((a, b) => b.dealScore - a.dealScore);
+            deals.sort((a, b) => new Date(b.lastChecked) - new Date(a.lastChecked));
         }
 
         if (page === 1) {
             UI.renderDeals(deals, container, false);
             if (deals.length === 0) {
-                if (deals.length === 0) {
-                    container.innerHTML = `
+                container.innerHTML = `
                     <div class="col-span-full flex flex-col items-center justify-center py-12 text-center">
                         <div class="bg-gray-100 dark:bg-gray-700 rounded-full p-4 mb-4">
                             <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,7 +341,6 @@ export async function fetchDeals(page = 1) {
                         <p class="text-gray-500 dark:text-gray-400 text-sm">Try adjusting your filters or tracking more products.</p>
                     </div>
                 `;
-                }
             }
             // Initial chart load
             if (deals.length > 0 && !STATE.currentAsin) {
@@ -347,8 +352,10 @@ export async function fetchDeals(page = 1) {
 
         // Handle Load More Button
         if (!loadMoreBtn) {
-            const btnHtml = `<div class="p-4 text-center col-span-full"><button id="loadMoreBtn" onclick="fetchDeals(${page + 1})" class="text-sm text-blue-600 hover:underline">Load More</button></div>`;
-            container.parentElement.insertAdjacentHTML('beforeend', btnHtml);
+            if (page < data.totalPages) {
+                const btnHtml = `<div class="p-4 text-center col-span-full"><button id="loadMoreBtn" onclick="fetchDeals(${page + 1})" class="text-sm text-blue-600 hover:underline">Load More</button></div>`;
+                container.parentElement.insertAdjacentHTML('beforeend', btnHtml);
+            }
         } else {
             if (deals.length === 0 || page >= data.totalPages) {
                 loadMoreBtn.parentElement.style.display = 'none';
