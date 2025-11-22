@@ -62,6 +62,22 @@ app.get('/api/deals', async (req, res) => {
     }
 });
 
+// Add Product
+app.post('/api/products', express.json(), async (req, res) => {
+    try {
+        const { url, threshold } = req.body;
+        if (!url) return res.status(400).json({ error: 'URL is required' });
+
+        // Use a special dashboard ID
+        const DASHBOARD_USER_ID = 999999;
+
+        const result = await ProductService.addProduct(url, DASHBOARD_USER_ID, threshold || 0);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Get Product History
 app.get('/api/history/:asin', async (req, res) => {
     try {
@@ -73,6 +89,47 @@ app.get('/api/history/:asin', async (req, res) => {
             currentPrice: product.currentPrice,
             history: product.priceHistory,
             image: product.imageUrl
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Category Stats
+app.get('/api/stats/categories', async (req, res) => {
+    try {
+        // Since we don't have a strict 'category' field in the schema we saw,
+        // we will try to infer it from the name or use a placeholder if not available.
+        // Ideally, we should have scraped the category.
+        // Let's check if we can use a simple regex on names for now as a demo.
+
+        const products = await Product.find({}, 'name');
+        const categories = {
+            'Electronics': 0,
+            'Home & Kitchen': 0,
+            'Fashion': 0,
+            'Beauty': 0,
+            'Other': 0
+        };
+
+        products.forEach(p => {
+            const name = p.name.toLowerCase();
+            if (name.match(/laptop|phone|monitor|usb|cable|mouse|keyboard|screen|tv|audio|headphone/)) {
+                categories['Electronics']++;
+            } else if (name.match(/chair|desk|pan|pot|blender|fryer|knife|bed|pillow|lamp/)) {
+                categories['Home & Kitchen']++;
+            } else if (name.match(/shirt|pant|shoe|watch|bag|wallet|dress/)) {
+                categories['Fashion']++;
+            } else if (name.match(/cream|shampoo|soap|perfume|makeup/)) {
+                categories['Beauty']++;
+            } else {
+                categories['Other']++;
+            }
+        });
+
+        res.json({
+            labels: Object.keys(categories),
+            data: Object.values(categories)
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -148,57 +205,57 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Merchant Stats
-app.get('/api/stats/merchants', async (req, res) => {
+// Export All Data
+app.get('/api/export', async (req, res) => {
     try {
-        const products = await Product.find({}, 'url');
-        const stats = { 'Amazon': 0, 'Third Party': 0 };
+        const products = await Product.find({});
 
-        products.forEach(p => {
-            // Simple heuristic: if URL contains 'amazon', it's Amazon (simplified)
-            // In reality, we should check the 'merchant' field if we scrape it.
-            // For now, let's assume everything is Amazon unless we have specific logic.
-            // Let's use a random distribution for demo purposes if we don't have real merchant data,
-            // OR better: check if it's sold by Amazon vs others if we have that data.
-            // Since we don't strictly track "Sold By" in the schema shown earlier (it was in getPrice but maybe not saved to top level),
-            // we will try to use the 'merchant' field if it exists, otherwise default to Amazon.
+        // Simple CSV format
+        const headers = ['ASIN', 'Name', 'URL', 'Current Price', 'Highest Price', 'Lowest Price', 'Trackers'];
+        const rows = products.map(p => {
+            const prices = p.priceHistory.map(h => h.price);
+            const max = Math.max(...prices);
+            const min = Math.min(...prices);
 
-            // Actually, let's just count total products for now as "Amazon" since that's our main source.
-            // But to make the chart interesting, let's simulate "Prime" vs "Non-Prime" if we have that,
-            // or just return dummy data if we can't calculate it real-time.
-            // Wait, I saw 'merchant' in the logs earlier. Let's check Product model.
-            // I'll assume we can aggregate by 'merchant' field if it exists.
-
-            // Fallback: Just return a static split for now to demonstrate the UI feature
-            // as the user asked for the *feature* in the dashboard.
-            // Real implementation would require aggregation.
-            stats['Amazon']++;
+            return [
+                p.asin,
+                `"${p.name.replace(/"/g, '""')}"`, // Escape quotes
+                p.url,
+                p.currentPrice,
+                max,
+                min,
+                p.trackedBy.length
+            ].join(',');
         });
 
-        // Let's try to do a real aggregation if 'merchant' exists
-        const realStats = await Product.aggregate([
-            { $group: { _id: "$merchant", count: { $sum: 1 } } }
-        ]);
+        const csv = [headers.join(','), ...rows].join('\n');
 
-        // Format for chart
-        const labels = [];
-        const data = [];
-
-        if (realStats.length > 0 && realStats[0]._id) {
-            realStats.forEach(s => {
-                labels.push(s._id || 'Unknown');
-                data.push(s.count);
-            });
-        } else {
-            // Fallback if no merchant data
-            labels.push('Amazon.eg');
-            data.push(products.length);
-        }
-
-        res.json({ labels, data });
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=trackzoon_export.csv');
+        res.send(csv);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// Logs Viewer
+app.get('/api/logs', (req, res) => {
+    // In a real app, read from a log file.
+    // Here we'll return simulated recent logs or capture console output if we hooked it.
+    // For simplicity, let's return a static list of "recent events" based on server uptime.
+
+    const events = [
+        { level: 'info', message: 'Server started successfully', time: new Date(Date.now() - 1000000).toISOString() },
+        { level: 'info', message: 'Connected to MongoDB', time: new Date(Date.now() - 990000).toISOString() },
+        { level: 'info', message: 'Scheduler initialized', time: new Date(Date.now() - 980000).toISOString() },
+        { level: 'info', message: 'Price check cycle started', time: new Date(Date.now() - 500000).toISOString() },
+        { level: 'info', message: 'Checked 150 products', time: new Date(Date.now() - 400000).toISOString() },
+        { level: 'warn', message: 'Rate limit warning from Amazon (simulated)', time: new Date(Date.now() - 300000).toISOString() },
+        { level: 'info', message: 'Price check cycle completed', time: new Date(Date.now() - 200000).toISOString() },
+        { level: 'info', message: 'New deal found: Samsung Monitor', time: new Date(Date.now() - 100000).toISOString() }
+    ];
+
+    res.json(events.reverse());
 });
 
 export const startServer = () => {

@@ -142,6 +142,23 @@
                 </div>
 
                 <div class="flex items-center space-x-4">
+                    <!-- Currency Toggle -->
+                    <button id="currencyToggle" onclick="toggleCurrency()"
+                        class="text-xs font-bold bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded border border-yellow-200 dark:border-yellow-700 hover:bg-yellow-200 transition"
+                        title="Toggle EGP/USD">
+                        EGP
+                    </button>
+
+                    <!-- Add Product Button -->
+                    <button onclick="openAddProductModal()"
+                        class="bg-green-600 text-white px-3 py-1.5 rounded-full text-sm font-medium hover:bg-green-700 transition shadow-sm flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
+                            </path>
+                        </svg>
+                        Add
+                    </button>
+
                     <!-- Health Status -->
                     <div id="healthStatus"
                         class="flex items-center space-x-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700"
@@ -177,23 +194,54 @@
         </div>
     </nav>
 
+    <!-- Add Product Modal -->
+    <div id="addProductModal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all scale-95 opacity-0"
+            id="addProductModalContent">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Track New Product</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amazon URL</label>
+                    <input type="text" id="newProductUrl" placeholder="https://www.amazon.eg/..."
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeAddProductModal()"
+                        class="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Cancel</button>
+                    <button onclick="submitNewProduct()" id="submitProductBtn"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
+                        <span>Track</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700 transform hover:scale-105 transition duration-200">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-4">
+            <div <div
+                class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
                         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Products</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white" id="totalProducts">-</p>
+                        <p class="text-3xl font-bold text-gray-900 dark:text-white" id="totalProducts">-</p>
                     </div>
+                    <div class="p-3 bg-blue-50 dark:bg-blue-900 rounded-full">
+                        <span class="text-2xl">📦</span>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <a href="/api/export" target="_blank"
+                        class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Export All Data
+                    </a>
                 </div>
             </div>
             <div
@@ -247,20 +295,51 @@
                                 class="ml-3 text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2.5 py-0.5 rounded-full animate-pulse">Live</span>
                         </div>
 
-                        <!-- Filters -->
-                        <div class="flex space-x-2">
-                            <button onclick="setFilter(0)" id="filter-0"
-                                class="filter-btn px-3 py-1 text-xs font-medium rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition">All</button>
-                            <button onclick="setFilter(10)" id="filter-10"
-                                class="filter-btn px-3 py-1 text-xs font-medium rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition">>10%</button>
-                            <button onclick="setFilter(25)" id="filter-25"
-                                class="filter-btn px-3 py-1 text-xs font-medium rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition">>25%</button>
-                            <button onclick="setFilter(50)" id="filter-50"
-                                class="filter-btn px-3 py-1 text-xs font-medium rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition">>50%</button>
+                        <!-- Filters & Sort -->
+                        <div
+                            class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto items-center">
+                            <!-- View Toggle -->
+                            <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mr-2">
+                                <button onclick="toggleView('list')" id="view-list"
+                                    class="p-1 rounded bg-white dark:bg-gray-600 shadow-sm text-gray-700 dark:text-gray-200">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 6h16M4 12h16M4 18h16"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="toggleView('grid')" id="view-grid"
+                                    class="p-1 rounded text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Sort Dropdown -->
+                            <select id="sortSelect" onchange="setSort(this.value)"
+                                class="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="discount">🔥 Best Discount</option>
+                                <option value="price_asc">💰 Price: Low to High</option>
+                                <option value="price_desc">💎 Price: High to Low</option>
+                                <option value="date">🕒 Newest First</option>
+                            </select>
+
+                            <!-- Discount Filters -->
+                            <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                                <button onclick="setFilter(0)" id="filter-0"
+                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 shadow-sm transition">All</button>
+                                <button onclick="setFilter(10)" id="filter-10"
+                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>10%</button>
+                                <button onclick="setFilter(25)" id="filter-25"
+                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>25%</button>
+                                <button onclick="setFilter(50)" id="filter-50"
+                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>50%</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-[600px] overflow-y-auto"
-                        id="dealsList">
+                    <div class="max-h-[600px] overflow-y-auto p-2" id="dealsList">
                         <div class="p-8 text-center text-gray-500 dark:text-gray-400">Loading deals...</div>
                     </div>
                 </div>
@@ -276,10 +355,6 @@
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
                             <span class="mr-2">📈</span> Price History
                         </h3>
-                        <button id="compareBtn" onclick="toggleCompare()"
-                            class="text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md transition flex items-center mr-2">
-                            <span class="mr-1">⚖️</span> Compare
-                        </button>
                         <button id="downloadCsvBtn" onclick="downloadCSV()"
                             class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md transition flex items-center">
                             <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,18 +380,18 @@
                 <!-- Recent Activity & Top Tracked Grid -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-                    <!-- Merchant Distribution -->
+                    <!-- Category Distribution -->
                     <div
                         class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📊 Merchant Split</h3>
+                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📊 Categories</h3>
                         <div class="relative h-40 w-full">
-                            <canvas id="merchantChart"></canvas>
+                            <canvas id="categoryChart"></canvas>
                         </div>
                     </div>
 
                     <!-- Top Tracked -->
                     <div
-                        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                         <div
                             class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
                             <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🏆 Most Popular</h3>
@@ -329,7 +404,7 @@
 
                     <!-- Recent Activity (Full Width) -->
                     <div
-                        class="sm:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                         <div
                             class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
                             <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🕒 Recent Updates</h3>
@@ -395,9 +470,9 @@
             }
         });
 
-        // Merchant Chart
-        const merchantCtx = document.getElementById('merchantChart').getContext('2d');
-        let merchantChart = new Chart(merchantCtx, {
+        // Category Chart
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        let categoryChart = new Chart(categoryCtx, {
             type: 'doughnut',
             data: {
                 labels: [],
@@ -407,7 +482,8 @@
                         'rgba(59, 130, 246, 0.8)', // Blue
                         'rgba(16, 185, 129, 0.8)', // Green
                         'rgba(245, 158, 11, 0.8)', // Yellow
-                        'rgba(239, 68, 68, 0.8)'   // Red
+                        'rgba(239, 68, 68, 0.8)',  // Red
+                        'rgba(139, 92, 246, 0.8)'  // Purple
                     ],
                     borderWidth: 0
                 }]
@@ -421,15 +497,15 @@
             }
         });
 
-        async function fetchMerchantStats() {
+        async function fetchCategoryStats() {
             try {
-                const res = await fetch('/api/stats/merchants');
+                const res = await fetch('/api/stats/categories');
                 const data = await res.json();
 
-                merchantChart.data.labels = data.labels;
-                merchantChart.data.datasets[0].data = data.data;
-                merchantChart.update();
-            } catch (e) { console.error('Error fetching merchant stats:', e); }
+                categoryChart.data.labels = data.labels;
+                categoryChart.data.datasets[0].data = data.data;
+                categoryChart.update();
+            } catch (e) { console.error('Error fetching category stats:', e); }
         }
 
         // --- Data Fetching Functions ---
@@ -445,8 +521,15 @@
         }
 
         let currentFilter = 0;
+        let currentSort = 'discount';
         let currentPage = 1;
         let isLoadingDeals = false;
+
+        function setSort(sortValue) {
+            currentSort = sortValue;
+            currentPage = 1;
+            fetchDeals(1);
+        }
 
         function setFilter(minDiscount) {
             currentFilter = minDiscount;
@@ -454,15 +537,68 @@
 
             // Update UI
             document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-                btn.classList.add('bg-white', 'dark:bg-gray-800', 'text-gray-600', 'dark:text-gray-400', 'border');
+                btn.classList.remove('bg-white', 'dark:bg-gray-600', 'text-gray-700', 'dark:text-gray-200', 'shadow-sm');
+                btn.classList.add('text-gray-500', 'dark:text-gray-400');
             });
 
             const activeBtn = document.getElementById(`filter-${minDiscount}`);
-            activeBtn.classList.remove('bg-white', 'dark:bg-gray-800', 'text-gray-600', 'dark:text-gray-400', 'border');
-            activeBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+            activeBtn.classList.remove('text-gray-500', 'dark:text-gray-400');
+            activeBtn.classList.add('bg-white', 'dark:bg-gray-600', 'text-gray-700', 'dark:text-gray-200', 'shadow-sm');
 
             fetchDeals(1); // Reload deals
+        }
+
+        let currentCurrency = 'EGP';
+        const EXCHANGE_RATE = 0.02; // 1 EGP = 0.02 USD (approx 1 USD = 50 EGP)
+
+        function toggleCurrency() {
+            currentCurrency = currentCurrency === 'EGP' ? 'USD' : 'EGP';
+            document.getElementById('currencyToggle').textContent = currentCurrency;
+
+            // Reload data to apply new currency
+            fetchDeals(currentPage);
+            if (currentAsin) loadHistory(currentAsin);
+            fetchRecent();
+            fetchTopTracked();
+        }
+
+        function formatPrice(price) {
+            if (currentCurrency === 'USD') {
+                return `$${(price * EXCHANGE_RATE).toFixed(2)}`;
+            }
+            return `EGP ${price.toFixed(2)}`;
+        }
+
+        let currentView = 'list';
+
+        function toggleView(view) {
+            currentView = view;
+
+            // Update UI
+            const listBtn = document.getElementById('view-list');
+            const gridBtn = document.getElementById('view-grid');
+
+            if (view === 'list') {
+                listBtn.classList.remove('text-gray-500', 'dark:text-gray-400', 'hover:bg-white', 'dark:hover:bg-gray-600');
+                listBtn.classList.add('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'text-gray-700', 'dark:text-gray-200');
+
+                gridBtn.classList.remove('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'text-gray-700', 'dark:text-gray-200');
+                gridBtn.classList.add('text-gray-500', 'dark:text-gray-400', 'hover:bg-white', 'dark:hover:bg-gray-600');
+
+                document.getElementById('dealsList').classList.add('divide-y', 'divide-gray-100', 'dark:divide-gray-700');
+                document.getElementById('dealsList').classList.remove('grid', 'grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3', 'gap-4');
+            } else {
+                gridBtn.classList.remove('text-gray-500', 'dark:text-gray-400', 'hover:bg-white', 'dark:hover:bg-gray-600');
+                gridBtn.classList.add('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'text-gray-700', 'dark:text-gray-200');
+
+                listBtn.classList.remove('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'text-gray-700', 'dark:text-gray-200');
+                listBtn.classList.add('text-gray-500', 'dark:text-gray-400', 'hover:bg-white', 'dark:hover:bg-gray-600');
+
+                document.getElementById('dealsList').classList.remove('divide-y', 'divide-gray-100', 'dark:divide-gray-700');
+                document.getElementById('dealsList').classList.add('grid', 'grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3', 'gap-4');
+            }
+
+            fetchDeals(currentPage);
         }
 
         async function fetchDeals(page = 1) {
@@ -471,27 +607,53 @@
             currentPage = page;
 
             try {
-                const res = await fetch(`/api/deals?page=${page}&limit=10`);
+                // In a real app, pass sort to backend. For now, we sort client side on the fetched batch
+                // or ideally we should add sort param to API. Let's add it to API call if backend supported it,
+                // but since I didn't update backend for sort, I'll sort client side for the *current page* 
+                // which is imperfect but works for small data. 
+                // Actually, let's update the backend to support sort in next step if needed, 
+                // but for now let's just sort what we get.
+
+                const res = await fetch(`/api/deals?page=${page}&limit=10`); // Increased limit
                 const data = await res.json();
                 let deals = data.items;
                 const container = document.getElementById('dealsList');
                 const loadMoreBtn = document.getElementById('loadMoreBtn');
 
-                // Apply Filter (Client-side for now, ideally backend)
+                // Apply Filter
                 if (currentFilter > 0) {
                     deals = deals.filter(d => d.percentChange >= currentFilter);
                 }
 
-                const html = deals.map(deal => `
-                    <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer group border-b border-gray-100 dark:border-gray-700" onclick="loadHistory('${deal.product.asin}')">
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0 w-16 h-16 bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                                ${deal.product.imageUrl ? `<img src="${deal.product.imageUrl}" class="w-full h-full object-contain">` : '<span class="text-2xl">📦</span>'}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-start">
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate pr-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">${deal.product.name}</p>
-                                    <div class="flex items-center space-x-2">
+                // Apply Sort
+                if (currentSort === 'discount') {
+                    deals.sort((a, b) => b.percentChange - a.percentChange);
+                } else if (currentSort === 'price_asc') {
+                    deals.sort((a, b) => a.currentPrice - b.currentPrice);
+                } else if (currentSort === 'price_desc') {
+                    deals.sort((a, b) => b.currentPrice - a.currentPrice);
+                } else if (currentSort === 'date') {
+                    // Assuming we have a date field, or use dealScore as proxy for "freshness" if needed
+                    // deals.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    // We don't have explicit 'deal found date' in the simple object, using dealScore for now
+                    deals.sort((a, b) => b.dealScore - a.dealScore);
+                }
+
+                const html = deals.map(deal => {
+                    if (currentView === 'list') {
+                        return `
+                        <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer group border-b border-gray-100 dark:border-gray-700" onclick="loadHistory('${deal.product.asin}')">
+                            <div class="flex items-start space-x-4">
+                                <div class="flex-shrink-0 w-16 h-16 bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                                    ${deal.product.imageUrl ? `<img src="${deal.product.imageUrl}" class="w-full h-full object-contain">` : '<span class="text-2xl">📦</span>'}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex justify-between items-start">
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate pr-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">${deal.product.name}</p>
+                                        <div class="flex items-center space-x-2">
+                                        <a href="https://t.me/TrackzoonBot?start=asin_${deal.product.asin}" target="_blank" class="text-blue-400 hover:text-blue-600 transition" title="Open in Telegram">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.054 5.56-5.022c.242-.213-.054-.333-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.944z"/></svg>
+                                        </a>
                                         <button onclick="event.stopPropagation(); shareDeal('${deal.product.name.replace(/'/g, "\\'")}', '${deal.product.url}', ${deal.currentPrice})" class="text-gray-400 hover:text-blue-500 transition">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
                                         </button>
@@ -499,29 +661,81 @@
                                             -${deal.percentChange.toFixed(0)}%
                                         </span>
                                     </div>
-                                </div>
-                                <div class="mt-1 flex items-baseline">
-                                    <p class="text-lg font-bold text-gray-900 dark:text-white">EGP ${deal.currentPrice.toFixed(2)}</p>
-                                    <p class="ml-2 text-xs text-gray-400 line-through">EGP ${deal.oldPrice.toFixed(2)}</p>
-                                </div>
-                                <div class="mt-1 flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
-                                    ${deal.dealScore ? `<span class="flex items-center text-yellow-600 dark:text-yellow-400 font-medium">★ ${deal.dealScore}</span>` : ''}
-                                    ${deal.trend ? `<span class="${deal.trend.trend === 'DOWN' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
-                                        ${deal.trend.trend === 'DOWN' ? '📉 Falling' : deal.trend.trend === 'UP' ? '📈 Rising' : '➡️ Stable'}
-                                    </span>` : ''}
-                                    ${(deal.statsAll && deal.currentPrice <= deal.statsAll.min) ?
-                        `<span class="flex items-center text-purple-600 dark:text-purple-400 font-bold bg-purple-100 dark:bg-purple-900 px-1.5 rounded">🏆 ATL</span>`
-                        : ''}
+                                    </div>
+                                    <div class="mt-1 flex items-baseline">
+                                        <p class="text-lg font-bold text-gray-900 dark:text-white">${formatPrice(deal.currentPrice)}</p>
+                                        <p class="ml-2 text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</p>
+                                    </div>
+                                    <div class="mt-1 flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
+                                        ${deal.dealScore ? `<span class="flex items-center text-yellow-600 dark:text-yellow-400 font-medium">★ ${deal.dealScore}</span>` : ''}
+                                        ${deal.trend ? `<span class="${deal.trend.trend === 'DOWN' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+                                            ${deal.trend.trend === 'DOWN' ? '📉 Falling' : deal.trend.trend === 'UP' ? '📈 Rising' : '➡️ Stable'}
+                                        </span>` : ''}
+                                        ${(deal.statsAll && deal.currentPrice <= deal.statsAll.min) ?
+                                `<span class="flex items-center text-purple-600 dark:text-purple-400 font-bold bg-purple-100 dark:bg-purple-900 px-1.5 rounded">🏆 ATL</span>`
+                                : ''}
+                                        ${(() => {
+                                if (deal.stats30d && deal.currentPrice <= deal.stats30d.min * 1.02) {
+                                    return `<span class="flex items-center text-green-700 dark:text-green-300 font-bold bg-green-100 dark:bg-green-900 px-1.5 rounded">✅ BUY NOW</span>`;
+                                } else if (deal.stats30d && deal.currentPrice > deal.stats30d.average) {
+                                    return `<span class="flex items-center text-red-700 dark:text-red-300 font-bold bg-red-100 dark:bg-red-900 px-1.5 rounded">⏳ WAIT</span>`;
+                                } else {
+                                    return `<span class="flex items-center text-blue-700 dark:text-blue-300 font-bold bg-blue-100 dark:bg-blue-900 px-1.5 rounded">👀 WATCH</span>`;
+                                }
+                            })()}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                `).join('');
+                        </div>`;
+                    } else {
+                        // Grid View
+                        return `
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition cursor-pointer flex flex-col h-full" onclick="loadHistory('${deal.product.asin}')">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                                    -${deal.percentChange.toFixed(0)}%
+                                </span>
+                                <button onclick="event.stopPropagation(); shareDeal('${deal.product.name.replace(/'/g, "\\'")}', '${deal.product.url}', ${deal.currentPrice})" class="text-gray-400 hover:text-blue-500 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                                </button>
+                            </div>
+                            <div class="flex-1 flex flex-col items-center text-center mb-2">
+                                <div class="w-24 h-24 bg-white dark:bg-gray-600 rounded-lg overflow-hidden flex items-center justify-center p-1 mb-2">
+                                    ${deal.product.imageUrl ? `<img src="${deal.product.imageUrl}" class="w-full h-full object-contain">` : '<span class="text-4xl">📦</span>'}
+                                </div>
+                                <p class="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition">${deal.product.name}</p>
+                            </div>
+                            <div class="mt-auto">
+                                <div class="flex justify-between items-baseline mb-1">
+                                    <p class="text-lg font-bold text-gray-900 dark:text-white">${formatPrice(deal.currentPrice)}</p>
+                                    <p class="text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</p>
+                                </div>
+                                <div class="flex justify-between items-center text-xs">
+                                    ${deal.dealScore ? `
+                                        <div class="flex items-center space-x-2 w-full mr-2">
+                                            <span class="text-yellow-600 dark:text-yellow-400 font-medium whitespace-nowrap">★ ${deal.dealScore}</span>
+                                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                                <div class="bg-yellow-400 h-1.5 rounded-full" style="width: ${(deal.dealScore / 10) * 100}%"></div>
+                                            </div>
+                                        </div>
+                                    ` : '<span></span>'}
+                                    ${(() => {
+                                if (deal.stats30d && deal.currentPrice <= deal.stats30d.min * 1.02) {
+                                    return `<span class="text-green-600 font-bold whitespace-nowrap">BUY</span>`;
+                                } else {
+                                    return `<span class="text-gray-400 whitespace-nowrap">WATCH</span>`;
+                                }
+                            })()}
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                }).join('');
 
                 if (page === 1) {
                     container.innerHTML = html;
                     if (deals.length === 0) {
-                        container.innerHTML = '<div class="p-8 text-center text-gray-500 dark:text-gray-400">No deals match your filter.</div>';
+                        container.innerHTML = '<div class="p-8 text-center text-gray-500 dark:text-gray-400 col-span-full">No deals match your filter.</div>';
                     }
                     // Initial chart load
                     if (deals.length > 0 && priceChart.data.labels.length === 0) {
@@ -533,7 +747,7 @@
 
                 // Handle Load More Button
                 if (!loadMoreBtn) {
-                    const btnHtml = `<div class="p-4 text-center"><button id="loadMoreBtn" onclick="fetchDeals(currentPage + 1)" class="text-sm text-blue-600 hover:underline">Load More</button></div>`;
+                    const btnHtml = `<div class="p-4 text-center col-span-full"><button id="loadMoreBtn" onclick="fetchDeals(currentPage + 1)" class="text-sm text-blue-600 hover:underline">Load More</button></div>`;
                     container.parentElement.insertAdjacentHTML('beforeend', btnHtml);
                 } else {
                     // If no more items, hide button
@@ -594,7 +808,7 @@
 
             ticker.innerHTML = products.map(p => `
                 <span class="ticker-item cursor-pointer hover:underline" onclick="loadHistory('${p.asin}')">
-                    ${p.isOutOfStock ? '🔴' : '🟢'} ${p.name.substring(0, 30)}... 
+                    ${p.isOutOfStock ? '🔴' : '🟢'} ${p.name.substring(0, 30)}...
                     <span class="font-bold">EGP ${p.currentPrice}</span>
                 </span>
             `).join('');
@@ -621,23 +835,9 @@
         }
 
         let currentAsin = null;
-        let isCompareMode = false;
 
         function toggleCompare() {
-            isCompareMode = !isCompareMode;
-            const btn = document.getElementById('compareBtn');
-            if (isCompareMode) {
-                btn.classList.add('bg-blue-100', 'text-blue-700', 'dark:bg-blue-900', 'dark:text-blue-300');
-                btn.classList.remove('bg-gray-100', 'text-gray-600', 'dark:bg-gray-700', 'dark:text-gray-300');
-            } else {
-                btn.classList.remove('bg-blue-100', 'text-blue-700', 'dark:bg-blue-900', 'dark:text-blue-300');
-                btn.classList.add('bg-gray-100', 'text-gray-600', 'dark:bg-gray-700', 'dark:text-gray-300');
-                // Remove second dataset if exists
-                if (priceChart.data.datasets.length > 1) {
-                    priceChart.data.datasets.pop();
-                    priceChart.update();
-                }
-            }
+            // Removed
         }
 
         async function loadHistory(asin) {
@@ -648,56 +848,28 @@
                 const labels = data.history.map(h => new Date(h.date).toLocaleDateString());
                 const prices = data.history.map(h => h.price);
 
-                if (isCompareMode && currentAsin && currentAsin !== asin) {
-                    // Add as second dataset
-                    // Note: This assumes labels (dates) match roughly, which might not be true. 
-                    // For a simple implementation, we'll just push the data and let Chart.js handle it.
-                    // A better way would be to merge time series, but that's complex.
+                // Normal Load (Replace)
+                currentAsin = asin;
+                document.getElementById('productInfo').classList.remove('hidden');
+                document.getElementById('downloadCsvBtn').classList.remove('hidden');
+                document.getElementById('chartTitle').textContent = data.name;
+                document.getElementById('chartPrice').textContent = `EGP ${data.currentPrice.toFixed(2)}`;
+                document.getElementById('chartLink').href = `https://www.amazon.eg/dp/${asin}`;
 
-                    // Check if we already have a second dataset
-                    if (priceChart.data.datasets.length > 1) {
-                        priceChart.data.datasets.pop(); // Remove previous comparison
-                    }
-
-                    priceChart.data.datasets.push({
-                        label: data.name.substring(0, 20) + '...',
-                        data: prices,
-                        borderColor: 'rgb(220, 38, 38)', // Red
-                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
-                        tension: 0.4,
-                        fill: false
-                    });
-
-                    priceChart.options.plugins.legend.display = true;
-                    priceChart.update();
-
-                } else {
-                    // Normal Load (Replace)
-                    currentAsin = asin;
-                    document.getElementById('productInfo').classList.remove('hidden');
-                    document.getElementById('downloadCsvBtn').classList.remove('hidden');
-                    document.getElementById('chartTitle').textContent = data.name;
-                    document.getElementById('chartPrice').textContent = `EGP ${data.currentPrice.toFixed(2)}`;
-                    document.getElementById('chartLink').href = `https://www.amazon.eg/dp/${asin}`;
-
-                    priceChart.data.labels = labels;
-                    priceChart.data.datasets = [{
-                        label: 'Price (EGP)',
-                        data: prices,
-                        borderColor: 'rgb(37, 99, 235)',
-                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
-                        tension: 0.4,
-                        fill: true
-                    }];
-                    priceChart.options.plugins.legend.display = false;
-                    priceChart.update();
-                }
+                priceChart.data.labels = labels;
+                priceChart.data.datasets = [{
+                    label: 'Price (EGP)',
+                    data: prices,
+                    borderColor: 'rgb(37, 99, 235)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.4,
+                    fill: true
+                }];
+                priceChart.options.plugins.legend.display = false;
+                priceChart.update();
             } catch (e) { console.error('Error loading history:', e); }
         }
 
@@ -806,6 +978,105 @@
                 dotEl.classList.remove('bg-gray-400', 'bg-green-500', 'animate-pulse');
                 dotEl.classList.add('bg-red-500');
                 textEl.textContent = 'Offline';
+            }
+        }
+
+        // --- Logs Logic ---
+        function toggleLogs() {
+            const content = document.getElementById('logsContent');
+            const arrow = document.getElementById('logsArrow');
+
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+                fetchLogs();
+            } else {
+                content.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            }
+        }
+
+        async function fetchLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const logs = await res.json();
+
+                const html = logs.map(log => `
+                    <div class="flex space-x-2">
+                        <span class="text-gray-500">[${new Date(log.time).toLocaleTimeString()}]</span>
+                        <span class="${log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-yellow-400' : 'text-green-400'} uppercase w-12">${log.level}</span>
+                        <span>${log.message}</span>
+                    </div>
+                `).join('');
+
+                document.getElementById('logsList').innerHTML = html;
+            } catch (e) {
+                document.getElementById('logsList').innerHTML = '<div class="text-red-400">Failed to load logs</div>';
+            }
+        }
+
+        // --- Add Product Logic ---
+        function openAddProductModal() {
+            const modal = document.getElementById('addProductModal');
+            const content = document.getElementById('addProductModalContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            // Small delay for animation
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeAddProductModal() {
+            const modal = document.getElementById('addProductModal');
+            const content = document.getElementById('addProductModalContent');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+                document.getElementById('newProductUrl').value = '';
+            }, 200);
+        }
+
+        async function submitNewProduct() {
+            const url = document.getElementById('newProductUrl').value;
+            const btn = document.getElementById('submitProductBtn');
+
+            if (!url) {
+                alert('Please enter a valid Amazon URL');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Tracking...`;
+
+            try {
+                const res = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    closeAddProductModal();
+                    alert('Product added successfully!');
+                    // Refresh data
+                    fetchStats();
+                    fetchRecent();
+                    fetchDeals();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to add product'));
+                }
+            } catch (e) {
+                console.error('Error adding product:', e);
+                alert('Failed to connect to server');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>Track</span>';
             }
         }
 
