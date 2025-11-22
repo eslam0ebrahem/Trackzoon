@@ -318,7 +318,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm h-64 overflow-y-auto" id="logsContainer">
+                <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm h-64 overflow-y-auto" id="logsList">
                     <!-- Logs will be injected here -->
                     <div class="text-gray-500 text-center py-8">Loading logs...</div>
                 </div>
@@ -488,6 +488,32 @@
                                     placeholder="0.00">
                                 <button onclick="saveTargetPrice()"
                                     class="bg-blue-600 text-white px-2 py-1 rounded text-xs">Set</button>
+                            </div>
+                        </div>
+
+                        <!-- Analytics Widgets -->
+                        <div class="grid grid-cols-2 gap-4 mt-4">
+                            <!-- Volatility Widget -->
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Volatility</p>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span id="volatilityLabel"
+                                        class="text-sm font-bold text-gray-700 dark:text-gray-200">-</span>
+                                    <span id="volatilityScore" class="text-xs text-gray-500">-</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                                    <div id="volatilityBar" class="bg-blue-500 h-1.5 rounded-full" style="width: 0%">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Best Day Widget -->
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Best Day to Buy</p>
+                                <div class="flex items-center justify-between">
+                                    <span id="bestDayLabel"
+                                        class="text-sm font-bold text-green-600 dark:text-green-400">-</span>
+                                    <span id="bestDayPrice" class="text-xs text-gray-500">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>

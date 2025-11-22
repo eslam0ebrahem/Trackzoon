@@ -2,7 +2,6 @@ const CACHE_NAME = 'trackzoon-v1';
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/style.css',
     '/js/app.js',
     '/js/api.js',
     '/js/ui.js',
