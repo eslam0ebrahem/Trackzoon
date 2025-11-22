@@ -116,6 +116,13 @@ export const UI = {
 
     renderRecent(products) {
         const container = document.getElementById('recentActivity');
+        if (!products || products.length === 0) {
+            container.innerHTML = `
+                <div class="p-8 text-center">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No recent activity</p>
+                </div>`;
+            return;
+        }
         container.innerHTML = products.map(p => `
             <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer flex items-center justify-between" onclick="window.loadHistory('${p.asin}')">
                 <div class="flex items-center min-w-0">
@@ -132,6 +139,13 @@ export const UI = {
 
     renderTopTracked(products) {
         const container = document.getElementById('topTracked');
+        if (!products || products.length === 0) {
+            container.innerHTML = `
+                <div class="p-8 text-center">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No tracked items yet</p>
+                </div>`;
+            return;
+        }
         container.innerHTML = products.map((p, i) => `
             <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer flex items-center justify-between" onclick="window.loadHistory('${p.asin}')">
                 <div class="flex items-center min-w-0">
@@ -199,6 +213,7 @@ export const UI = {
     showProductHistory(data, asin, analytics = {}) {
         STATE.currentAsin = asin;
         document.getElementById('productInfo').classList.remove('hidden');
+        document.getElementById('chartPlaceholder').classList.add('hidden'); // Hide placeholder
         document.getElementById('downloadCsvBtn').classList.remove('hidden');
         document.getElementById('chartTitle').textContent = data.name;
         document.getElementById('chartPrice').textContent = `EGP ${data.currentPrice.toFixed(2)}`;
