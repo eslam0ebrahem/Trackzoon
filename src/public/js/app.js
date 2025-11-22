@@ -166,8 +166,8 @@ document.addEventListener('keydown', (e) => {
 window.saveCurrentView = () => {
     const view = {
         sort: document.getElementById('sortSelect').value,
-        filter: document.getElementById('filterSelect').value,
-        viewMode: document.getElementById('view-grid').classList.contains('bg-white') ? 'grid' : 'list'
+        filter: STATE.currentFilter, // Use state instead of DOM
+        viewMode: STATE.currentView // Use state
     };
     localStorage.setItem('trackzoon_saved_view', JSON.stringify(view));
     alert('View settings saved!');
@@ -177,10 +177,23 @@ window.loadSavedView = () => {
     const saved = localStorage.getItem('trackzoon_saved_view');
     if (saved) {
         const view = JSON.parse(saved);
-        document.getElementById('sortSelect').value = view.sort;
-        document.getElementById('filterSelect').value = view.filter;
-        toggleView(view.viewMode);
-        init(); // Refresh with new settings
+        if (view.sort) {
+            document.getElementById('sortSelect').value = view.sort;
+            STATE.currentSort = view.sort;
+        }
+        if (view.filter !== undefined) {
+            setFilter(view.filter);
+        }
+        if (view.viewMode) {
+            toggleView(view.viewMode);
+        }
+        // init() will be called after this in the main flow, so we don't need to call it here if called from init
+        // But if called manually, we might want to refresh. 
+        // The original code called init(), but loadSavedView is called INSIDE init().
+        // Calling init() here would cause infinite recursion if not careful, 
+        // but since it's just setting state, it should be fine as long as we don't re-trigger loadSavedView.
+        // Actually, init() calls loadSavedView() first.
+        // So we should NOT call init() here.
     }
 };
 
