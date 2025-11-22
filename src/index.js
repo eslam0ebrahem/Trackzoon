@@ -70,13 +70,13 @@ bot.telegram.setMyCommands([
   console.error('Failed to set bot commands:', error);
 });
 
+// Start Web Dashboard immediately to satisfy Railway health check
+startServer();
+
 // Launch the bot
 logger.info('Launching Trackzoon bot...');
 bot.launch().then(() => {
   logger.info('Bot successfully launched!');
-
-  // Start Web Dashboard
-  startServer();
 
 }).catch(error => {
   logger.error('Failed to launch bot:', error);
