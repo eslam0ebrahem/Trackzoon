@@ -267,7 +267,7 @@ async function init() {
 async function refreshData() {
     await Promise.all([
         fetchRecent(),
-        fetchLogs(),
+        window.fetchLogs(),
         fetchStats()
     ]);
     if (STATE.currentPage === 1) {
