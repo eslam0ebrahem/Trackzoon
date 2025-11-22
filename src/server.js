@@ -3,6 +3,10 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+import systemRoutes from './routes/systemRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import exportRoutes from './routes/exportRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +20,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Use Dashboard Routes
 app.use('/api', dashboardRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/system', systemRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/export', exportRoutes);
 
 export const startServer = () => {
     app.listen(PORT, () => {

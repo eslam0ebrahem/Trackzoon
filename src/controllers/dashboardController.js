@@ -209,18 +209,117 @@ export const exportData = async (req, res) => {
 export const getLogs = (req, res) => {
     // In a real app, read from a log file.
     // Here we'll return simulated recent logs or capture console output if we hooked it.
-    // For simplicity, let's return a static list of "recent events" based on server uptime.
 
-    const events = [
+    const { level, search } = req.query;
+
+    let events = [
         { level: 'info', message: 'Server started successfully', time: new Date(Date.now() - 1000000).toISOString() },
         { level: 'info', message: 'Connected to MongoDB', time: new Date(Date.now() - 990000).toISOString() },
         { level: 'info', message: 'Scheduler initialized', time: new Date(Date.now() - 980000).toISOString() },
         { level: 'info', message: 'Price check cycle started', time: new Date(Date.now() - 500000).toISOString() },
         { level: 'info', message: 'Checked 150 products', time: new Date(Date.now() - 400000).toISOString() },
         { level: 'warn', message: 'Rate limit warning from Amazon (simulated)', time: new Date(Date.now() - 300000).toISOString() },
+        { level: 'error', message: 'Failed to scrape product B08XYZ123', time: new Date(Date.now() - 250000).toISOString() },
         { level: 'info', message: 'Price check cycle completed', time: new Date(Date.now() - 200000).toISOString() },
         { level: 'info', message: 'New deal found: Samsung Monitor', time: new Date(Date.now() - 100000).toISOString() }
     ];
 
+    // Filter by level
+    if (level && level !== 'all') {
+        events = events.filter(e => e.level === level);
+    }
+
+    // Filter by search query
+    if (search) {
+        const q = search.toLowerCase();
+        events = events.filter(e => e.message.toLowerCase().includes(q));
+    }
+
     res.json(events.reverse());
+};
+
+// Feature 5: Bulk Import
+export const bulkImportProducts = async (req, res) => {
+    try {
+        const { urls } = req.body; // Expect array of URLs
+        if (!urls || !Array.isArray(urls)) {
+            return res.status(400).json({ error: 'Invalid input. Expected array of "urls".' });
+        }
+
+        const results = {
+            success: 0,
+            failed: 0,
+            errors: []
+        };
+
+        // Process in chunks to avoid overwhelming
+        for (const url of urls) {
+            try {
+                await ProductService.addProduct(url, '999999'); // Dashboard User ID
+                results.success++;
+            } catch (e) {
+                results.failed++;
+                results.errors.push({ url, error: e.message });
+            }
+        }
+
+        res.json(results);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Feature 6: Update Tags
+export const updateTags = async (req, res) => {
+    try {
+        const { asin } = req.params;
+        const { tags } = req.body; // Array of strings
+
+        const product = await Product.findOneAndUpdate(
+            { asin },
+            { $set: { tags } },
+            { new: true }
+        );
+
+        res.json(product);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Feature 7: Update Target Price
+export const updateTargetPrice = async (req, res) => {
+    try {
+        const { asin } = req.params;
+        const { targetPrice } = req.body;
+
+        // Update global threshold
+        const product = await Product.findOneAndUpdate(
+            { asin },
+            { $set: { thresholdPrice: targetPrice } },
+            { new: true }
+        );
+
+        res.json(product);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Feature 8: Archive Product
+export const archiveProduct = async (req, res) => {
+    try {
+        const { asin } = req.params;
+        const { isArchived } = req.body;
+
+        const product = await Product.findOneAndUpdate(
+            { asin },
+            { $set: { isArchived } },
+            { new: true }
+        );
+
+        res.json(product);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };

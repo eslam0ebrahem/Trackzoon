@@ -16,18 +16,192 @@ window.openAddProductModal = UI.openAddProductModal;
 window.closeAddProductModal = UI.closeAddProductModal;
 window.submitNewProduct = submitNewProduct;
 window.downloadCSV = downloadCSV;
+// Management Functions
+window.openImportModal = () => document.getElementById('importModal').classList.remove('hidden');
+window.closeImportModal = () => document.getElementById('importModal').classList.add('hidden');
 
+window.submitImport = async () => {
+    const btn = document.querySelector('#importModal button:last-child');
+    const originalText = btn.innerHTML;
+    const urls = document.getElementById('importUrls').value.split('\n').map(u => u.trim()).filter(u => u);
+
+    if (urls.length === 0) return alert('Please enter at least one URL');
+
+    btn.innerHTML = 'Importing...';
+    btn.disabled = true;
+
+    try {
+        const res = await API.bulkImport(urls);
+        alert(`Imported: ${res.success}, Failed: ${res.failed}`);
+        window.closeImportModal();
+        document.getElementById('importUrls').value = '';
+        init(); // Refresh
+    } catch (e) {
+        alert('Error importing products');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
+
+window.saveTags = async () => {
+    const tags = document.getElementById('productTags').value.split(',').map(t => t.trim()).filter(t => t);
+    try {
+        await API.updateTags(STATE.currentAsin, tags);
+        alert('Tags updated!');
+    } catch (e) { alert('Error updating tags'); }
+};
+
+window.saveTargetPrice = async () => {
+    const price = parseFloat(document.getElementById('productTargetPrice').value);
+    if (isNaN(price)) return alert('Invalid price');
+    try {
+        await API.updateTargetPrice(STATE.currentAsin, price);
+        alert('Target price updated!');
+    } catch (e) { alert('Error updating target price'); }
+};
+
+window.toggleArchive = async () => {
+    const btn = document.getElementById('archiveBtn');
+    const isArchived = btn.textContent.trim() === 'Unarchive';
+    try {
+        await API.archiveProduct(STATE.currentAsin, !isArchived);
+        btn.textContent = !isArchived ? 'Unarchive' : 'Archive';
+        btn.className = !isArchived
+            ? 'bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg font-medium transition-colors'
+            : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-medium transition-colors';
+        alert(!isArchived ? 'Product archived' : 'Product unarchived');
+    } catch (e) { alert('Error updating archive status'); }
+};
+
+window.toggleSystemDashboard = async () => {
+    const dashboard = document.getElementById('systemDashboard');
+    const isHidden = dashboard.classList.contains('hidden');
+
+    if (isHidden) {
+        dashboard.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        await updateSystemStats();
+    } else {
+        dashboard.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+};
+
+async function updateSystemStats() {
+    try {
+        const [health, dbStats] = await Promise.all([
+            API.getSystemHealth(),
+            API.getDbStats()
+        ]);
+
+        // Update Server Health
+        document.getElementById('sysUptime').textContent = `${(health.uptime / 3600).toFixed(1)} hrs`;
+        document.getElementById('sysMemory').textContent = `${health.memory.heapUsed} MB`;
+
+        // Update DB Stats
+        document.getElementById('dbSize').textContent = dbStats.storageSize;
+        document.getElementById('dbProducts').textContent = dbStats.collections.products;
+        document.getElementById('dbMetrics').textContent = dbStats.collections.metrics;
+
+        // Update Scraper Stats
+        if (health.scraper) {
+            document.getElementById('scrapeSuccess').textContent = health.scraper.succeeded;
+            document.getElementById('scrapeFailed').textContent = health.scraper.failed;
+            document.getElementById('scrapeUnchanged').textContent = health.scraper.unchanged;
+        }
+    } catch (e) { console.error('Error updating system stats:', e); }
+}
+
+// Settings Functions
+window.openSettingsModal = async () => {
+    document.getElementById('settingsModal').classList.remove('hidden');
+    try {
+        const settings = await API.getSettings();
+        document.getElementById('webhookUrl').value = settings.webhookUrl || '';
+        document.getElementById('apiKey').value = settings.apiKey || '';
+    } catch (e) { console.error('Error loading settings:', e); }
+};
+
+window.closeSettingsModal = () => document.getElementById('settingsModal').classList.add('hidden');
+
+window.saveSettings = async () => {
+    const webhookUrl = document.getElementById('webhookUrl').value;
+    try {
+        await API.updateSettings(webhookUrl);
+        alert('Settings saved!');
+        window.closeSettingsModal();
+    } catch (e) { alert('Error saving settings'); }
+};
+
+window.generateApiKey = async () => {
+    if (!confirm('Generate new API Key? This will invalidate the old one.')) return;
+    try {
+        const res = await API.generateApiKey();
+        document.getElementById('apiKey').value = res.apiKey;
+    } catch (e) { alert('Error generating API Key'); }
+};
+
+// Feature 16: Keyboard Shortcuts
+document.addEventListener('keydown', (e) => {
+    // '/' to focus search
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        document.getElementById('searchInput').focus();
+    }
+    // 'Esc' to close modals
+    if (e.key === 'Escape') {
+        UI.closeAddProductModal();
+        window.closeImportModal();
+        window.toggleSystemDashboard(); // Close if open
+    }
+    // 'n' to open Add Product (if not typing)
+    if (e.key === 'n' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        UI.openAddProductModal();
+    }
+});
+
+// Feature 14: Saved Filters
+window.saveCurrentView = () => {
+    const view = {
+        sort: document.getElementById('sortSelect').value,
+        filter: document.getElementById('filterSelect').value,
+        viewMode: document.getElementById('view-grid').classList.contains('bg-white') ? 'grid' : 'list'
+    };
+    localStorage.setItem('trackzoon_saved_view', JSON.stringify(view));
+    alert('View settings saved!');
+};
+
+window.loadSavedView = () => {
+    const saved = localStorage.getItem('trackzoon_saved_view');
+    if (saved) {
+        const view = JSON.parse(saved);
+        document.getElementById('sortSelect').value = view.sort;
+        document.getElementById('filterSelect').value = view.filter;
+        toggleView(view.viewMode);
+        init(); // Refresh with new settings
+    }
+};
+
+// Initialize
 async function init() {
     initCharts();
+    loadSavedView(); // Load saved view on startup
+
     await Promise.all([
-        fetchStats(),
         fetchDeals(),
         fetchRecent(),
         fetchTopTracked(),
-        fetchHealth(),
         fetchCategoryStats(),
-        fetchMerchantStats() // Assuming this exists or remove if not
+        fetchLogs() // Initial logs fetch
     ]);
+
+    // Refresh every 30s
+    setInterval(() => {
+        fetchRecent();
+        fetchLogs();
+    }, 30000);
 
     // Theme Toggle
     const themeToggle = document.getElementById('themeToggle');
@@ -180,8 +354,15 @@ async function fetchHealth() {
 
 async function loadHistory(asin) {
     try {
-        const data = await API.getHistory(asin);
-        UI.showProductHistory(data, asin);
+        const [historyData, forecast, volatility, bestDay, stockHistory] = await Promise.all([
+            API.getHistory(asin),
+            API.getForecast(asin),
+            API.getVolatility(asin),
+            API.getBestDay(asin),
+            API.getStockHistory(asin)
+        ]);
+
+        UI.showProductHistory(historyData, asin, { forecast, volatility, bestDay, stockHistory });
     } catch (e) { console.error('Error loading history:', e); }
 }
 

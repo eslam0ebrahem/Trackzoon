@@ -196,7 +196,7 @@ export const UI = {
         textEl.textContent = 'Offline';
     },
 
-    showProductHistory(data, asin) {
+    showProductHistory(data, asin, analytics = {}) {
         STATE.currentAsin = asin;
         document.getElementById('productInfo').classList.remove('hidden');
         document.getElementById('downloadCsvBtn').classList.remove('hidden');
@@ -204,9 +204,102 @@ export const UI = {
         document.getElementById('chartPrice').textContent = `EGP ${data.currentPrice.toFixed(2)}`;
         document.getElementById('chartLink').href = `https://www.amazon.eg/dp/${asin}`;
 
+        // Populate Management Fields
+        document.getElementById('productTags').value = data.tags ? data.tags.join(', ') : '';
+        document.getElementById('productTargetPrice').value = data.thresholdPrice || '';
+
+        const archiveBtn = document.getElementById('archiveBtn');
+        if (data.isArchived) {
+            archiveBtn.textContent = 'Unarchive';
+            archiveBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg font-medium transition-colors';
+        } else {
+            archiveBtn.textContent = 'Archive';
+            archiveBtn.className = 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-medium transition-colors';
+        }
+
+        // Render Analytics
+        if (analytics.volatility) {
+            document.getElementById('volatilityLabel').textContent = analytics.volatility.label;
+            document.getElementById('volatilityScore').textContent = analytics.volatility.score;
+            document.getElementById('volatilityBar').style.width = `${analytics.volatility.score * 10}%`;
+        }
+
+        if (analytics.bestDay) {
+            document.getElementById('bestDayLabel').textContent = analytics.bestDay.dayName;
+            document.getElementById('bestDayPrice').textContent = formatPrice(analytics.bestDay.averagePrice);
+        } else {
+            document.getElementById('bestDayLabel').textContent = 'N/A';
+            document.getElementById('bestDayPrice').textContent = '-';
+        }
+
+        if (analytics.forecast) {
+            const trendEl = document.getElementById('forecastTrend');
+            trendEl.textContent = analytics.forecast.trend === 'UP' ? '📈 Rising' : analytics.forecast.trend === 'DOWN' ? '📉 Falling' : '➡️ Stable';
+            trendEl.className = `text-sm font-medium ${analytics.forecast.trend === 'DOWN' ? 'text-green-600' : analytics.forecast.trend === 'UP' ? 'text-red-600' : 'text-gray-600'}`;
+            document.getElementById('forecastConfidence').textContent = `Conf: ${(analytics.forecast.confidence * 100).toFixed(0)}%`;
+        }
+
+        // Render Stock History
+        const stockBar = document.getElementById('stockHistoryBar');
+        if (analytics.stockHistory && analytics.stockHistory.length > 0) {
+            stockBar.innerHTML = '';
+            // Simple visualization: assume history covers last 30 days or so
+            // We'll just show segments based on time duration
+            // This is a bit complex to do perfectly without start/end times for every segment
+            // For now, let's just show the last 10 status changes as equal blocks or something simple
+            // Better: Use the dates to calculate width percentages relative to "now"
+
+            const now = new Date().getTime();
+            const firstDate = new Date(analytics.stockHistory[0].date).getTime();
+            const totalDuration = now - firstDate;
+
+            if (totalDuration > 0) {
+                let lastTime = firstDate;
+                let lastStatus = analytics.stockHistory[0].status;
+
+                // Iterate through history to build segments
+                // We need to handle the time *between* events
+                // Event 1 (In Stock) at T1 -> Event 2 (Out of Stock) at T2
+                // Segment T1-T2 was "In Stock" (assuming status persists until change)
+
+                // Add current time as final point
+                const events = [...analytics.stockHistory, { date: new Date(), status: 'now' }];
+
+                for (let i = 0; i < events.length - 1; i++) {
+                    const currentEvent = events[i];
+                    const nextEvent = events[i + 1];
+                    const duration = new Date(nextEvent.date).getTime() - new Date(currentEvent.date).getTime();
+                    const percent = (duration / totalDuration) * 100;
+
+                    if (percent < 0.5) continue; // Skip tiny segments
+
+                    const colorClass = currentEvent.status === 'in_stock' ? 'bg-green-500' : 'bg-red-500';
+                    const segment = document.createElement('div');
+                    segment.className = `${colorClass} h-full`;
+                    segment.style.width = `${percent}%`;
+                    segment.title = `${currentEvent.status === 'in_stock' ? 'In Stock' : 'Out of Stock'} (${new Date(currentEvent.date).toLocaleDateString()})`;
+                    stockBar.appendChild(segment);
+                }
+            } else {
+                stockBar.innerHTML = `<div class="w-full h-full ${analytics.stockHistory[0].status === 'in_stock' ? 'bg-green-500' : 'bg-red-500'}"></div>`;
+            }
+        } else {
+            stockBar.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs text-gray-500">No stock history available</div>';
+        }
+
         const labels = data.history.map(h => new Date(h.date).toLocaleDateString());
         const prices = data.history.map(h => h.price);
-        updatePriceChart(labels, prices);
+
+        // Prepare forecast data for chart
+        const forecastPoints = analytics.forecast ? analytics.forecast.forecast.map(f => f.price) : [];
+        // Add forecast labels
+        if (analytics.forecast && analytics.forecast.forecast.length > 0) {
+            analytics.forecast.forecast.forEach(f => {
+                labels.push(new Date(f.date).toLocaleDateString());
+            });
+        }
+
+        updatePriceChart(labels, prices, forecastPoints);
     },
 
     toggleLogs() {

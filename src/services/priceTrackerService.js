@@ -1,9 +1,11 @@
 import Product from '../models/Product.js';
 import User from '../models/User.js';
+import SystemMetric from '../models/SystemMetric.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { buildPriceAlertMessage } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
+import { sendWebhook } from './webhookService.js';
 import pLimit from 'p-limit';
 import { updateProductRating } from './ratingScraper.js';
 
@@ -74,6 +76,13 @@ export class PriceTrackerService {
             };
           }
 
+          // Add to stock history (Back in Stock)
+          if (!updateOps.$push) updateOps.$push = {};
+          updateOps.$push.stockHistory = {
+            status: 'in_stock',
+            date: new Date()
+          };
+
           const updatedProduct = await Product.findOneAndUpdate(
             { asin: asin },
             updateOps,
@@ -137,6 +146,12 @@ export class PriceTrackerService {
                   isOutOfStock: true,
                   outOfStockSince: new Date(),
                   lastChecked: new Date()
+                },
+                $push: {
+                  stockHistory: {
+                    status: 'out_of_stock',
+                    date: new Date()
+                  }
                 }
               }
             );
@@ -362,6 +377,20 @@ export class PriceTrackerService {
           disable_web_page_preview: false
         });
       }
+      // Trigger Webhook if configured
+      if (tracker.webhookUrl) {
+        await sendWebhook(tracker.webhookUrl, 'price_alert', {
+          product: {
+            name: product.name,
+            url: product.url,
+            asin: product.asin,
+            imageUrl: product.imageUrl
+          },
+          oldPrice,
+          newPrice,
+          threshold: tracker.thresholdPrice
+        });
+      }
     } catch (error) {
       logger.error(`Error notifying user ${chatId} about product ${product.asin}:`, error);
       // Don't throw - continue processing other notifications
@@ -427,6 +456,22 @@ export class PriceTrackerService {
     this.updateSomeRatings().catch(err =>
       logger.error('Error updating ratings:', err)
     );
+
+    // Save metrics
+    try {
+      await SystemMetric.create({
+        type: 'scraper',
+        data: {
+          succeeded,
+          unchanged,
+          failed,
+          total: products.length,
+          duration: 0 // TODO: Measure duration
+        }
+      });
+    } catch (e) {
+      logger.error('Failed to save system metrics:', e);
+    }
 
     return {
       succeeded,

@@ -15,4 +15,10 @@ router.get('/health', dashboardController.getHealth);
 router.get('/export', dashboardController.exportData);
 router.get('/logs', dashboardController.getLogs);
 
+// Management Features
+router.post('/products/bulk', dashboardController.bulkImportProducts);
+router.put('/products/:asin/tags', dashboardController.updateTags);
+router.put('/products/:asin/target', dashboardController.updateTargetPrice);
+router.put('/products/:asin/archive', dashboardController.archiveProduct);
+
 export default router;

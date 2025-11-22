@@ -44,6 +44,115 @@ export const API = {
         return res.json();
     },
 
+    async getForecast(asin) {
+        const res = await fetch(`/api/analytics/forecast/${asin}`);
+        return res.json();
+    },
+
+    async getVolatility(asin) {
+        const res = await fetch(`/api/analytics/volatility/${asin}`);
+        return res.json();
+    },
+
+    async getBestDay(asin) {
+        const res = await fetch(`/api/analytics/best-day/${asin}`);
+        return res.json();
+    },
+
+    async getStockHistory(asin) {
+        const res = await fetch(`/api/analytics/stock-history/${asin}`);
+        return res.json();
+    },
+
+    async getStockHistory(asin) {
+        const res = await fetch(`/api/analytics/stock-history/${asin}`);
+        return res.json();
+    },
+
+    async bulkImport(urls) {
+        const res = await fetch('/api/products/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls })
+        });
+        return res.json();
+    },
+
+    async updateTags(asin, tags) {
+        const res = await fetch(`/api/products/${asin}/tags`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tags })
+        });
+        return res.json();
+    },
+
+    async updateTargetPrice(asin, targetPrice) {
+        const res = await fetch(`/api/products/${asin}/target`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetPrice })
+        });
+        return res.json();
+    },
+
+    async archiveProduct(asin, isArchived) {
+        const res = await fetch(`/api/products/${asin}/archive`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isArchived })
+        });
+        return res.json();
+    },
+
+    async archiveProduct(asin, isArchived) {
+        const res = await fetch(`/api/products/${asin}/archive`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isArchived })
+        });
+        return res.json();
+    },
+
+    async getSystemHealth() {
+        const res = await fetch('/api/system/health');
+        return res.json();
+    },
+
+    async getDbStats() {
+        const res = await fetch('/api/system/db-stats');
+        return res.json();
+    },
+
+    async getQueueStatus() {
+        const res = await fetch('/api/system/queue');
+        return res.json();
+    },
+
+    async getSystemMetrics(type) {
+        const res = await fetch(`/api/system/metrics?type=${type}`);
+        return res.json();
+    },
+
+    async getSettings() {
+        const res = await fetch('/api/user/settings');
+        return res.json();
+    },
+
+    async updateSettings(webhookUrl) {
+        const res = await fetch('/api/user/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ webhookUrl })
+        });
+        return res.json();
+    },
+
+    async generateApiKey() {
+        const res = await fetch('/api/user/apikey', { method: 'POST' });
+        return res.json();
+    },
+
     async addProduct(url) {
         const res = await fetch('/api/products', {
             method: 'POST',

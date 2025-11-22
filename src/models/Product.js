@@ -12,6 +12,8 @@ const ProductSchema = new mongoose.Schema({
   imageUrl: { type: String },
   currentPrice: { type: Number, default: 0 },
   isOutOfStock: { type: Boolean, default: false },
+  isArchived: { type: Boolean, default: false }, // Feature 8: Archive
+  tags: [{ type: String }], // Feature 6: Tagging
   outOfStockSince: { type: Date, default: null }, // Track when product went out of stock
   lastChecked: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now },
@@ -26,6 +28,10 @@ const ProductSchema = new mongoose.Schema({
   thresholdPrice: { type: Number },
   priceHistory: [{
     price: { type: Number, required: true },
+    date: { type: Date, default: Date.now }
+  }],
+  stockHistory: [{
+    status: { type: String, enum: ['in_stock', 'out_of_stock'], required: true },
     date: { type: Date, default: Date.now }
   }],
   // Product rating information
@@ -82,6 +88,12 @@ ProductSchema.pre('save', function (next) {
     if (this.priceHistory.length < oldLength) {
       console.log(`Removed ${oldLength - this.priceHistory.length} old price entries for ${this.asin}`);
     }
+
+  }
+
+  // Limit stock history size (keep last 100 entries)
+  if (this.stockHistory && this.stockHistory.length > 100) {
+    this.stockHistory = this.stockHistory.slice(-100);
   }
   next();
 });

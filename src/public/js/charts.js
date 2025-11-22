@@ -18,6 +18,15 @@ export function initCharts() {
                 pointHoverRadius: 5,
                 tension: 0.4,
                 fill: true
+            }, {
+                label: 'Forecast (EGP)',
+                data: [],
+                borderColor: 'rgb(16, 185, 129)',
+                borderDash: [5, 5],
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.4,
+                fill: false
             }]
         },
         options: {
@@ -66,9 +75,18 @@ export function initCharts() {
     });
 }
 
-export function updatePriceChart(labels, data) {
+export function updatePriceChart(labels, data, forecastData = []) {
     priceChart.data.labels = labels;
     priceChart.data.datasets[0].data = data;
+
+    // Pad forecast data with nulls for historical points
+    const paddedForecast = new Array(data.length).fill(null);
+    // Connect last historical point to first forecast point
+    if (data.length > 0 && forecastData.length > 0) {
+        paddedForecast[data.length - 1] = data[data.length - 1];
+    }
+    priceChart.data.datasets[1].data = [...paddedForecast, ...forecastData];
+
     priceChart.update();
 }
 

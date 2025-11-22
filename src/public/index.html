@@ -8,6 +8,16 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="/manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW registered'))
+                    .catch(err => console.log('SW registration failed', err));
+            });
+        }
+    </script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -150,13 +160,95 @@
                     </button>
 
                     <!-- Add Product Button -->
+                    <div class="flex flex-wrap gap-4 mb-6">
+                        <a id="chartLink" href="#" target="_blank"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
+                            View on Amazon
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14">
+                                </path>
+                            </svg>
+                        </a>
+                        <button onclick="toggleArchive()" id="archiveBtn"
+                            class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-medium transition-colors">
+                            Archive
+                        </button>
+                    </div>
+
+                    <!-- Management Controls -->
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-750 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Tags
+                                (comma separated)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="productTags"
+                                    class="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 text-sm"
+                                    placeholder="gaming, office...">
+                                <button onclick="saveTags()"
+                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Save</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label
+                                class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Target
+                                Price (EGP)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="productTargetPrice"
+                                    class="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 text-sm"
+                                    placeholder="0.00">
+                                <button onclick="saveTargetPrice()"
+                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Set</button>
+                            </div>
+                        </div>
+                    </div>
                     <button onclick="openAddProductModal()"
-                        class="bg-green-600 text-white px-3 py-1.5 rounded-full text-sm font-medium hover:bg-green-700 transition shadow-sm flex items-center">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
                             </path>
                         </svg>
-                        Add
+                        Add Product
+                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="downloadCSV()"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                            Export CSV
+                        </button>
+                        <a href="/api/export/pdf" target="_blank"
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                            Export PDF
+                        </a>
+                        <a href="/api/export/rss" target="_blank"
+                            class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 5c7.18 0 13 5.82 13 13M6 11a7 7 0 017 7m-6 0a1 1 0 11-2 0 1 1 0 012 0z">
+                                </path>
+                            </svg>
+                            RSS Feed
+                        </a>
+                    </div>
+                    <button onclick="openSettingsModal()"
+                        class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Settings
                     </button>
 
                     <!-- Health Status -->
@@ -244,6 +336,35 @@
                     </a>
                 </div>
             </div>
+            <!-- Logs Viewer -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">System Logs</h3>
+                    <div class="flex gap-2">
+                        <select id="logLevelFilter" onchange="fetchLogs()"
+                            class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
+                            <option value="all">All Levels</option>
+                            <option value="info">Info</option>
+                            <option value="warn">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                        <input type="text" id="logSearch" onkeyup="fetchLogs()" placeholder="Search logs..."
+                            class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm w-48">
+                        <button onclick="fetchLogs()"
+                            class="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm h-64 overflow-y-auto" id="logsContainer">
+                    <!-- Logs will be injected here -->
+                    <div class="text-gray-500 text-center py-8">Loading logs...</div>
+                </div>
+            </div>
             <div
                 class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700 transform hover:scale-105 transition duration-200">
                 <div class="flex items-center">
@@ -299,125 +420,230 @@
                         <div
                             class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto items-center">
                             <!-- View Toggle -->
-                            <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mr-2">
+                            <div class="flex items-center gap-2">
+                                <button onclick="saveCurrentView()"
+                                    class="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+                                    title="Save Current View">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                                        </path>
+                                    </svg>
+                                </button>
+                                <div class="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
                                 <button onclick="toggleView('list')" id="view-list"
-                                    class="p-1 rounded bg-white dark:bg-gray-600 shadow-sm text-gray-700 dark:text-gray-200">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                    title="List View">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M4 6h16M4 12h16M4 18h16"></path>
                                     </svg>
                                 </button>
-                                <button onclick="toggleView('grid')" id="view-grid"
-                                    class="p-1 rounded text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 transition">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </div>
+                                <div class="container mx-auto px-4 py-8">
+                                    <div class="flex justify-between items-center mb-8">
+                                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">System
+                                            Status</h2>
+                                        <button onclick="toggleSystemDashboard()"
+                                            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
 
-                            <!-- Sort Dropdown -->
-                            <select id="sortSelect" onchange="setSort(this.value)"
-                                class="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="discount">🔥 Best Discount</option>
-                                <option value="price_asc">💰 Price: Low to High</option>
-                                <option value="price_desc">💎 Price: High to Low</option>
-                                <option value="date">🕒 Newest First</option>
-                            </select>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                        <!-- Server Health -->
+                                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                                                Server Health</h3>
+                                            <div class="space-y-4">
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Status</span>
+                                                    <span class="text-green-500 font-bold">Online</span>
+                                                </div>
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Uptime</span>
+                                                    <span id="sysUptime" class="font-mono">-</span>
+                                                </div>
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Memory
+                                                        (Heap)</span>
+                                                    <span id="sysMemory" class="font-mono">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                            <!-- Discount Filters -->
-                            <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                                <button onclick="setFilter(0)" id="filter-0"
-                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 shadow-sm transition">All</button>
-                                <button onclick="setFilter(10)" id="filter-10"
-                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>10%</button>
-                                <button onclick="setFilter(25)" id="filter-25"
-                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>25%</button>
-                                <button onclick="setFilter(50)" id="filter-50"
-                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>50%</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="max-h-[600px] overflow-y-auto p-2" id="dealsList">
-                        <div class="p-8 text-center text-gray-500 dark:text-gray-400">Loading deals...</div>
-                    </div>
-                </div>
-            </div>
+                                        <!-- Database Stats -->
+                                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                                                Database</h3>
+                                            <div class="space-y-4">
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Storage
+                                                        Size</span>
+                                                    <span id="dbSize" class="font-mono">-</span>
+                                                </div>
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Products</span>
+                                                    <span id="dbProducts" class="font-mono">-</span>
+                                                </div>
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Metrics</span>
+                                                    <span id="dbMetrics" class="font-mono">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
 
-            <!-- Right Column: Chart & Recent Activity (6 cols) -->
-            <div class="lg:col-span-6 space-y-8">
-
-                <!-- Price Chart -->
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                            <span class="mr-2">📈</span> Price History
-                        </h3>
-                        <button id="downloadCsvBtn" onclick="downloadCSV()"
-                            class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md transition flex items-center">
-                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                        <!-- Scraper Stats -->
+                                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                                                Last Scrape Cycle</h3>
+                                            <div class="space-y-4">
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Success</span>
+                                                    <span id="scrapeSuccess" class="text-green-500 font-bold">-</span>
+                                                </div>
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Failed</span>
+                                                    <span id="scrapeFailed" class="text-red-500 font-bold">-</span>
+                                                </div>
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500 dark:text-gray-400">Unchanged</span>
+                                                    <span id="scrapeUnchanged" class="text-gray-500 font-bold">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>th>
                             </svg>
-                            CSV
-                        </button>
-                    </div>
-                    <div class="relative h-64 w-full">
-                        <canvas id="priceChart"></canvas>
-                    </div>
-                    <div id="productInfo" class="mt-4 hidden animate-fade-in">
-                        <h4 class="font-medium text-gray-900 dark:text-white truncate" id="chartTitle">Product Name</h4>
-                        <div class="flex justify-between items-end mt-1">
-                            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="chartPrice">EGP 0.00</p>
-                            <a href="#" id="chartLink" target="_blank"
-                                class="text-sm text-blue-500 hover:underline">View on Amazon &rarr;</a>
+                            </button>
+                        </div>
+
+                        <!-- Sort Dropdown -->
+                        <select id="sortSelect" onchange="setSort(this.value)"
+                            class="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="discount">🔥 Best Discount</option>
+                            <option value="price_asc">💰 Price: Low to High</option>
+                            <option value="price_desc">💎 Price: High to Low</option>
+                            <option value="date">🕒 Newest First</option>
+                        </select>
+
+                        <!-- Discount Filters -->
+                        <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                            <button onclick="setFilter(0)" id="filter-0"
+                                class="filter-btn px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 shadow-sm transition">All</button>
+                            <button onclick="setFilter(10)" id="filter-10"
+                                class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>10%</button>
+                            <button onclick="setFilter(25)" id="filter-25"
+                                class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>25%</button>
+                            <button onclick="setFilter(50)" id="filter-50"
+                                class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>50%</button>
                         </div>
                     </div>
                 </div>
-
-                <!-- Recent Activity & Top Tracked Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-
-                    <!-- Category Distribution -->
-                    <div
-                        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📊 Categories</h3>
-                        <div class="relative h-40 w-full">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Top Tracked -->
-                    <div
-                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div
-                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🏆 Most Popular</h3>
-                        </div>
-                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-40 overflow-y-auto"
-                            id="topTracked">
-                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Activity (Full Width) -->
-                    <div
-                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div
-                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🕒 Recent Updates</h3>
-                        </div>
-                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto"
-                            id="recentActivity">
-                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
-                        </div>
-                    </div>
-
+                <div class="max-h-[600px] overflow-y-auto p-2" id="dealsList">
+                    <div class="p-8 text-center text-gray-500 dark:text-gray-400">Loading deals...</div>
                 </div>
             </div>
         </div>
+
+        <!-- Right Column: Chart & Recent Activity (6 cols) -->
+        <div class="lg:col-span-6 space-y-8">
+
+            <!-- Price Chart -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                        <span class="mr-2">📈</span> Price History
+                    </h3>
+                    <button id="downloadCsvBtn" onclick="downloadCSV()"
+                        class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md transition flex items-center">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        CSV
+                    </button>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="priceChart"></canvas>
+                </div>
+                <div id="productInfo" class="mt-4 hidden animate-fade-in">
+                    <h4 class="font-medium text-gray-900 dark:text-white truncate" id="chartTitle">Product Name</h4>
+                    <div class="flex justify-between items-end mt-1">
+                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="chartPrice">EGP 0.00</p>
+                        <a href="#" id="chartLink" target="_blank" class="text-sm text-blue-500 hover:underline">View on
+                            Amazon &rarr;</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity & Top Tracked Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+                <!-- Category Distribution -->
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                    <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📊 Categories</h3>
+                    <div class="relative h-40 w-full">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <!-- Forecast Widget -->
+                    <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mt-4">
+                        <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">7-Day Forecast
+                        </h4>
+                        <div class="flex items-center justify-between">
+                            <span id="forecastTrend" class="text-sm font-medium">-</span>
+                            <span id="forecastConfidence" class="text-xs text-gray-500 dark:text-gray-400">Confidence:
+                                -</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock History Widget -->
+                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-6">
+                    <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Stock Availability
+                        History</h4>
+                    <div class="relative h-8 bg-gray-200 dark:bg-gray-600 rounded overflow-hidden flex"
+                        id="stockHistoryBar">
+                        <!-- Segments will be injected here -->
+                        <div class="w-full h-full flex items-center justify-center text-xs text-gray-500">No stock
+                            history available</div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>Past</span>
+                        <span>Now</span>
+                    </div>
+                </div>
+
+                <!-- Top Tracked -->
+                <div
+                    class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🏆 Most Popular</h3>
+                    </div>
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-40 overflow-y-auto" id="topTracked">
+                        <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity (Full Width) -->
+                <div
+                    class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🕒 Recent Updates</h3>
+                    </div>
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto"
+                        id="recentActivity">
+                        <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
     </div>
 
     <script type="module" src="js/app.js"></script>

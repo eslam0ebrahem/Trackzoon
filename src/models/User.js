@@ -24,14 +24,12 @@ const userSettingsSchema = new mongoose.Schema({
 });
 
 const userSchema = new mongoose.Schema({
-  chatId: {
-    type: Number,
-    required: true,
-    unique: true
-  },
-  username: String,
+  telegramId: { type: String, required: true, unique: true },
   firstName: String,
-  lastName: String,
+  username: String,
+  webhookUrl: { type: String }, // Feature 17: Webhook
+  apiKey: { type: String }, // Feature 20: API Key
+  joinedAt: { type: Date, default: Date.now },
   settings: {
     type: userSettingsSchema,
     default: () => ({})
@@ -74,7 +72,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Update lastActive timestamp
-userSchema.pre('save', function(next) {
+userSchema.pre('save', function (next) {
   this.lastActive = new Date();
   next();
 });
