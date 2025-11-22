@@ -3,6 +3,7 @@ export let categoryChart;
 
 export function initCharts() {
     // Price Chart
+    if (priceChart) priceChart.destroy();
     const ctx = document.getElementById('priceChart').getContext('2d');
     priceChart = new Chart(ctx, {
         type: 'line',
@@ -48,6 +49,7 @@ export function initCharts() {
     });
 
     // Category Chart
+    if (categoryChart) categoryChart.destroy();
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
     categoryChart = new Chart(categoryCtx, {
         type: 'doughnut',

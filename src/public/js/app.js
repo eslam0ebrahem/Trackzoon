@@ -212,10 +212,7 @@ async function init() {
     ]);
 
     // Refresh every 30s
-    setInterval(() => {
-        fetchRecent();
-        fetchLogs();
-    }, 30000);
+    setInterval(refreshData, 30000);
 
     // Theme Toggle
     const themeToggle = document.getElementById('themeToggle');
@@ -262,7 +259,19 @@ async function init() {
         }
     });
 
-    setInterval(init, 60000);
+    // Auto-refresh full init every 5 mins just in case, but use refreshData for frequent updates
+    setInterval(refreshData, 60000);
+}
+
+async function refreshData() {
+    await Promise.all([
+        fetchRecent(),
+        fetchLogs(),
+        fetchStats()
+    ]);
+    if (STATE.currentPage === 1) {
+        fetchDeals(1);
+    }
 }
 
 async function fetchStats() {
