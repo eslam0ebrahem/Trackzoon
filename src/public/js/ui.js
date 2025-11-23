@@ -48,10 +48,16 @@ export const UI = {
             <div class="group bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-200 cursor-pointer flex items-center gap-4" onclick="window.loadHistory('${p.asin}')">
                 
                 <!-- 1. Icon (Replaced Image) -->
-                <div class="w-16 h-16 flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 p-1 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                    </svg>
+                <div class="w-16 h-16 flex-shrink-0 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-1 flex items-center justify-center overflow-hidden">
+                    ${p.imageUrl ?
+                    `<img src="${p.imageUrl}" alt="${p.name}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                         <svg class="w-8 h-8 text-blue-500 dark:text-blue-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                         </svg>` :
+                    `<svg class="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                        </svg>`
+                }
                 </div>
 
                 <!-- 2. Main Info -->
@@ -74,7 +80,7 @@ export const UI = {
                         <span>${formatPrice(deal.currentPrice)}</span>
                         ${(() => {
                     const pct = Math.abs(deal.discountPercentage || deal.percentChange || 0);
-                    if (pct === 0) return '';
+                    if (pct < 0.1) return '';
                     // Show decimals for small changes (< 1%), otherwise integer
                     const pctDisplay = pct < 1 ? pct.toFixed(1) : pct.toFixed(0);
                     return `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">${arrow} ${pctDisplay}%</span>`;
