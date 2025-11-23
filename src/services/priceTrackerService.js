@@ -502,9 +502,23 @@ export class PriceTrackerService {
     const products = await Product.find({});
     logger.info(`Checking prices for ${products.length} products...`);
 
+    // Smart Scheduling: Only check products that are due
+    const now = new Date();
+    const dueProducts = products.filter(p => {
+      // Default to 30 mins if not set
+      const intervalMinutes = p.checkInterval || 30;
+      const lastChecked = p.lastChecked ? new Date(p.lastChecked) : new Date(0);
+      const nextCheck = new Date(lastChecked.getTime() + intervalMinutes * 60000);
+
+      return now >= nextCheck;
+    });
+
+    const skippedCount = products.length - dueProducts.length;
+    logger.info(`Smart Scheduling: Checking ${dueProducts.length} products (${skippedCount} skipped as not due)`);
+
     // Use rate limiter to batch requests (3 concurrent max)
     const results = await Promise.allSettled(
-      products.map(product => scrapingLimit(() => this.checkPrice(product)))
+      dueProducts.map(product => scrapingLimit(() => this.checkPrice(product)))
     );
 
     const succeeded = results.filter(r => r.status === 'fulfilled' && r.value).length;
