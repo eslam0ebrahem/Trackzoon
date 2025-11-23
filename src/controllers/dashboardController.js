@@ -59,6 +59,18 @@ export const addProduct = async (req, res) => {
     }
 };
 
+export const previewProduct = async (req, res) => {
+    try {
+        const { url } = req.body;
+        if (!url) return res.status(400).json({ error: 'URL is required' });
+
+        const result = await ProductService.previewProduct(url);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const getProductHistory = async (req, res) => {
     try {
         const product = await Product.findOne({ asin: req.params.asin });

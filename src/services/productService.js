@@ -9,6 +9,51 @@ import { logger } from '../utils/logger.js';
 import { calculatePriceStats } from '../utils/priceUtils.js';
 
 export class ProductService {
+  static async previewProduct(productUrl) {
+    try {
+      const { resolvedUrl, asin } = await resolveAmazonUrl(productUrl);
+
+      if (!asin) {
+        throw new BotError('Invalid Amazon URL', ErrorCodes.INVALID_URL);
+      }
+
+      // Check if product exists in DB first to save scraping
+      const existingProduct = await Product.findOne({ asin });
+      if (existingProduct) {
+        return {
+          asin,
+          name: existingProduct.name,
+          currentPrice: existingProduct.currentPrice,
+          imageUrl: existingProduct.imageUrl,
+          isOutOfStock: existingProduct.isOutOfStock,
+          exists: true
+        };
+      }
+
+      // If not in DB, scrape it
+      const name = await getProductName(resolvedUrl);
+      const { currentPrice, imageUrl } = await getPrice(resolvedUrl);
+
+      return {
+        asin,
+        name,
+        currentPrice,
+        imageUrl,
+        isOutOfStock: false,
+        exists: false
+      };
+
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+      logger.error('Error previewing product:', error);
+      throw new BotError(
+        'Failed to preview product',
+        ErrorCodes.SCRAPING_ERROR,
+        'Could not fetch product details. Please check the URL.'
+      );
+    }
+  }
+
   static async addProduct(productUrl, chatId, threshold) {
     const session = await mongoose.startSession();
     session.startTransaction();

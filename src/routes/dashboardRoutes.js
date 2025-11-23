@@ -6,6 +6,7 @@ const router = express.Router();
 router.get('/stats', dashboardController.getStats);
 router.get('/deals', dashboardController.getDeals);
 router.post('/products', express.json(), dashboardController.addProduct);
+router.post('/products/preview', express.json(), dashboardController.previewProduct);
 router.get('/history/:asin', dashboardController.getProductHistory);
 router.get('/stats/categories', dashboardController.getCategoryStats);
 router.get('/search', dashboardController.searchProducts);
