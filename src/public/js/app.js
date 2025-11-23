@@ -362,7 +362,13 @@ export async function fetchDeals(page = 1) {
         // Handle Load More Button
         if (!loadMoreBtn) {
             if (page < data.totalPages) {
-                const btnHtml = `<div class="p-4 text-center col-span-full"><button id="loadMoreBtn" onclick="fetchDeals(${page + 1})" class="text-sm text-blue-600 hover:underline">Load More</button></div>`;
+                const btnHtml = `
+                    <div class="p-6 text-center col-span-full">
+                        <button id="loadMoreBtn" onclick="fetchDeals(${page + 1})" class="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all duration-200 flex items-center justify-center mx-auto space-x-2 group">
+                            <span>Load More Deals</span>
+                            <svg class="w-4 h-4 text-gray-400 group-hover:translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                    </div>`;
                 container.parentElement.insertAdjacentHTML('beforeend', btnHtml);
             }
         } else {
