@@ -38,9 +38,21 @@ export const UI = {
                                 
                                 <!-- Actions & Badge -->
                                 <div class="flex flex-col items-end space-y-2">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-800">
-                                        ↓ ${Math.abs(deal.percentChange).toFixed(0)}%
-                                    </span>
+                                    ${(() => {
+                        const isDrop = deal.percentChange > 0;
+                        const isIncrease = deal.percentChange < 0;
+                        const colorClass = isDrop
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-100 dark:border-green-800'
+                            : (isIncrease
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-100 dark:border-red-800'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600');
+                        const arrow = isDrop ? '↓' : (isIncrease ? '↑' : '-');
+
+                        return `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${colorClass}">
+                                            ${arrow} ${Math.abs(deal.percentChange).toFixed(0)}%
+                                        </span>`;
+                    })()}
+                                    
                                     <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <a href="${deal.product.url}" target="_blank" onclick="event.stopPropagation()" class="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-full transition-colors" title="View on Amazon">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
@@ -83,8 +95,8 @@ export const UI = {
                                                 </span>`);
                         }
 
-                        // Volatility/Trend
-                        if (deal.stats30d && deal.stats30d.volatility < 3) {
+                        // Volatility/Trend - Only show "Stable" if price didn't just increase
+                        if (deal.stats30d && deal.stats30d.volatility < 3 && deal.percentChange >= 0) {
                             insights.push(`<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-100 dark:border-green-800">
                                                     🛡️ Stable Price
                                                 </span>`);
@@ -103,9 +115,20 @@ export const UI = {
                 return `
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition cursor-pointer flex flex-col h-full" onclick="window.loadHistory('${deal.product.asin}')">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                                    -${Math.abs(deal.percentChange).toFixed(0)}%
-                        </span>
+                        ${(() => {
+                        const isDrop = deal.percentChange > 0;
+                        const isIncrease = deal.percentChange < 0;
+                        const colorClass = isDrop
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-100 dark:border-green-800'
+                            : (isIncrease
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-100 dark:border-red-800'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600');
+                        const arrow = isDrop ? '↓' : (isIncrease ? '↑' : '-');
+
+                        return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${colorClass}">
+                                ${arrow} ${Math.abs(deal.percentChange).toFixed(0)}%
+                            </span>`;
+                    })()}
                         <button onclick="event.stopPropagation(); window.shareDeal('${deal.product.name.replace(/'/g, "\\'")}', '${deal.product.url}', ${deal.currentPrice})" class="text-gray-400 hover:text-blue-500 transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
                         </button>
