@@ -6,8 +6,8 @@ export const API = {
         return res.json();
     },
 
-    async getDeals(page = 1, limit = 20, minDiscount = 0) {
-        const sort = STATE.currentSort || 'smart';
+    async getDeals(page = 1, limit = 20, minDiscount = 0, sort = 'smart') {
+        // Sort is now passed as an argument, defaulting to 'smart'
         const res = await fetch(`/api/deals?page=${page}&limit=${limit}&sort=${sort}&minDiscount=${minDiscount}`);
         return res.json();
     },

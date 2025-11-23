@@ -300,8 +300,8 @@ export async function fetchDeals(page = 1) {
     STATE.currentPage = page;
 
     try {
-        // Pass filter to API
-        const data = await API.getDeals(page, 10, STATE.currentFilter);
+        // Pass filter and sort to API
+        const data = await API.getDeals(page, 10, STATE.currentFilter, STATE.currentSort);
 
         if (data.error) throw new Error(data.error);
         if (!data.items) throw new Error('No items returned');
