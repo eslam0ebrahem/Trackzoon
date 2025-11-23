@@ -300,14 +300,22 @@ export async function fetchDeals(page = 1) {
     STATE.currentPage = page;
 
     try {
-        const data = await API.getDeals(page, 10);
+        // Pass filter to API
+        const data = await API.getDeals(page, 10, STATE.currentFilter);
         let deals = data.items;
         const container = document.getElementById('dealsList');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
 
-        // Client-side Filter
-        if (STATE.currentFilter > 0) {
-            deals = deals.filter(d => d.percentChange >= STATE.currentFilter);
+        // Client-side sorting is still useful for small datasets, but server-side is better.
+        // Since we implemented server-side sort, we can rely on that mostly, 
+        // but 'smart' sort in UI has some extra logic (recency boost) that might be nice to keep or move to backend.
+        // For now, let's trust the backend order for 'smart' and 'discount' and 'date'.
+        // Only apply client-side sort if it's price_asc/desc which might not be fully implemented in backend yet (it wasn't in the snippet I saw).
+
+        if (STATE.currentSort === 'price_asc') {
+            deals.sort((a, b) => a.currentPrice - b.currentPrice);
+        } else if (STATE.currentSort === 'price_desc') {
+            deals.sort((a, b) => b.currentPrice - a.currentPrice);
         }
 
         // Apply Sorting

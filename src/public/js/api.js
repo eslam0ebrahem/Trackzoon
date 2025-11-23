@@ -4,8 +4,9 @@ export const API = {
         return res.json();
     },
 
-    async getDeals(page = 1, limit = 10) {
-        const res = await fetch(`/api/deals?page=${page}&limit=${limit}`);
+    async getDeals(page = 1, limit = 20, minDiscount = 0) {
+        const sort = STATE.currentSort || 'smart';
+        const res = await fetch(`/api/deals?page=${page}&limit=${limit}&sort=${sort}&minDiscount=${minDiscount}`);
         return res.json();
     },
 

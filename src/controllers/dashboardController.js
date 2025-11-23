@@ -29,6 +29,8 @@ export const getDeals = async (req, res) => {
         const skip = (page - 1) * limit;
         const sort = req.query.sort || 'smart';
 
+        const minDiscount = parseInt(req.query.minDiscount) || 0;
+
         let query = { isOutOfStock: false };
         let sortStage = {};
 
@@ -43,25 +45,65 @@ export const getDeals = async (req, res) => {
             sortStage = { sortPercent: 1 };
         }
 
-        const deals = await Product.aggregate([
+        const pipeline = [
             { $match: query },
             // Add sort key for percent change, defaulting to 0 if missing (so nulls don't come first)
             {
                 $addFields: {
                     sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] }
                 }
-            },
+            }
+        ];
+
+        // Apply Discount Filter (percent is negative, so we check if it's <= -minDiscount)
+        if (minDiscount > 0) {
+            pipeline.push({
+                $match: {
+                    sortPercent: { $lte: -minDiscount }
+                }
+            });
+        }
+
+        pipeline.push(
             { $sort: sortStage },
             { $skip: skip },
             { $limit: limit }
-        ]);
+        );
 
-        const total = await Product.countDocuments(query);
+        const deals = await Product.aggregate(pipeline);
+
+        // Count total matching the filter
+        const countPipeline = [
+            { $match: query },
+            {
+                $addFields: {
+                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] }
+                }
+            }
+        ];
+
+        if (minDiscount > 0) {
+            countPipeline.push({
+                $match: {
+                    sortPercent: { $lte: -minDiscount }
+                }
+            });
+        }
+
+        countPipeline.push({ $count: 'total' });
+
+        const countResult = await Product.aggregate(countPipeline);
+        const total = countResult.length > 0 ? countResult[0].total : 0;
 
         // Transform for frontend
         const items = deals.map(p => {
             // Calculate deal score on the fly
-            const dealScore = calculateDealScore(p.currentPrice, p.stats);
+            const dealScore = calculateDealScore(
+                p.currentPrice,
+                p.stats,
+                p.stats?.volatility || 0,
+                p.isOutOfStock
+            );
 
             return {
                 product: p,
