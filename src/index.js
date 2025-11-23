@@ -78,15 +78,20 @@ logger.info('Launching Trackzoon bot...');
 bot.launch().then(() => {
   logger.info('Bot successfully launched!');
 
-}).catch(error => {
+}).catch(async error => {
   logger.error('Failed to launch bot:', error);
   captureError(error, { operation: 'bot_launch' });
 
   // If there's a conflict (409), it means another instance is running
-  // Exit without retrying to prevent multiple instances
   if (error.response?.error_code === 409) {
-    logger.error('Another bot instance is already running. Exiting...');
-    process.exit(1);
+    logger.warn('Conflict detected (409). Another instance might be closing. Retrying in 3 seconds...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    return bot.launch().then(() => {
+      logger.info('Bot successfully launched on retry!');
+    }).catch(err => {
+      logger.error('Retry failed:', err);
+      process.exit(1);
+    });
   }
 
   process.exit(1);
@@ -116,3 +121,4 @@ const shutdown = (signal) => {
 
 process.once('SIGINT', () => shutdown('SIGINT'));
 process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGUSR2', () => shutdown('SIGUSR2')); // For nodemon restarts
