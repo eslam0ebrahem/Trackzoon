@@ -37,19 +37,10 @@ export const getDeals = async (req, res) => {
         // Initialize pipeline with base match
         const pipeline = [
             { $match: query },
-            // Add sort key for percent change, defaulting to 0 if missing
+            // Add sort key for percent change and calculate Smart Score components
             {
                 $addFields: {
-                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] }
-                }
-            }
-        ];
-
-        // Smart Sorting using new DB fields
-        if (sort === 'smart') {
-            // Smart Score Approximation in Aggregation
-            pipeline.push({
-                $addFields: {
+                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] },
                     recencyBonus: {
                         $cond: {
                             if: {
@@ -61,11 +52,12 @@ export const getDeals = async (req, res) => {
                             then: 20,
                             else: 0
                         }
-                    },
-                    // Simplify: Just prioritize drops (negative percent) and stability
-                    // We sort by this DESCENDING, so we want positive scores for good deals
-                    // Drop of -50% -> -50 * -1 = 50 points
-                    // Increase of +50% -> 50 * -1 = -50 points
+                    }
+                }
+            },
+            // Calculate final Smart Score
+            {
+                $addFields: {
                     smartSortScore: {
                         $add: [
                             { $multiply: ['$sortPercent', -1] }, // Invert percent so drops are positive
@@ -74,7 +66,11 @@ export const getDeals = async (req, res) => {
                         ]
                     }
                 }
-            });
+            }
+        ];
+
+        // Sorting Logic
+        if (sort === 'smart') {
             sortStage = { smartSortScore: -1 };
         } else if (sort === 'date') {
             // Sort by price change date, fallback to last checked
