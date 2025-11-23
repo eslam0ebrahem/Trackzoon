@@ -498,13 +498,15 @@ export class PriceTrackerService {
     }
   }
 
-  async checkAllPrices() {
+  async checkAllPrices(force = false) {
     const products = await Product.find({});
     logger.info(`Checking prices for ${products.length} products...`);
 
     // Smart Scheduling: Only check products that are due
     const now = new Date();
     const dueProducts = products.filter(p => {
+      if (force) return true; // Force check all
+
       // Default to 30 mins if not set
       const intervalMinutes = p.checkInterval || 30;
       const lastChecked = p.lastChecked ? new Date(p.lastChecked) : new Date(0);

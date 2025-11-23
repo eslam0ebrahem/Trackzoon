@@ -111,7 +111,7 @@ export const triggerPriceCheck = async (req, res) => {
     try {
         // Run in background to avoid timeout
         const tracker = new PriceTrackerService(process.env.TELEGRAM_BOT_TOKEN);
-        tracker.checkAllPrices().catch(err => console.error('Manual price check failed:', err));
+        tracker.checkAllPrices(true).catch(err => console.error('Manual price check failed:', err));
 
         res.json({ message: 'Price check started successfully' });
     } catch (error) {
