@@ -191,6 +191,34 @@ export class PriceTrackerService {
       const newHistory = [...product.priceHistory, { price: currentPrice, date: new Date() }];
       const { score: volatilityScore, interval: checkInterval } = calculateVolatility(newHistory);
 
+      // --- SMART METRICS CALCULATION (Write-Time) ---
+      const priceChangePercent = ((currentPrice - previousPrice) / previousPrice) * 100;
+      const isDrop = priceChangePercent < 0;
+
+      // Calculate Smart Score (0-100)
+      // Base: 50
+      // Drop Bonus: +1 point per 1% drop (max 50)
+      // Hike Penalty: -2 points per 1% hike (max 50)
+      // Volatility Penalty: -2 points per volatility score (max 20)
+      // Recency Bonus: +20 if drop happened just now (which it did)
+
+      let smartScore = 50;
+      if (isDrop) {
+        smartScore += Math.min(Math.abs(priceChangePercent), 50); // Add drop %
+        smartScore += 20; // Fresh drop bonus
+      } else {
+        smartScore -= Math.min(priceChangePercent * 2, 50); // Penalize hike
+      }
+      smartScore -= (volatilityScore * 2); // Penalize volatility
+      smartScore = Math.max(0, Math.min(smartScore, 100)); // Clamp 0-100
+
+      // Determine Label
+      let dealLabel = 'fair_price';
+      if (priceChangePercent <= -20) dealLabel = 'hot_deal';
+      else if (priceChangePercent <= -5) dealLabel = 'good_deal';
+      else if (priceChangePercent > 0) dealLabel = 'price_hike';
+      else if (volatilityScore < 3) dealLabel = 'stable';
+
       // Price changed - atomic update with history push and volatility update
       const updatedProduct = await Product.findOneAndUpdate(
         { asin: asin },
@@ -203,10 +231,24 @@ export class PriceTrackerService {
           },
           $set: {
             currentPrice: currentPrice,
-
             lastChecked: new Date(),
             volatilityScore,
             checkInterval,
+
+            // New Smart Fields
+            smartScore,
+            dealLabel,
+            discountPercentage: priceChangePercent,
+            ...(isDrop && { lastDropDate: new Date() }), // Only update drop date on drops
+
+            lastPriceChange: {
+              date: new Date(),
+              oldPrice: previousPrice,
+              newPrice: currentPrice,
+              diff: currentPrice - previousPrice,
+              percent: priceChangePercent
+            },
+
             ...(imageUrl && { imageUrl }),
             // Update enhanced fields
             ...(priceData.merchant && { merchant: priceData.merchant }),

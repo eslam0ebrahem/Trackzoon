@@ -60,6 +60,12 @@ const ProductSchema = new mongoose.Schema({
     percent: Number
   },
 
+  // Smart Metrics (Pre-calculated for performance & consistency)
+  smartScore: { type: Number, default: 0, index: true }, // 0-100 score
+  dealLabel: { type: String, enum: ['hot_deal', 'good_deal', 'fair_price', 'price_hike', 'stable'], default: 'fair_price' },
+  discountPercentage: { type: Number, default: 0, index: true }, // Always negative for drops
+  lastDropDate: { type: Date, index: true }, // Date of last price drop
+
   // Enhanced Data Fields
   merchant: { type: String }, // e.g., "Amazon.eg" or third-party seller name
   prime: { type: Boolean, default: false }, // Is it a Prime item?

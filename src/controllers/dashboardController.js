@@ -28,135 +28,53 @@ export const getDeals = async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
         const sort = req.query.sort || 'smart';
-
         const minDiscount = parseInt(req.query.minDiscount) || 0;
 
         let query = { isOutOfStock: false };
-        let sortStage = {};
+        let sortOptions = {};
 
-        // Initialize pipeline with base match
-        const pipeline = [
-            { $match: query },
-            // Add sort key for percent change and calculate Smart Score components
-            {
-                $addFields: {
-                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] },
-                    recencyBonus: {
-                        $cond: {
-                            if: {
-                                $and: [
-                                    { $gte: ['$lastPriceChange.date', new Date(Date.now() - 24 * 60 * 60 * 1000)] },
-                                    { $lt: ['$lastPriceChange.percent', 0] } // Only bonus for drops!
-                                ]
-                            },
-                            then: 20,
-                            else: 0
-                        }
-                    }
-                }
-            },
-            // Calculate final Smart Score
-            {
-                $addFields: {
-                    smartSortScore: {
-                        $add: [
-                            { $multiply: ['$sortPercent', -1] }, // Invert percent so drops are positive
-                            '$recencyBonus',
-                            { $multiply: [{ $ifNull: ['$stats.volatility', 0] }, -2] } // Volatility penalty
-                        ]
-                    }
-                }
-            }
-        ];
+        // 1. Filter Logic
+        if (minDiscount > 0) {
+            // discountPercentage is negative (e.g., -20). 
+            // If minDiscount is 10, we want items with <= -10
+            query.discountPercentage = { $lte: -minDiscount };
+        }
 
-        // Sorting Logic
+        // 2. Sort Logic (Simple & Fast)
         if (sort === 'smart') {
-            sortStage = { smartSortScore: -1 };
-        } else if (sort === 'date') {
-            // Sort by price change date, fallback to last checked
-            pipeline.push({
-                $addFields: {
-                    sortDate: { $ifNull: ['$lastPriceChange.date', '$lastChecked'] }
-                }
-            });
-            sortStage = { sortDate: -1 };
+            sortOptions = { smartScore: -1 }; // High score first
         } else if (sort === 'discount') {
-            // Sort by biggest drop (most negative percent)
-            // Use sortPercent which handles nulls (defaults to 0)
-            // Ascending: -50, -10, 0, 10
-            sortStage = { sortPercent: 1 };
+            sortOptions = { discountPercentage: 1 }; // Most negative first (-50 before -10)
+        } else if (sort === 'date') {
+            sortOptions = { lastDropDate: -1 }; // Most recent drop first
         } else if (sort === 'price_asc') {
-            sortStage = { currentPrice: 1 };
+            sortOptions = { currentPrice: 1 };
         } else if (sort === 'price_desc') {
-            sortStage = { currentPrice: -1 };
+            sortOptions = { currentPrice: -1 };
         } else {
-            sortStage = { sortPercent: 1 };
+            sortOptions = { smartScore: -1 };
         }
 
-        // Apply Discount Filter
-        if (minDiscount > 0) {
-            pipeline.push({
-                $match: {
-                    sortPercent: { $lte: -minDiscount }
-                }
-            });
-        }
+        // 3. Execute Query
+        const [items, total] = await Promise.all([
+            Product.find(query)
+                .sort(sortOptions)
+                .skip(skip)
+                .limit(limit)
+                .lean(), // Faster
+            Product.countDocuments(query)
+        ]);
 
-        pipeline.push(
-            { $sort: sortStage },
-            { $skip: skip },
-            { $limit: limit }
-        );
-
-        const deals = await Product.aggregate(pipeline);
-
-        // Count total matching the filter
-        const countPipeline = [
-            { $match: query },
-            {
-                $addFields: {
-                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] }
-                }
-            }
-        ];
-
-        if (minDiscount > 0) {
-            countPipeline.push({
-                $match: {
-                    sortPercent: { $lte: -minDiscount }
-                }
-            });
-        }
-
-        countPipeline.push({ $count: 'total' });
-
-        const countResult = await Product.aggregate(countPipeline);
-        const total = countResult.length > 0 ? countResult[0].total : 0;
-
-        // Transform for frontend
-        const items = deals.map(p => {
-            // Calculate deal score on the fly
-            const dealScore = calculateDealScore(
-                p.currentPrice,
-                p.stats,
-                p.stats?.volatility || 0,
-                p.isOutOfStock
-            );
-
-            return {
+        res.json({
+            items: items.map(p => ({
                 product: p,
                 currentPrice: p.currentPrice,
                 oldPrice: p.lastPriceChange?.oldPrice || p.currentPrice,
-                priceDiff: p.lastPriceChange?.diff || 0,
-                percentChange: p.lastPriceChange?.percent || 0,
-                stats30d: p.stats,
-                dealScore: dealScore,
-                smartScore: p.smartSortScore || 0 // Pass the calculated smart score
-            };
-        });
-
-        res.json({
-            items,
+                percentChange: p.discountPercentage || 0,
+                smartScore: p.smartScore || 0,
+                dealLabel: p.dealLabel || 'fair_price',
+                lastDropDate: p.lastDropDate
+            })),
             total,
             page,
             totalPages: Math.ceil(total / limit)

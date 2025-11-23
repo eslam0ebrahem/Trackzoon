@@ -12,128 +12,65 @@ export const UI = {
     },
 
     renderDeals(deals, container, append = false) {
+        if (!append) container.innerHTML = '';
+
         const html = deals.map(deal => {
-            if (STATE.currentView === 'list') {
-                return `
-                <div class="group relative bg-white dark:bg-gray-800 p-3 rounded-lg border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 cursor-pointer" onclick="window.loadHistory('${deal.product.asin}')">
-                    <div class="flex items-center space-x-4">
-                        <!-- Image (Smaller) -->
-                        <div class="flex-shrink-0 w-12 h-12 bg-white dark:bg-gray-700 rounded-md overflow-hidden flex items-center justify-center p-1 border border-gray-100 dark:border-gray-600">
-                            ${deal.product.imageUrl ? `<img src="${deal.product.imageUrl}" class="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal">` : '<span class="text-xl">📦</span>'}
-                        </div>
-                        
-                        <!-- Content -->
-                        <div class="flex-1 min-w-0 grid grid-cols-12 gap-4 items-center">
-                            <!-- Title & Meta (Cols 1-6) -->
-                            <div class="col-span-6">
-                                <h3 class="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                    ${deal.product.name}
-                                </h3>
-                                <div class="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                                    <span>${new Date(deal.product.lastChecked).toLocaleDateString()}</span>
-                                    ${deal.smartScore !== undefined ? `<span class="text-purple-600 dark:text-purple-400 font-bold">• Smart Score: ${deal.smartScore.toFixed(0)}</span>` : ''}
-                                    ${deal.dealScore ? `<span class="text-yellow-600 dark:text-yellow-500 font-medium">• Quality: ${deal.dealScore}</span>` : ''}
-                                </div>
-                            </div>
+            const p = deal.product;
+            const isDrop = deal.percentChange < 0;
+            const isHike = deal.percentChange > 0;
 
-                            <!-- Price (Cols 7-9) -->
-                            <div class="col-span-3 flex flex-col items-end">
-                                <span class="text-sm font-bold text-gray-900 dark:text-white">${formatPrice(deal.currentPrice)}</span>
-                                <span class="text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</span>
-                            </div>
+            // Label Badge Logic
+            let labelBadge = '';
+            if (deal.dealLabel === 'hot_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">🔥 HOT</span>';
+            else if (deal.dealLabel === 'good_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">✅ Good</span>';
+            else if (deal.dealLabel === 'price_hike') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">⚠️ Hike</span>';
 
-                            <!-- Badge & Actions (Cols 10-12) -->
-                            <div class="col-span-3 flex items-center justify-end space-x-3">
-                                ${(() => {
-                        // FIX: Negative percent means price dropped (Good/Green)
-                        const isDrop = deal.percentChange < 0;
-                        const isIncrease = deal.percentChange > 0;
-                        const colorClass = isDrop
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                            : (isIncrease
-                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300');
-                        const arrow = isDrop ? '↓' : (isIncrease ? '↑' : '-');
+            // Price Color
+            const priceColor = isDrop ? 'text-green-600 dark:text-green-400' : (isHike ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white');
+            const arrow = isDrop ? '↓' : (isHike ? '↑' : '');
 
-                        return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colorClass}">
-                                        ${arrow} ${Math.abs(deal.percentChange).toFixed(0)}%
-                                    </span>`;
-                    })()}
-                                
-                                <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <a href="${deal.product.url}" target="_blank" onclick="event.stopPropagation()" class="p-1 text-gray-400 hover:text-orange-500 transition-colors">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                    </a>
-                                    <button onclick="event.stopPropagation(); window.shareDeal('${deal.product.name.replace(/'/g, "\\'")}', '${deal.product.url}', ${deal.currentPrice})" class="p-1 text-gray-400 hover:text-blue-500 transition-colors">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-            } else {
-                // Grid View
-                return `
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition cursor-pointer flex flex-col h-full" onclick="window.loadHistory('${deal.product.asin}')">
-                    <div class="flex justify-between items-start mb-2">
-                        ${(() => {
-                        // FIX: Negative percent means price dropped (Good/Green)
-                        const isDrop = deal.percentChange < 0;
-                        const isIncrease = deal.percentChange > 0;
-                        const colorClass = isDrop
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-100 dark:border-green-800'
-                            : (isIncrease
-                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-100 dark:border-red-800'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600');
-                        const arrow = isDrop ? '↓' : (isIncrease ? '↑' : '-');
+            return `
+            <div class="group bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-200 cursor-pointer flex items-center gap-4" onclick="window.loadHistory('${p.asin}')">
+                
+                <!-- 1. Image -->
+                <div class="w-16 h-16 flex-shrink-0 bg-white rounded-lg border border-gray-100 dark:border-gray-600 p-1 flex items-center justify-center">
+                    <img src="${p.imageUrl || ''}" class="max-w-full max-h-full object-contain mix-blend-multiply dark:mix-blend-normal" alt="${p.name}">
+                </div>
 
-                        return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${colorClass}">
-                                ${arrow} ${Math.abs(deal.percentChange).toFixed(0)}%
-                            </span>`;
-                    })()}
-                        <button onclick="event.stopPropagation(); window.shareDeal('${deal.product.name.replace(/'/g, "\\'")}', '${deal.product.url}', ${deal.currentPrice})" class="text-gray-400 hover:text-blue-500 transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
-                        </button>
+                <!-- 2. Main Info -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        ${labelBadge}
+                        <span class="text-xs text-gray-400 font-mono">Score: ${deal.smartScore}</span>
                     </div>
-                    <div class="flex-1 flex flex-col items-center text-center mb-2">
-                        <div class="w-24 h-24 bg-white dark:bg-gray-600 rounded-lg overflow-hidden flex items-center justify-center p-1 mb-2">
-                            ${deal.product.imageUrl ? `<img src="${deal.product.imageUrl}" class="w-full h-full object-contain">` : '<span class="text-4xl">📦</span>'}
-                        </div>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition">${deal.product.name}</p>
+                    <h3 class="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">${p.name}</h3>
+                    <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                        <span>${p.merchant || 'Amazon'}</span>
+                        <span>•</span>
+                        <span>${new Date(p.lastChecked).toLocaleDateString()}</span>
                     </div>
-                    <div class="mt-auto">
-                        <div class="flex justify-between items-baseline mb-1">
-                            <p class="text-lg font-bold text-gray-900 dark:text-white">${formatPrice(deal.currentPrice)}</p>
-                            <p class="text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</p>
-                        </div>
-                        <div class="flex justify-between items-center text-xs">
-                            ${deal.dealScore ? `
-                                <div class="flex items-center space-x-2 w-full mr-2">
-                                    <span class="text-yellow-600 dark:text-yellow-400 font-medium whitespace-nowrap">★ ${deal.dealScore}</span>
-                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                                        <div class="bg-yellow-400 h-1.5 rounded-full" style="width: ${(deal.dealScore / 10) * 100}%"></div>
-                                    </div>
-                                </div>
-                            ` : '<span></span>'}
-                            ${(() => {
-                        if (deal.stats30d && deal.currentPrice <= deal.stats30d.min * 1.02) {
-                            return `<span class="text-green-600 font-bold whitespace-nowrap">BUY</span>`;
-                        } else {
-                            return `<span class="text-gray-400 whitespace-nowrap">WATCH</span>`;
-                        }
-                    })()}
-                        </div>
+                </div>
+
+                <!-- 3. Price & Action -->
+                <div class="text-right">
+                    <div class="text-lg font-bold ${priceColor} flex items-center justify-end gap-1">
+                        <span>${formatPrice(deal.currentPrice)}</span>
+                        ${deal.percentChange !== 0 ? `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">${arrow} ${Math.abs(deal.percentChange).toFixed(0)}%</span>` : ''}
                     </div>
-                </div>`;
-            }
+                    ${deal.oldPrice ? `<div class="text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</div>` : ''}
+                </div>
+
+                <!-- 4. Quick Actions (Hover) -->
+                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
+                    <a href="${p.url}" target="_blank" onclick="event.stopPropagation()" class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
+                </div>
+            </div>`;
         }).join('');
 
-        if (append) {
-            container.insertAdjacentHTML('beforeend', html);
-        } else {
-            container.innerHTML = html;
-        }
+        if (append) container.insertAdjacentHTML('beforeend', html);
+        else container.innerHTML = html;
     },
 
     renderRecent(products) {
