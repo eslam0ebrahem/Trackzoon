@@ -57,9 +57,13 @@ export const getDeals = async (req, res) => {
                             else: 0
                         }
                     },
+                    // Simplify: Just prioritize drops (negative percent) and stability
+                    // We sort by this DESCENDING, so we want positive scores for good deals
+                    // Drop of -50% -> -50 * -1 = 50 points
+                    // Increase of +50% -> 50 * -1 = -50 points
                     smartSortScore: {
                         $add: [
-                            { $multiply: [{ $ifNull: ['$lastPriceChange.percent', 0] }, -2] }, // 50% drop = 100 pts
+                            { $multiply: ['$sortPercent', -1] }, // Invert percent so drops are positive
                             '$recencyBonus',
                             { $multiply: [{ $ifNull: ['$stats.volatility', 0] }, -2] } // Volatility penalty
                         ]
@@ -68,15 +72,24 @@ export const getDeals = async (req, res) => {
             });
             sortStage = { smartSortScore: -1 };
         } else if (sort === 'date') {
-            sortStage = { 'lastPriceChange.date': -1 };
+            // Sort by price change date, fallback to last checked
+            pipeline.push({
+                $addFields: {
+                    sortDate: { $ifNull: ['$lastPriceChange.date', '$lastChecked'] }
+                }
+            });
+            sortStage = { sortDate: -1 };
         } else if (sort === 'discount') {
-            sortStage = { 'lastPriceChange.percent': 1 };
+            // Sort by biggest drop (most negative percent)
+            // Use sortPercent which handles nulls (defaults to 0)
+            // Ascending: -50, -10, 0, 10
+            sortStage = { sortPercent: 1 };
         } else if (sort === 'price_asc') {
             sortStage = { currentPrice: 1 };
         } else if (sort === 'price_desc') {
             sortStage = { currentPrice: -1 };
         } else {
-            sortStage = { 'lastPriceChange.percent': 1 };
+            sortStage = { sortPercent: 1 };
         }
 
         // Apply Discount Filter
