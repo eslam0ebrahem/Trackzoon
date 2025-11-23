@@ -36,20 +36,42 @@ export const getDeals = async (req, res) => {
 
         // Smart Sorting using new DB fields
         if (sort === 'smart') {
-            // Sort by biggest recent drops first (negative percent)
-            // We use a projected field 'sortPercent' to handle nulls
-            sortStage = { sortPercent: 1, 'stats.min': 1 };
+            // Smart Score Approximation in Aggregation
+            // We want: High discount (negative percent), Low volatility, Recent change
+            // Formula: (Percent * -2) + (RecencyBoost) - (Volatility * 2)
+            // Note: Percent is negative for drops, so multiplying by -1 makes it positive score
+            pipeline.push({
+                $addFields: {
+                    recencyBonus: {
+                        $cond: {
+                            if: { $gte: ['$lastPriceChange.date', new Date(Date.now() - 24 * 60 * 60 * 1000)] },
+                            then: 20,
+                            else: 0
+                        }
+                    },
+                    smartSortScore: {
+                        $add: [
+                            { $multiply: [{ $ifNull: ['$lastPriceChange.percent', 0] }, -2] }, // 50% drop = 100 pts
+                            '$recencyBonus',
+                            { $multiply: [{ $ifNull: ['$stats.volatility', 0] }, -2] } // Volatility penalty
+                        ]
+                    }
+                }
+            });
+            sortStage = { smartSortScore: -1 };
         } else if (sort === 'date') {
-            sortStage = { lastChecked: -1 };
+            // Sort by the date of the actual PRICE CHANGE, not just the check time
+            sortStage = { 'lastPriceChange.date': -1 };
         } else if (sort === 'discount') {
-            sortStage = { sortPercent: 1 };
+            // Sort by biggest drop (most negative percent)
+            sortStage = { 'lastPriceChange.percent': 1 };
         } else if (sort === 'price_asc') {
             sortStage = { currentPrice: 1 };
         } else if (sort === 'price_desc') {
             sortStage = { currentPrice: -1 };
         } else {
             // Default fallback
-            sortStage = { sortPercent: 1, 'stats.min': 1 };
+            sortStage = { 'lastPriceChange.percent': 1 };
         }
 
         const pipeline = [
