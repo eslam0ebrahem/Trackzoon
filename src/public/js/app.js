@@ -302,6 +302,10 @@ export async function fetchDeals(page = 1) {
     try {
         // Pass filter to API
         const data = await API.getDeals(page, 10, STATE.currentFilter);
+
+        if (data.error) throw new Error(data.error);
+        if (!data.items) throw new Error('No items returned');
+
         let deals = data.items;
         const container = document.getElementById('dealsList');
         const loadMoreBtn = document.getElementById('loadMoreBtn');

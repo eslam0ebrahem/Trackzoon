@@ -43,6 +43,13 @@ export const getDeals = async (req, res) => {
             sortStage = { lastChecked: -1 };
         } else if (sort === 'discount') {
             sortStage = { sortPercent: 1 };
+        } else if (sort === 'price_asc') {
+            sortStage = { currentPrice: 1 };
+        } else if (sort === 'price_desc') {
+            sortStage = { currentPrice: -1 };
+        } else {
+            // Default fallback
+            sortStage = { sortPercent: 1, 'stats.min': 1 };
         }
 
         const pipeline = [
