@@ -44,6 +44,22 @@ const ProductSchema = new mongoose.Schema({
   volatilityScore: { type: Number, default: 0 }, // 0 to 10 scale of price volatility
   checkInterval: { type: Number, default: 30 }, // Minutes between checks (dynamic)
 
+  // Smart Database Fields (Phase 7)
+  category: { type: String, index: true }, // Auto-categorized
+  stats: {
+    min: { type: Number, default: 0 },
+    max: { type: Number, default: 0 },
+    avg: { type: Number, default: 0 },
+    volatility: { type: Number, default: 0 }
+  },
+  lastPriceChange: {
+    date: { type: Date },
+    oldPrice: Number,
+    newPrice: Number,
+    diff: Number,
+    percent: Number
+  },
+
   // Enhanced Data Fields
   merchant: { type: String }, // e.g., "Amazon.eg" or third-party seller name
   prime: { type: Boolean, default: false }, // Is it a Prime item?
@@ -66,6 +82,10 @@ ProductSchema.index({ asin: 1 }, { unique: true });
 ProductSchema.index({ 'trackedBy.chatId': 1 });
 ProductSchema.index({ asin: 1, 'trackedBy.chatId': 1 });
 ProductSchema.index({ lastChecked: 1 }); // For finding stale products
+ProductSchema.index({ category: 1 });
+ProductSchema.index({ 'stats.min': 1 });
+ProductSchema.index({ 'lastPriceChange.date': -1 });
+ProductSchema.index({ 'lastPriceChange.percent': 1 }); // For finding biggest drops
 
 // Pre-save hook to limit price history size
 ProductSchema.pre('save', function (next) {

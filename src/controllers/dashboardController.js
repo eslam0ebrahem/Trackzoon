@@ -26,18 +26,49 @@ export const getDeals = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
+        const sort = req.query.sort || 'smart';
 
-        // Reuse the service logic but with a dummy chat ID (0) and global scope
-        const deals = await ProductService.getDeals(0, 'global');
+        let query = { isOutOfStock: false };
+        let sortOptions = {};
 
-        // Apply pagination
-        const paginatedDeals = deals.slice(skip, skip + limit);
+        // Smart Sorting using new DB fields
+        if (sort === 'smart') {
+            // Sort by biggest recent drops first
+            sortOptions = { 'lastPriceChange.percent': 1, 'stats.min': 1 };
+            // Note: percent is negative for drops, so ascending (1) puts -50% before -10%
+        } else if (sort === 'date') {
+            sortOptions = { lastChecked: -1 };
+        } else if (sort === 'discount') {
+            sortOptions = { 'lastPriceChange.percent': 1 };
+        }
+
+        const deals = await Product.find(query)
+            .sort(sortOptions)
+            .skip(skip)
+            .limit(limit);
+
+        const total = await Product.countDocuments(query);
+
+        // Transform for frontend (keep existing structure but use pre-calc data)
+        const items = deals.map(p => {
+            // Calculate deal score on the fly or use stored if available
+            // For now, mapping to expected format
+            return {
+                product: p,
+                currentPrice: p.currentPrice,
+                oldPrice: p.lastPriceChange?.oldPrice || p.currentPrice,
+                priceDiff: p.lastPriceChange?.diff || 0,
+                percentChange: p.lastPriceChange?.percent || 0,
+                stats30d: p.stats, // Use pre-calc stats
+                dealScore: 0 // TODO: Store dealScore in DB too
+            };
+        });
 
         res.json({
-            items: paginatedDeals,
-            total: deals.length,
+            items,
+            total,
             page,
-            totalPages: Math.ceil(deals.length / limit)
+            totalPages: Math.ceil(total / limit)
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -89,34 +120,21 @@ export const getProductHistory = async (req, res) => {
 
 export const getCategoryStats = async (req, res) => {
     try {
-        const products = await Product.find({}, 'name');
-        const categories = {
-            'Electronics': 0,
-            'Home & Kitchen': 0,
-            'Fashion': 0,
-            'Beauty': 0,
-            'Other': 0
-        };
+        const stats = await Product.aggregate([
+            { $group: { _id: '$category', count: { $sum: 1 } } }
+        ]);
 
-        products.forEach(p => {
-            const name = p.name.toLowerCase();
-            if (name.match(/laptop|phone|monitor|usb|cable|mouse|keyboard|screen|tv|audio|headphone/)) {
-                categories['Electronics']++;
-            } else if (name.match(/chair|desk|pan|pot|blender|fryer|knife|bed|pillow|lamp/)) {
-                categories['Home & Kitchen']++;
-            } else if (name.match(/shirt|pant|shoe|watch|bag|wallet|dress/)) {
-                categories['Fashion']++;
-            } else if (name.match(/cream|shampoo|soap|perfume|makeup/)) {
-                categories['Beauty']++;
-            } else {
-                categories['Other']++;
+        const labels = [];
+        const data = [];
+
+        stats.forEach(s => {
+            if (s._id) {
+                labels.push(s._id);
+                data.push(s.count);
             }
         });
 
-        res.json({
-            labels: Object.keys(categories),
-            data: Object.values(categories)
-        });
+        res.json({ labels, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
