@@ -357,8 +357,8 @@ export class ProductService {
         const tracker = product.trackedBy.find(t => t.chatId === chatId);
 
         // Calculate extra metrics
-        const dealScore = calculateDealScore(currentPrice, stats30d);
         const trend = predictPriceTrend(product.priceHistory);
+        const dealScore = calculateDealScore(currentPrice, stats30d, tracker.volatilityScore || 0, false, trend);
 
         dealsData.push({
           product,

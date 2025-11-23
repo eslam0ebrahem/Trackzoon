@@ -35,12 +35,22 @@ export const calculatePriceStats = (priceHistory, days = 30) => {
 
     const prices = relevantPrices.map(p => p.price);
     const sum = prices.reduce((a, b) => a + b, 0);
+    const average = sum / prices.length;
+
+    // Calculate Standard Deviation
+    const squareDiffs = prices.map(price => {
+        const diff = price - average;
+        return diff * diff;
+    });
+    const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / prices.length;
+    const stdDev = Math.sqrt(avgSquareDiff);
 
     return {
-        average: sum / prices.length,
+        average,
         min: Math.min(...prices),
         max: Math.max(...prices),
-        count: prices.length
+        count: prices.length,
+        stdDev
     };
 };
 
@@ -146,7 +156,7 @@ export const predictPriceTrend = (priceHistory) => {
  * @param {Object} stats30d - { min, average, max }
  * @returns {number} Score from 0 to 100
  */
-export const calculateDealScore = (currentPrice, stats30d, volatilityScore = 0, isOutOfStock = false) => {
+export const calculateDealScore = (currentPrice, stats30d, volatilityScore = 0, isOutOfStock = false, trend = null) => {
     if (isOutOfStock) return 0;
     if (!stats30d) return 50; // Neutral score if no stats
 
@@ -168,6 +178,21 @@ export const calculateDealScore = (currentPrice, stats30d, volatilityScore = 0, 
         }
     }
 
+    // 2.5. Z-Score Bonus (Statistical Significance)
+    // If we have standard deviation, we can see how "rare" this low price is
+    let zScoreBonus = 0;
+    if (stats30d.stdDev && stats30d.stdDev > 0) {
+        const zScore = (stats30d.average - currentPrice) / stats30d.stdDev;
+        if (zScore >= 2) zScoreBonus = 20;      // Extremely good deal (2 sigma)
+        else if (zScore >= 1) zScoreBonus = 10; // Good deal (1 sigma)
+    }
+
+    // 2.6. Trend Bonus
+    let trendBonus = 0;
+    if (trend && trend.trend === 'DOWN') {
+        trendBonus = 5;
+    }
+
     // 3. Volatility Penalty (max -20 points)
     // High volatility means price jumps around a lot, so a "deal" might not be special
     const volatilityPenalty = Math.min(volatilityScore * 2, 20);
@@ -176,7 +201,7 @@ export const calculateDealScore = (currentPrice, stats30d, volatilityScore = 0, 
     // If low volatility, this price drop is more significant
     const stabilityBonus = volatilityScore < 3 ? 20 : (volatilityScore < 6 ? 10 : 0);
 
-    let totalScore = avgScore + lowScore - volatilityPenalty + stabilityBonus;
+    let totalScore = avgScore + lowScore + zScoreBonus - volatilityPenalty + stabilityBonus + trendBonus;
 
     return Math.max(0, Math.min(Math.round(totalScore), 100));
 };
