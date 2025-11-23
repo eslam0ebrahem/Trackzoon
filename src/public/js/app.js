@@ -525,7 +525,12 @@ window.handleUrlInput = (url) => {
             validationIcon.classList.remove('hidden');
 
             // Populate Preview
-            document.getElementById('previewImage').src = data.imageUrl || 'https://via.placeholder.com/64?text=No+Img';
+            const placeholder = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZzRkNGQ0IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMiIgcnk9IjIiPjwvcmVjdD48Y2lyY2xlIGN4PSI4LjUiIGN5PSI4LjUiIHI9IjEuNSI+PC9jaXJjbGU+PHBvbHlsaW5lIHBvaW50cz0iMjEgMTUgMTYgMTAgNSAyMSI+PC9wb2x5bGluZT48L3N2Zz4=';
+
+            const img = document.getElementById('previewImage');
+            img.src = data.imageUrl || placeholder;
+            img.onerror = () => { img.src = placeholder; };
+
             document.getElementById('previewTitle').textContent = data.name;
             document.getElementById('previewPrice').textContent = `EGP ${data.currentPrice}`;
 
