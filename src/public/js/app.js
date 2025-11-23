@@ -310,35 +310,16 @@ export async function fetchDeals(page = 1) {
         const container = document.getElementById('dealsList');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
 
-        // Client-side sorting is still useful for small datasets, but server-side is better.
-        // Since we implemented server-side sort, we can rely on that mostly, 
-        // but 'smart' sort in UI has some extra logic (recency boost) that might be nice to keep or move to backend.
-        // For now, let's trust the backend order for 'smart' and 'discount' and 'date'.
-        // Only apply client-side sort if it's price_asc/desc which might not be fully implemented in backend yet (it wasn't in the snippet I saw).
+        // Client-side sorting removed to rely on server-side sorting
+        // which now handles Smart Score, Discount, and Date correctly.
 
-        if (STATE.currentSort === 'price_asc') {
-            deals.sort((a, b) => a.currentPrice - b.currentPrice);
-        } else if (STATE.currentSort === 'price_desc') {
-            deals.sort((a, b) => b.currentPrice - a.currentPrice);
-        }
+        // Only apply client-side sort if strictly necessary or for fallbacks, 
+        // but for now we trust the API.
 
-        // Apply Sorting
-        if (STATE.currentSort === 'smart') {
-            // Smart Score: Weighted average of Discount (40%), Deal Score (40%), and Recency (20%)
-            deals.sort((a, b) => {
-                const scoreA = (a.percentChange * 0.4) + ((a.dealScore || 0) * 4) + (new Date(a.lastChecked).getTime() > Date.now() - 3600000 ? 10 : 0);
-                const scoreB = (b.percentChange * 0.4) + ((b.dealScore || 0) * 4) + (new Date(b.lastChecked).getTime() > Date.now() - 3600000 ? 10 : 0);
-                return scoreB - scoreA;
-            });
-        } else if (STATE.currentSort === 'discount') {
-            deals.sort((a, b) => b.percentChange - a.percentChange);
-        } else if (STATE.currentSort === 'price_asc') {
-            deals.sort((a, b) => a.currentPrice - b.currentPrice);
-        } else if (STATE.currentSort === 'price_desc') {
-            deals.sort((a, b) => b.currentPrice - a.currentPrice);
-        } else if (STATE.currentSort === 'date') {
-            deals.sort((a, b) => new Date(b.lastChecked) - new Date(a.lastChecked));
-        }
+        /* 
+        Legacy Client-Side Sort (Removed):
+        if (STATE.currentSort === 'smart') { ... } 
+        */
 
         if (page === 1) {
             UI.renderDeals(deals, container, false);
