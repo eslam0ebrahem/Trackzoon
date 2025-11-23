@@ -250,13 +250,13 @@ export class PriceTrackerService {
             },
 
             ...(imageUrl && { imageUrl }),
-            // Update enhanced fields
-            ...(priceData.merchant && { merchant: priceData.merchant }),
-            ...(priceData.prime !== undefined && { prime: priceData.prime }),
-            ...(priceData.delivery && { delivery: priceData.delivery }),
-            ...(priceData.coupon && { coupon: priceData.coupon }),
-            ...(priceData.dealProgress && { dealProgress: priceData.dealProgress }),
-            ...(priceData.otherSellers && { otherSellers: priceData.otherSellers })
+            // Update enhanced fields (using scrapeResult)
+            ...(scrapeResult.merchant && { merchant: scrapeResult.merchant }),
+            ...(scrapeResult.prime !== undefined && { prime: scrapeResult.prime }),
+            ...(scrapeResult.delivery && { delivery: scrapeResult.delivery }),
+            ...(scrapeResult.coupon && { coupon: scrapeResult.coupon }),
+            ...(scrapeResult.dealProgress && { dealProgress: scrapeResult.dealProgress }),
+            ...(scrapeResult.otherSellers && { otherSellers: scrapeResult.otherSellers })
           }
         },
         { new: true }

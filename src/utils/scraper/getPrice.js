@@ -123,12 +123,12 @@ function checkThirdPartySeller($) {
  * MASTER: Intelligent availability check
  */
 function smartAvailabilityCheck($) {
-  logger.info('🔍 Running smart availability check...');
+  logger.debug('🔍 Running smart availability check...');
 
   // Strategy 1: Check for third-party sellers FIRST
   const thirdPartyCheck = checkThirdPartySeller($);
   if (thirdPartyCheck.isThirdParty) {
-    logger.info(`✅ Third-party seller detected: "${thirdPartyCheck.text}"`);
+    logger.debug(`✅ Third-party seller detected: "${thirdPartyCheck.text}"`);
     return {
       isAvailable: false,
       reason: 'third-party-only',
@@ -138,7 +138,7 @@ function smartAvailabilityCheck($) {
 
   // Strategy 2: Check availability text
   const availText = checkAvailabilityText($);
-  logger.info(`📝 Availability text: "${availText.text}" (from ${availText.source})`);
+  logger.debug(`📝 Availability text: "${availText.text}" (from ${availText.source})`);
 
   // Strategy 2.5: Check for "No featured offers available" (no buybox)
   // Note: #fod-cx-box can also contain "Price higher than typical" which should NOT be treated as unavailable
@@ -159,7 +159,7 @@ function smartAvailabilityCheck($) {
         details: 'No featured offers available'
       };
     } else {
-      logger.info(`ℹ️ Found #fod-cx-box but not a no-buybox scenario: "${messageText.substring(0, 50)}..."`);
+      logger.debug(`ℹ️ Found #fod-cx-box but not a no-buybox scenario: "${messageText.substring(0, 50)}..."`);
     }
   }
 
@@ -188,7 +188,7 @@ function smartAvailabilityCheck($) {
 
   // Strategy 3: Check buy box presence
   const buyBox = checkBuyBoxPresence($);
-  logger.info(`📦 Buy box present: ${buyBox.hasBox} (selector: ${buyBox.selector})`);
+  logger.debug(`📦 Buy box present: ${buyBox.hasBox} (selector: ${buyBox.selector})`);
 
   // If no availability text but no buy box, might be unavailable
   if (!availText.text && !buyBox.hasBox) {
@@ -212,7 +212,7 @@ function smartAvailabilityCheck($) {
   }
 
   // All checks passed - product is available
-  logger.info('✅ Product is available');
+  logger.debug('✅ Product is available');
   return {
     isAvailable: true,
     reason: 'in-stock',
@@ -344,7 +344,7 @@ function extractPriceFromJSONLD($) {
  * MASTER: Multi-strategy price extraction
  */
 function smartPriceExtraction($) {
-  logger.info('🔍 Running multi-strategy price detection...');
+  logger.debug('🔍 Running multi-strategy price detection...');
 
   const strategies = [
     { name: 'Selector-based', fn: function () { return extractPriceFromSelectors($); } },
@@ -358,10 +358,10 @@ function smartPriceExtraction($) {
     try {
       const result = strategy.fn();
       if (result) {
-        logger.info(`✅ ${strategy.name}: Found "${result.priceText}" using ${result.selector}`);
+        logger.debug(`✅ ${strategy.name}: Found "${result.priceText}" using ${result.selector}`);
         results.push(result);
       } else {
-        logger.info(`❌ ${strategy.name}: No price found`);
+        logger.debug(`❌ ${strategy.name}: No price found`);
       }
     } catch (error) {
       logger.error(`⚠️ ${strategy.name}: Error - ${error.message}`);
@@ -607,7 +607,7 @@ function extractOtherSellers($) {
 
 async function getPrice(url) {
   try {
-    logger.info(`🌐 Fetching: ${url}`);
+    logger.debug(`🌐 Fetching: ${url}`);
 
     const response = await axios.get(url, {
       headers: {
@@ -689,9 +689,9 @@ async function getPrice(url) {
     const dealProgress = extractDealProgress($);
     const otherSellers = extractOtherSellers($);
 
-    logger.info(`✅ Successfully extracted price: ${priceValidation.price} EGP (strategy: ${priceResult.strategy})`);
-    if (merchant) logger.info(`🏪 Merchant: ${merchant}`);
-    if (prime) logger.info(`🚛 Prime: Yes`);
+    logger.debug(`✅ Successfully extracted price: ${priceValidation.price} EGP (strategy: ${priceResult.strategy})`);
+    if (merchant) logger.debug(`🏪 Merchant: ${merchant}`);
+    if (prime) logger.debug(`🚛 Prime: Yes`);
 
     return {
       currentPrice: priceValidation.price,
