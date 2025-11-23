@@ -45,7 +45,7 @@ const ProductSchema = new mongoose.Schema({
   checkInterval: { type: Number, default: 30 }, // Minutes between checks (dynamic)
 
   // Smart Database Fields (Phase 7)
-  category: { type: String, index: true }, // Auto-categorized
+  category: { type: String }, // Auto-categorized
   stats: {
     min: { type: Number, default: 0 },
     max: { type: Number, default: 0 },
