@@ -72,9 +72,15 @@ export const UI = {
                 <div class="text-right">
                     <div class="text-lg font-bold ${priceColor} flex items-center justify-end gap-1">
                         <span>${formatPrice(deal.currentPrice)}</span>
-                        ${(deal.discountPercentage || deal.percentChange) ? `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">${arrow} ${Math.abs(deal.discountPercentage || deal.percentChange).toFixed(0)}%</span>` : ''}
+                        ${(() => {
+                    const pct = Math.abs(deal.discountPercentage || deal.percentChange || 0);
+                    if (pct === 0) return '';
+                    // Show decimals for small changes (< 1%), otherwise integer
+                    const pctDisplay = pct < 1 ? pct.toFixed(1) : pct.toFixed(0);
+                    return `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">${arrow} ${pctDisplay}%</span>`;
+                })()}
                     </div>
-                    ${deal.oldPrice ? `<div class="text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</div>` : ''}
+                    ${(deal.oldPrice && deal.oldPrice !== deal.currentPrice) ? `<div class="text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</div>` : ''}
                 </div>
 
                 <!-- 4. Quick Actions (Hover) -->
