@@ -47,13 +47,11 @@ export const UI = {
             return `
             <div class="group bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-200 cursor-pointer flex items-center gap-4" onclick="window.loadHistory('${p.asin}')">
                 
-                <!-- 1. Image -->
-                <div class="w-16 h-16 flex-shrink-0 bg-white rounded-lg border border-gray-100 dark:border-gray-600 p-1 flex items-center justify-center">
-                    <img src="${p.imageUrl || ''}" 
-                         referrerpolicy="no-referrer"
-                         class="max-w-full max-h-full object-contain mix-blend-multiply dark:mix-blend-normal" 
-                         alt="${p.name}"
-                         onerror="this.style.display='none'; this.parentElement.innerHTML='<svg class=\'w-8 h-8 text-gray-300\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4\'></path></svg>'; this.parentElement.classList.add('bg-gray-50', 'dark:bg-gray-700');">
+                <!-- 1. Icon (Replaced Image) -->
+                <div class="w-16 h-16 flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 p-1 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
                 </div>
 
                 <!-- 2. Main Info -->
