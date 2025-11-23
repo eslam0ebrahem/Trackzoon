@@ -171,9 +171,23 @@ export class PriceTrackerService {
 
       // No price change
       if (currentPrice === previousPrice) {
-        // Still recalculate volatility to allow products to "cool down"
-        // If price hasn't changed in a while, the score should drop and interval increase
+        // Even if price didn't change, we should update Smart Score and Volatility
+        // This ensures imported products or those with missing scores get updated
+
         const { score: volatilityScore, interval: checkInterval } = calculateVolatility(product.priceHistory);
+
+        // Calculate Smart Score (0-100) for stable price
+        // Base: 50
+        // Volatility Penalty: -2 points per volatility score (max 20)
+        // Stable Bonus: +5 for stability? (Optional, keeping it simple for now)
+
+        let smartScore = 50;
+        smartScore -= (volatilityScore * 2); // Penalize volatility
+        smartScore = Math.round(Math.max(0, Math.min(smartScore, 100))); // Clamp 0-100 and round
+
+        // Determine Label for stable price
+        let dealLabel = 'fair_price';
+        if (volatilityScore < 3) dealLabel = 'stable';
 
         await Product.findOneAndUpdate(
           { asin: asin },
@@ -181,11 +195,20 @@ export class PriceTrackerService {
             $set: {
               lastChecked: new Date(),
               volatilityScore,
-              checkInterval
+              checkInterval,
+              smartScore,
+              dealLabel,
+              // Ensure other smart fields are present
+              ...(scrapeResult.merchant && { merchant: scrapeResult.merchant }),
+              ...(scrapeResult.prime !== undefined && { prime: scrapeResult.prime }),
+              ...(scrapeResult.delivery && { delivery: scrapeResult.delivery }),
+              ...(scrapeResult.coupon && { coupon: scrapeResult.coupon }),
+              ...(scrapeResult.dealProgress && { dealProgress: scrapeResult.dealProgress }),
+              ...(scrapeResult.otherSellers && { otherSellers: scrapeResult.otherSellers })
             }
           }
         );
-        return null;
+        return false;
       }
 
       // Calculate new volatility score

@@ -37,7 +37,7 @@ export const UI = {
                     <img src="${p.imageUrl || ''}" 
                          class="max-w-full max-h-full object-contain mix-blend-multiply dark:mix-blend-normal" 
                          alt="${p.name}"
-                         onerror="this.onerror=null; this.src='https://placehold.co/100x100?text=No+Image'; this.parentElement.classList.add('bg-gray-50');">
+                         onerror="this.style.display='none'; this.parentElement.innerHTML='<svg class=\'w-8 h-8 text-gray-300\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4\'></path></svg>'; this.parentElement.classList.add('bg-gray-50', 'dark:bg-gray-700');">
                 </div>
 
                 <!-- 2. Main Info -->
@@ -58,7 +58,7 @@ export const UI = {
                 <div class="text-right">
                     <div class="text-lg font-bold ${priceColor} flex items-center justify-end gap-1">
                         <span>${formatPrice(deal.currentPrice)}</span>
-                        ${deal.percentChange !== 0 ? `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">${arrow} ${Math.abs(deal.percentChange).toFixed(0)}%</span>` : ''}
+                        ${(deal.discountPercentage || deal.percentChange) ? `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">${arrow} ${Math.abs(deal.discountPercentage || deal.percentChange).toFixed(0)}%</span>` : ''}
                     </div>
                     ${deal.oldPrice ? `<div class="text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</div>` : ''}
                 </div>
