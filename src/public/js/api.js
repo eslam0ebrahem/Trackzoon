@@ -1,3 +1,5 @@
+import { STATE } from './config.js';
+
 export const API = {
     async getStats() {
         const res = await fetch('/api/stats');
