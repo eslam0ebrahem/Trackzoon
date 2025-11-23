@@ -26,102 +26,56 @@ export const getDeals = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
         const sort = req.query.sort || 'smart';
-        const scope = req.query.scope || 'global'; // 'global' or 'user'
 
-        // Fetch all active products to process in memory (needed for 24h comparison)
-        // For 59 products this is fine. For 10k+, we'd need a 'dailyChange' field in DB.
-        let products = await Product.find({ isOutOfStock: false });
+        let query = { isOutOfStock: false };
+        let sortStage = {};
 
-        const dealsData = [];
-
-        // Helper to get old price from ~24h ago
-        const getPriceFrom24HoursAgo = (priceHistory) => {
-            if (!priceHistory || priceHistory.length === 0) return null;
-            const now = new Date();
-            const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            let closestEntry = null;
-            let closestDiff = Infinity;
-
-            for (const entry of priceHistory) {
-                const entryDate = new Date(entry.date);
-                const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
-                // Look for price within 20-28 hours ago window
-                if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
-                    closestDiff = timeDiff;
-                    closestEntry = entry;
-                }
-            }
-            // Fallback: if no 24h entry, use the oldest entry if it's older than 24h? 
-            // Or just use the previous price change? 
-            // Let's stick to strict 24h for "Daily Deals", or fallback to last change if requested.
-            // For now, let's use the logic: if we can't find 24h price, we can't calculate 24h change.
-            return closestEntry;
-        };
-
-        for (const product of products) {
-            if (!product.currentPrice) continue;
-
-            const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
-
-            // If no 24h history, maybe check if there was ANY change recently?
-            // If we strictly want "Daily Deals", we skip if no history.
-            // But to populate the list, let's fallback to 'lastPriceChange' if 24h not found,
-            // BUT only if that change happened within last 24h.
-
-            let oldPrice = product.currentPrice;
-            let priceDiff = 0;
-            let percentChange = 0;
-
-            if (oldPriceEntry) {
-                oldPrice = oldPriceEntry.price;
-                priceDiff = product.currentPrice - oldPrice; // Negative means drop
-                percentChange = ((product.currentPrice - oldPrice) / oldPrice) * 100;
-            } else if (product.lastPriceChange && new Date(product.lastPriceChange.date) > new Date(Date.now() - 24 * 60 * 60 * 1000)) {
-                // Fallback to lastPriceChange if it happened in last 24h
-                oldPrice = product.lastPriceChange.oldPrice;
-                priceDiff = product.lastPriceChange.diff;
-                percentChange = product.lastPriceChange.percent;
-            }
-
-            // Filter: For global deals, show only price drops
-            if (scope === 'global' && priceDiff >= 0) continue;
-
-            // Calculate Deal Score
-            const dealScore = calculateDealScore(product.currentPrice, product.stats);
-
-            dealsData.push({
-                product,
-                currentPrice: product.currentPrice,
-                oldPrice,
-                priceDiff,
-                percentChange,
-                stats30d: product.stats,
-                dealScore,
-                lastChecked: product.lastChecked
-            });
+        // Smart Sorting using new DB fields
+        if (sort === 'smart') {
+            // Sort by biggest recent drops first (negative percent)
+            // We use a projected field 'sortPercent' to handle nulls
+            sortStage = { sortPercent: 1, 'stats.min': 1 };
+        } else if (sort === 'date') {
+            sortStage = { lastChecked: -1 };
+        } else if (sort === 'discount') {
+            sortStage = { sortPercent: 1 };
         }
 
-        // Sort
-        dealsData.sort((a, b) => {
-            if (sort === 'smart') {
-                // Sort by Deal Score (desc) then Percent Change (asc, since drops are negative)
-                if (b.dealScore !== a.dealScore) return b.dealScore - a.dealScore;
-                return a.percentChange - b.percentChange; // -50% < -10%
-            } else if (sort === 'date') {
-                return new Date(b.lastChecked) - new Date(a.lastChecked);
-            } else if (sort === 'discount') {
-                return a.percentChange - b.percentChange;
-            }
-            return 0;
+        const deals = await Product.aggregate([
+            { $match: query },
+            // Add sort key for percent change, defaulting to 0 if missing (so nulls don't come first)
+            {
+                $addFields: {
+                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] }
+                }
+            },
+            { $sort: sortStage },
+            { $skip: skip },
+            { $limit: limit }
+        ]);
+
+        const total = await Product.countDocuments(query);
+
+        // Transform for frontend
+        const items = deals.map(p => {
+            // Calculate deal score on the fly
+            const dealScore = calculateDealScore(p.currentPrice, p.stats);
+
+            return {
+                product: p,
+                currentPrice: p.currentPrice,
+                oldPrice: p.lastPriceChange?.oldPrice || p.currentPrice,
+                priceDiff: p.lastPriceChange?.diff || 0,
+                percentChange: p.lastPriceChange?.percent || 0,
+                stats30d: p.stats,
+                dealScore: dealScore
+            };
         });
 
-        // Pagination
-        const total = dealsData.length;
-        const paginatedItems = dealsData.slice((page - 1) * limit, page * limit);
-
         res.json({
-            items: paginatedItems,
+            items,
             total,
             page,
             totalPages: Math.ceil(total / limit)
