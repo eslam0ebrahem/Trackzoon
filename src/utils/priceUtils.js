@@ -70,7 +70,20 @@ export const calculateVolatility = (priceHistory) => {
     // Count price changes
     let changes = 0;
     for (let i = 1; i < recentHistory.length; i++) {
-        if (recentHistory[i].price !== recentHistory[i - 1].price) {
+        const prevPrice = recentHistory[i - 1].price;
+        const currPrice = recentHistory[i].price;
+
+        // Calculate percentage difference
+        // If previous price is 0, any change is infinite, but let's just count it if current is not 0
+        if (prevPrice === 0) {
+            if (currPrice !== 0) changes++;
+            continue;
+        }
+
+        const percentDiff = Math.abs((currPrice - prevPrice) / prevPrice) * 100;
+
+        // Only count as a change if it's significant (> 0.5%)
+        if (percentDiff > 0.5) {
             changes++;
         }
     }
