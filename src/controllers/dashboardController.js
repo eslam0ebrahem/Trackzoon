@@ -1,6 +1,7 @@
 import Product from '../models/Product.js';
 import User from '../models/User.js';
 import { ProductService } from '../services/productService.js';
+import { calculateDealScore } from '../utils/priceUtils.js';
 
 export const getStats = async (req, res) => {
     try {
@@ -29,38 +30,47 @@ export const getDeals = async (req, res) => {
         const sort = req.query.sort || 'smart';
 
         let query = { isOutOfStock: false };
-        let sortOptions = {};
+        let sortStage = {};
 
         // Smart Sorting using new DB fields
         if (sort === 'smart') {
-            // Sort by biggest recent drops first
-            sortOptions = { 'lastPriceChange.percent': 1, 'stats.min': 1 };
-            // Note: percent is negative for drops, so ascending (1) puts -50% before -10%
+            // Sort by biggest recent drops first (negative percent)
+            // We use a projected field 'sortPercent' to handle nulls
+            sortStage = { sortPercent: 1, 'stats.min': 1 };
         } else if (sort === 'date') {
-            sortOptions = { lastChecked: -1 };
+            sortStage = { lastChecked: -1 };
         } else if (sort === 'discount') {
-            sortOptions = { 'lastPriceChange.percent': 1 };
+            sortStage = { sortPercent: 1 };
         }
 
-        const deals = await Product.find(query)
-            .sort(sortOptions)
-            .skip(skip)
-            .limit(limit);
+        const deals = await Product.aggregate([
+            { $match: query },
+            // Add sort key for percent change, defaulting to 0 if missing (so nulls don't come first)
+            {
+                $addFields: {
+                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] }
+                }
+            },
+            { $sort: sortStage },
+            { $skip: skip },
+            { $limit: limit }
+        ]);
 
         const total = await Product.countDocuments(query);
 
-        // Transform for frontend (keep existing structure but use pre-calc data)
+        // Transform for frontend
         const items = deals.map(p => {
-            // Calculate deal score on the fly or use stored if available
-            // For now, mapping to expected format
+            // Calculate deal score on the fly
+            const dealScore = calculateDealScore(p.currentPrice, p.stats);
+
             return {
                 product: p,
                 currentPrice: p.currentPrice,
                 oldPrice: p.lastPriceChange?.oldPrice || p.currentPrice,
                 priceDiff: p.lastPriceChange?.diff || 0,
                 percentChange: p.lastPriceChange?.percent || 0,
-                stats30d: p.stats, // Use pre-calc stats
-                dealScore: 0 // TODO: Store dealScore in DB too
+                stats30d: p.stats,
+                dealScore: dealScore
             };
         });
 
