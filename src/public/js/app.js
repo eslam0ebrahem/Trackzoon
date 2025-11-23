@@ -268,7 +268,7 @@ async function init() {
 async function refreshData() {
     await Promise.all([
         fetchRecent(),
-        window.fetchLogs(),
+        fetchLogs(),
         fetchStats()
     ]);
     if (STATE.currentPage === 1) {
@@ -479,6 +479,7 @@ async function fetchLogs() {
         document.getElementById('logsList').innerHTML = '<div class="text-red-400">Failed to load logs</div>';
     }
 }
+window.fetchLogs = fetchLogs;
 
 async function submitNewProduct() {
     const url = document.getElementById('newProductUrl').value;
