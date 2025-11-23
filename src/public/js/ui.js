@@ -25,6 +25,21 @@ export const UI = {
             else if (deal.dealLabel === 'good_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">✅ Good</span>';
             else if (deal.dealLabel === 'price_hike') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">⚠️ Hike</span>';
 
+            // Score Badge Logic
+            const score = Math.round(deal.smartScore || 0);
+            let scoreColor = 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+            let scoreIcon = '😐';
+
+            if (score >= 70) {
+                scoreColor = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+                scoreIcon = '🔥';
+            } else if (score >= 40) {
+                scoreColor = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+                scoreIcon = '🙂';
+            }
+
+            const scoreBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold ${scoreColor} flex items-center gap-1" title="Smart Score: ${score}/100">${scoreIcon} ${score}</span>`;
+
             // Price Color
             const priceColor = isDrop ? 'text-green-600 dark:text-green-400' : (isHike ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white');
             const arrow = isDrop ? '↓' : (isHike ? '↑' : '');
@@ -35,6 +50,7 @@ export const UI = {
                 <!-- 1. Image -->
                 <div class="w-16 h-16 flex-shrink-0 bg-white rounded-lg border border-gray-100 dark:border-gray-600 p-1 flex items-center justify-center">
                     <img src="${p.imageUrl || ''}" 
+                         referrerpolicy="no-referrer"
                          class="max-w-full max-h-full object-contain mix-blend-multiply dark:mix-blend-normal" 
                          alt="${p.name}"
                          onerror="this.style.display='none'; this.parentElement.innerHTML='<svg class=\'w-8 h-8 text-gray-300\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4\'></path></svg>'; this.parentElement.classList.add('bg-gray-50', 'dark:bg-gray-700');">
@@ -44,7 +60,7 @@ export const UI = {
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                         ${labelBadge}
-                        <span class="text-xs text-gray-400 font-mono">Score: ${Math.round(deal.smartScore)}</span>
+                        ${scoreBadge}
                     </div>
                     <h3 class="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">${p.name}</h3>
                     <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
