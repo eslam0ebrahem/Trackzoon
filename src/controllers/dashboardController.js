@@ -34,12 +34,20 @@ export const getDeals = async (req, res) => {
         let query = { isOutOfStock: false };
         let sortStage = {};
 
+        // Initialize pipeline with base match
+        const pipeline = [
+            { $match: query },
+            // Add sort key for percent change, defaulting to 0 if missing
+            {
+                $addFields: {
+                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] }
+                }
+            }
+        ];
+
         // Smart Sorting using new DB fields
         if (sort === 'smart') {
             // Smart Score Approximation in Aggregation
-            // We want: High discount (negative percent), Low volatility, Recent change
-            // Formula: (Percent * -2) + (RecencyBoost) - (Volatility * 2)
-            // Note: Percent is negative for drops, so multiplying by -1 makes it positive score
             pipeline.push({
                 $addFields: {
                     recencyBonus: {
@@ -60,31 +68,18 @@ export const getDeals = async (req, res) => {
             });
             sortStage = { smartSortScore: -1 };
         } else if (sort === 'date') {
-            // Sort by the date of the actual PRICE CHANGE, not just the check time
             sortStage = { 'lastPriceChange.date': -1 };
         } else if (sort === 'discount') {
-            // Sort by biggest drop (most negative percent)
             sortStage = { 'lastPriceChange.percent': 1 };
         } else if (sort === 'price_asc') {
             sortStage = { currentPrice: 1 };
         } else if (sort === 'price_desc') {
             sortStage = { currentPrice: -1 };
         } else {
-            // Default fallback
             sortStage = { 'lastPriceChange.percent': 1 };
         }
 
-        const pipeline = [
-            { $match: query },
-            // Add sort key for percent change, defaulting to 0 if missing (so nulls don't come first)
-            {
-                $addFields: {
-                    sortPercent: { $ifNull: ['$lastPriceChange.percent', 0] }
-                }
-            }
-        ];
-
-        // Apply Discount Filter (percent is negative, so we check if it's <= -minDiscount)
+        // Apply Discount Filter
         if (minDiscount > 0) {
             pipeline.push({
                 $match: {
