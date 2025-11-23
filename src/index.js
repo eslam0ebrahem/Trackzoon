@@ -22,10 +22,6 @@ cache.init();
 // Connect to MongoDB
 await connectDB();
 
-// Run Smart DB Migration (Phase 7)
-import { migrateSmartFields } from './utils/dbMigration.js';
-migrateSmartFields().catch(err => console.error('Migration error:', err));
-
 // Initialize the bot
 const bot = initializeBot(commands);
 
