@@ -464,10 +464,36 @@ function toggleView(view) {
     fetchDeals(STATE.currentPage);
 }
 
-function setSort(sortValue) {
+window.toggleSortDropdown = () => {
+    const menu = document.getElementById('sortDropdownMenu');
+    menu.classList.toggle('hidden');
+
+    // Close on click outside
+    if (!menu.classList.contains('hidden')) {
+        const closeMenu = (e) => {
+            if (!e.target.closest('#sortDropdownMenu') && !e.target.closest('#sortButton')) {
+                menu.classList.add('hidden');
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 0);
+    }
+};
+
+window.selectSort = (sortValue, label) => {
     STATE.currentSort = sortValue;
     STATE.currentPage = 1;
+
+    // Update UI
+    document.getElementById('currentSortLabel').textContent = label;
+    document.getElementById('sortDropdownMenu').classList.add('hidden');
+
     fetchDeals(1);
+};
+
+function setSort(sortValue) {
+    // Legacy support or internal use if needed
+    selectSort(sortValue, 'Sort');
 }
 
 function setFilter(minDiscount) {
