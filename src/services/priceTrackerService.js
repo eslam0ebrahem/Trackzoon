@@ -268,7 +268,7 @@ export class PriceTrackerService {
         const shouldNotify = await this.shouldNotifyUser(tracker, updatedProduct, previousPrice, currentPrice);
 
         if (shouldNotify) {
-          await this.notifyUser(tracker.chatId, updatedProduct, previousPrice, currentPrice);
+          await this.notifyUser(tracker, updatedProduct, previousPrice, currentPrice);
 
           // Update last alerted time atomically
           await Product.updateOne(
@@ -400,12 +400,12 @@ export class PriceTrackerService {
     return false;
   }
 
-  async notifyUser(chatId, product, oldPrice, newPrice) {
+  async notifyUser(tracker, product, oldPrice, newPrice) {
     try {
       const message = buildPriceAlertMessage(product, oldPrice, newPrice);
 
       if (product.imageUrl) {
-        await this.bot.telegram.sendPhoto(chatId, product.imageUrl, {
+        await this.bot.telegram.sendPhoto(tracker.chatId, product.imageUrl, {
           caption: message,
           parse_mode: 'MarkdownV2',
           reply_markup: {
@@ -415,7 +415,7 @@ export class PriceTrackerService {
           }
         });
       } else {
-        await sendMessageWithRetry(this.bot, chatId, message, {
+        await sendMessageWithRetry(this.bot, tracker.chatId, message, {
           parse_mode: 'MarkdownV2',
           disable_web_page_preview: false
         });
@@ -435,7 +435,7 @@ export class PriceTrackerService {
         });
       }
     } catch (error) {
-      logger.error(`Error notifying user ${chatId} about product ${product.asin}:`, error);
+      logger.error(`Error notifying user ${tracker.chatId} about product ${product.asin}:`, error);
       // Don't throw - continue processing other notifications
     }
   }
