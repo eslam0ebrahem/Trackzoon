@@ -24,12 +24,13 @@ export class PriceTrackerService {
     try {
       let currentPrice;
       let imageUrl = null; // Declare in outer scope so it's available for all update operations
+      let scrapeResult = null; // Declare in outer scope
       const wasOutOfStock = product.isOutOfStock || false;
       const previousPrice = product.currentPrice;
       const asin = product.asin;
 
       try {
-        const scrapeResult = await getPrice(product.url);
+        scrapeResult = await getPrice(product.url);
         currentPrice = scrapeResult.currentPrice;
         imageUrl = scrapeResult.imageUrl || null; // Optional field
 
