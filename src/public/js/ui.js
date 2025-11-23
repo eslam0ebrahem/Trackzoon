@@ -31,7 +31,8 @@ export const UI = {
                                 </h3>
                                 <div class="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
                                     <span>${new Date(deal.product.lastChecked).toLocaleDateString()}</span>
-                                    ${deal.dealScore ? `<span class="text-yellow-600 dark:text-yellow-500 font-medium">• Score: ${deal.dealScore}</span>` : ''}
+                                    ${deal.smartScore ? `<span class="text-purple-600 dark:text-purple-400 font-bold">• Smart Score: ${deal.smartScore.toFixed(0)}</span>` : ''}
+                                    ${deal.dealScore ? `<span class="text-yellow-600 dark:text-yellow-500 font-medium">• Quality: ${deal.dealScore}</span>` : ''}
                                 </div>
                             </div>
 

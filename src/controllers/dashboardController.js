@@ -52,7 +52,12 @@ export const getDeals = async (req, res) => {
                 $addFields: {
                     recencyBonus: {
                         $cond: {
-                            if: { $gte: ['$lastPriceChange.date', new Date(Date.now() - 24 * 60 * 60 * 1000)] },
+                            if: {
+                                $and: [
+                                    { $gte: ['$lastPriceChange.date', new Date(Date.now() - 24 * 60 * 60 * 1000)] },
+                                    { $lt: ['$lastPriceChange.percent', 0] } // Only bonus for drops!
+                                ]
+                            },
                             then: 20,
                             else: 0
                         }
@@ -149,7 +154,8 @@ export const getDeals = async (req, res) => {
                 priceDiff: p.lastPriceChange?.diff || 0,
                 percentChange: p.lastPriceChange?.percent || 0,
                 stats30d: p.stats,
-                dealScore: dealScore
+                dealScore: dealScore,
+                smartScore: p.smartSortScore || 0 // Pass the calculated smart score
             };
         });
 
