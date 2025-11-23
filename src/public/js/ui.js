@@ -41,7 +41,7 @@ export const UI = {
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                         ${labelBadge}
-                        <span class="text-xs text-gray-400 font-mono">Score: ${deal.smartScore}</span>
+                        <span class="text-xs text-gray-400 font-mono">Score: ${Math.round(deal.smartScore)}</span>
                     </div>
                     <h3 class="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">${p.name}</h3>
                     <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">

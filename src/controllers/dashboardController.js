@@ -40,6 +40,11 @@ export const getDeals = async (req, res) => {
             query.discountPercentage = { $lte: -minDiscount };
         }
 
+        // Exclude hikes from "Top Deals" view (smart sort)
+        if (sort === 'smart') {
+            query.dealLabel = { $ne: 'price_hike' };
+        }
+
         // 2. Sort Logic (Simple & Fast)
         if (sort === 'smart') {
             sortOptions = { smartScore: -1 }; // High score first
@@ -47,6 +52,8 @@ export const getDeals = async (req, res) => {
             sortOptions = { discountPercentage: 1 }; // Most negative first (-50 before -10)
         } else if (sort === 'date') {
             sortOptions = { lastDropDate: -1 }; // Most recent drop first
+            // Also exclude hikes for "Newest" to show only relevant updates
+            query.dealLabel = { $ne: 'price_hike' };
         } else if (sort === 'price_asc') {
             sortOptions = { currentPrice: 1 };
         } else if (sort === 'price_desc') {

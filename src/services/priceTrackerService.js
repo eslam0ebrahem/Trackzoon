@@ -211,7 +211,7 @@ export class PriceTrackerService {
         smartScore -= Math.min(priceChangePercent * 2, 50); // Penalize hike
       }
       smartScore -= (volatilityScore * 2); // Penalize volatility
-      smartScore = Math.max(0, Math.min(smartScore, 100)); // Clamp 0-100
+      smartScore = Math.round(Math.max(0, Math.min(smartScore, 100))); // Clamp 0-100 and round
 
       // Determine Label
       let dealLabel = 'fair_price';
