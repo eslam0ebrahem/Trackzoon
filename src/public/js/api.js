@@ -27,6 +27,11 @@ export const API = {
         return res.json();
     },
 
+    async triggerPriceCheck() {
+        const res = await fetch('/api/admin/check-prices', { method: 'POST' });
+        return res.json();
+    },
+
     async getCategoryStats() {
         const res = await fetch('/api/stats/categories');
         return res.json();

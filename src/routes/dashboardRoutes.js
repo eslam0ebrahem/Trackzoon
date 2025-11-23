@@ -21,5 +21,6 @@ router.post('/products/bulk', dashboardController.bulkImportProducts);
 router.put('/products/:asin/tags', dashboardController.updateTags);
 router.put('/products/:asin/target', dashboardController.updateTargetPrice);
 router.put('/products/:asin/archive', dashboardController.archiveProduct);
+router.post('/admin/check-prices', dashboardController.triggerPriceCheck);
 
 export default router;

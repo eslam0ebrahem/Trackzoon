@@ -1,6 +1,7 @@
 import Product from '../models/Product.js';
 import User from '../models/User.js';
 import { ProductService } from '../services/productService.js';
+import { PriceTrackerService } from '../services/priceTrackerService.js';
 import { calculateDealScore } from '../utils/priceUtils.js';
 
 export const getStats = async (req, res) => {
@@ -101,6 +102,18 @@ export const addProduct = async (req, res) => {
 
         const result = await ProductService.addProduct(url, DASHBOARD_USER_ID, threshold || 0);
         res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const triggerPriceCheck = async (req, res) => {
+    try {
+        // Run in background to avoid timeout
+        const tracker = new PriceTrackerService(process.env.TELEGRAM_BOT_TOKEN);
+        tracker.checkAllPrices().catch(err => console.error('Manual price check failed:', err));
+
+        res.json({ message: 'Price check started successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
