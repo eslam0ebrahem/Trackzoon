@@ -34,7 +34,10 @@ export const UI = {
                 
                 <!-- 1. Image -->
                 <div class="w-16 h-16 flex-shrink-0 bg-white rounded-lg border border-gray-100 dark:border-gray-600 p-1 flex items-center justify-center">
-                    <img src="${p.imageUrl || ''}" class="max-w-full max-h-full object-contain mix-blend-multiply dark:mix-blend-normal" alt="${p.name}">
+                    <img src="${p.imageUrl || ''}" 
+                         class="max-w-full max-h-full object-contain mix-blend-multiply dark:mix-blend-normal" 
+                         alt="${p.name}"
+                         onerror="this.onerror=null; this.src='https://placehold.co/100x100?text=No+Image'; this.parentElement.classList.add('bg-gray-50');">
                 </div>
 
                 <!-- 2. Main Info -->
