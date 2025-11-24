@@ -69,6 +69,12 @@ const ProductSchema = new mongoose.Schema({
   // AI Analysis Fields
   aiAnalysis: { type: String }, // Text explanation from AI
   lastAiAnalysis: { type: Date }, // When AI last analyzed this product
+  aiPrediction: {
+    trend: { type: String, enum: ['DROP', 'RISE', 'STABLE', 'UNKNOWN'] },
+    confidence: Number,
+    reason: String,
+    lastUpdated: Date
+  },
 
   // Enhanced Data Fields
   merchant: { type: String }, // e.g., "Amazon.eg" or third-party seller name

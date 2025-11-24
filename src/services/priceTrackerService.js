@@ -283,6 +283,31 @@ export class PriceTrackerService {
         }
       }
 
+      // 3. AI Price Prediction (Enhancement)
+      // Run prediction if missing or older than 3 days
+      let aiPredictionResult = null;
+      const daysSincePrediction = product.aiPrediction?.lastUpdated
+        ? (Date.now() - new Date(product.aiPrediction.lastUpdated).getTime()) / (1000 * 60 * 60 * 24)
+        : 999;
+
+      if (daysSincePrediction > 3 && product.priceHistory.length >= 5) {
+        try {
+          const { aiService } = await import('./aiService.js');
+          const prediction = await aiService.predictTrend({
+            ...product.toObject(),
+            currentPrice,
+            priceHistory: product.priceHistory // Ensure history is passed
+          });
+
+          if (prediction) {
+            aiPredictionResult = prediction;
+            logger.info(`🔮 AI Prediction for ${asin}: ${prediction.trend} (${prediction.confidence})`);
+          }
+        } catch (err) {
+          logger.warn('AI Prediction failed:', err.message);
+        }
+      }
+
       // Determine Label based on Score
       let dealLabel = 'fair_price';
       if (smartScore >= 80) dealLabel = 'hot_deal';
@@ -324,6 +349,14 @@ export class PriceTrackerService {
             ...(aiAnalysisResult && {
               aiAnalysis: aiAnalysisResult.reason,
               lastAiAnalysis: new Date()
+            }),
+
+            // AI Prediction
+            ...(aiPredictionResult && {
+              aiPrediction: {
+                ...aiPredictionResult,
+                lastUpdated: new Date()
+              }
             }),
 
             ...(imageUrl && { imageUrl }),

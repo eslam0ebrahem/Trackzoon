@@ -107,6 +107,18 @@ export class ProductService {
           }
         }
 
+        // AI Categorization
+        let category = 'Uncategorized';
+        let tags = [];
+        try {
+          const { aiService } = await import('./aiService.js');
+          const aiCat = await aiService.categorizeProduct(name);
+          category = aiCat.category || 'Uncategorized';
+          tags = aiCat.tags || [];
+        } catch (err) {
+          logger.warn('AI Categorization skipped:', err.message);
+        }
+
         product = new Product({
           asin,
           name,
@@ -114,6 +126,8 @@ export class ProductService {
           imageUrl,
           currentPrice,
           isOutOfStock,
+          category, // AI Enhanced
+          tags,     // AI Enhanced
           priceHistory: [{ price: currentPrice, date: new Date() }],
           trackedBy: [{ chatId, thresholdPrice: threshold }]
         });

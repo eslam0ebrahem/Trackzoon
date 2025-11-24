@@ -143,6 +143,108 @@ export class AiService {
             return "I'm having trouble thinking right now. Please try again later.";
         }
     }
+
+    /**
+     * Categorize a product and generate tags using AI
+     * @param {string} name - Product name
+     * @returns {Promise<{category: string, tags: string[]}>}
+     */
+    async categorizeProduct(name) {
+        if (!this.apiKey) return { category: 'Uncategorized', tags: [] };
+
+        try {
+            const prompt = `
+        Categorize this product for an e-commerce dashboard.
+        Product: "${name}"
+        
+        Return ONLY a JSON object:
+        {
+          "category": "<One broad category e.g. Electronics, Home, Fashion, Gaming, Beauty>",
+          "tags": ["<tag1>", "<tag2>", "<tag3>"] (Max 3 specific tags)
+        }
+      `;
+
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: 'sonar',
+                    messages: [
+                        { role: 'system', content: 'You are a helpful assistant that outputs only valid JSON.' },
+                        { role: 'user', content: prompt }
+                    ]
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                }
+            );
+
+            const content = response.data.choices[0].message.content;
+            const jsonString = content.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(jsonString);
+        } catch (error) {
+            logger.error('AI Categorization failed:', error.message);
+            return { category: 'Uncategorized', tags: [] };
+        }
+    }
+
+    /**
+     * Predict price trend using AI
+     * @param {Object} product - Product object with history
+     * @returns {Promise<{trend: string, confidence: number, reason: string}>}
+     */
+    async predictTrend(product) {
+        if (!this.apiKey) return null;
+
+        try {
+            // Simplify history for prompt
+            const history = product.priceHistory.slice(-10).map(h => h.price).join(', ');
+
+            const prompt = `
+        Analyze the price trend for this product.
+        Product: ${product.name}
+        Recent Prices (Oldest to Newest): [${history}]
+        Current Price: ${product.currentPrice}
+        
+        Will the price likely DROP, RISE, or STAY STABLE in the next 7 days?
+        
+        Return ONLY a JSON object:
+        {
+          "trend": "<DROP|RISE|STABLE>",
+          "confidence": <0.0 to 1.0>,
+          "reason": "<Very short reason>"
+        }
+      `;
+
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: 'sonar',
+                    messages: [
+                        { role: 'system', content: 'You are a financial analyst that outputs only valid JSON.' },
+                        { role: 'user', content: prompt }
+                    ]
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 15000
+                }
+            );
+
+            const content = response.data.choices[0].message.content;
+            const jsonString = content.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(jsonString);
+        } catch (error) {
+            logger.error('AI Prediction failed:', error.message);
+            return null;
+        }
+    }
 }
 
 export const aiService = new AiService();
