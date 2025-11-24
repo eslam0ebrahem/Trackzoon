@@ -253,6 +253,12 @@ export class PriceTrackerService {
           // Import dynamically to avoid circular deps if any
           const { aiService } = await import('./aiService.js');
 
+          // Calculate days tracked to identify true "new" products vs stable ones
+          const firstPriceDate = product.priceHistory.length > 0
+            ? new Date(product.priceHistory[0].date)
+            : new Date();
+          const daysTracked = (Date.now() - firstPriceDate.getTime()) / (1000 * 60 * 60 * 24);
+
           // Pass rich context to AI
           const aiResult = await aiService.analyzeDeal({
             ...product.toObject(),
@@ -260,7 +266,9 @@ export class PriceTrackerService {
             stats: stats30d,
             priceChange: priceChangePercent.toFixed(2),
             trend: trend.trend,
-            volatility: volatilityScore >= 8 ? 'High' : volatilityScore >= 4 ? 'Medium' : 'Low'
+            volatility: daysTracked < 7
+              ? 'New Product (Insufficient Data)'
+              : (volatilityScore >= 8 ? 'High' : volatilityScore >= 4 ? 'Medium' : 'Stable')
           });
 
           if (aiResult) {
