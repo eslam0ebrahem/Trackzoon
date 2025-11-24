@@ -126,6 +126,11 @@ const formatProductDetails = (product, tracker) => {
         message += `\n⚠️ *Heads up\\! Price is at all\\-time high\\.*`;
     }
 
+    // Add AI Analysis if available
+    if (product.aiAnalysis) {
+        message += `\n\n🤖 *AI Analysis:*\n_${escapeMarkdownV2(product.aiAnalysis)}_`;
+    }
+
     return message;
 };
 
@@ -253,6 +258,11 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
     // Deal context from price history
     if (dealContext) {
         message += `📊 *Deal Analysis:*\\n${dealContext}\\n\\n`;
+    }
+
+    // AI Insight
+    if (product.aiAnalysis) {
+        message += `🤖 *AI Insight:*\\n_${escapeMarkdownV2(product.aiAnalysis)}_\\n\\n`;
     }
 
     // Recommendation

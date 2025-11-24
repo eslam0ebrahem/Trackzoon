@@ -7,6 +7,7 @@ import startCommand from './startCommand.js';
 import helpCommand from './helpCommand.js';
 import listCommand from './listCommand.js';
 import addCommand from './addCommand.js';
+import { askCommand } from './askCommand.js';
 
 export default (bot) => {
   // Register all commands
@@ -14,4 +15,5 @@ export default (bot) => {
   helpCommand(bot);
   listCommand(bot);
   addCommand(bot);
+  bot.command('ask', askCommand);
 };
