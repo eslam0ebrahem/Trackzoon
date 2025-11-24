@@ -43,7 +43,7 @@ export class AiService {
             const response = await axios.post(
                 this.apiUrl,
                 {
-                    model: 'llama-3.1-sonar-small-128k-online',
+                    model: 'sonar',
                     messages: [
                         { role: 'system', content: 'You are a helpful shopping assistant that outputs only valid JSON.' },
                         { role: 'user', content: prompt }
@@ -72,6 +72,9 @@ export class AiService {
             };
 
         } catch (error) {
+            if (error.response) {
+                logger.error(`AI Analysis API Error: ${JSON.stringify(error.response.data)}`);
+            }
             logger.error(`AI Analysis failed for ${product.asin}:`, error.message);
             return null;
         }
