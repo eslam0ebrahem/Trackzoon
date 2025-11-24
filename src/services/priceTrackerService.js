@@ -10,7 +10,7 @@ import pLimit from 'p-limit';
 import { updateProductRating } from './ratingScraper.js';
 
 import { logger } from '../utils/logger.js';
-import { calculateVolatility, calculatePriceStats } from '../utils/priceUtils.js';
+import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend } from '../utils/priceUtils.js';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
 const scrapingLimit = pLimit(3);
@@ -176,18 +176,24 @@ export class PriceTrackerService {
 
         const { score: volatilityScore, interval: checkInterval } = calculateVolatility(product.priceHistory);
 
-        // Calculate Smart Score (0-100) for stable price
-        // Base: 50
-        // Volatility Penalty: -2 points per volatility score (max 20)
-        // Stable Bonus: +5 for stability? (Optional, keeping it simple for now)
+        // Calculate 30-day stats for score calculation
+        const stats30d = calculatePriceStats(product.priceHistory, 30);
+        const trend = predictPriceTrend(product.priceHistory);
 
-        let smartScore = 50;
-        smartScore -= (volatilityScore * 2); // Penalize volatility
-        smartScore = Math.round(Math.max(0, Math.min(smartScore, 100))); // Clamp 0-100 and round
+        // Calculate Smart Score (0-100) using robust utility
+        const smartScore = calculateDealScore(
+          currentPrice,
+          stats30d,
+          volatilityScore,
+          false, // isOutOfStock
+          trend
+        );
 
         // Determine Label for stable price
         let dealLabel = 'fair_price';
-        if (volatilityScore < 3) dealLabel = 'stable';
+        if (smartScore >= 80) dealLabel = 'hot_deal';
+        else if (smartScore >= 60) dealLabel = 'good_deal';
+        else if (volatilityScore < 3) dealLabel = 'stable';
 
         await Product.findOneAndUpdate(
           { asin: asin },
@@ -219,27 +225,23 @@ export class PriceTrackerService {
       const priceChangePercent = ((currentPrice - previousPrice) / previousPrice) * 100;
       const isDrop = priceChangePercent < 0;
 
-      // Calculate Smart Score (0-100)
-      // Base: 50
-      // Drop Bonus: +1 point per 1% drop (max 50)
-      // Hike Penalty: -2 points per 1% hike (max 50)
-      // Volatility Penalty: -2 points per volatility score (max 20)
-      // Recency Bonus: +20 if drop happened just now (which it did)
+      // Calculate 30-day stats for score calculation
+      const stats30d = calculatePriceStats(product.priceHistory, 30);
+      const trend = predictPriceTrend(product.priceHistory);
 
-      let smartScore = 50;
-      if (isDrop) {
-        smartScore += Math.min(Math.abs(priceChangePercent), 50); // Add drop %
-        smartScore += 20; // Fresh drop bonus
-      } else {
-        smartScore -= Math.min(priceChangePercent * 2, 50); // Penalize hike
-      }
-      smartScore -= (volatilityScore * 2); // Penalize volatility
-      smartScore = Math.round(Math.max(0, Math.min(smartScore, 100))); // Clamp 0-100 and round
+      // Calculate Smart Score using robust utility function
+      const smartScore = calculateDealScore(
+        currentPrice,
+        stats30d,
+        volatilityScore,
+        false, // isOutOfStock
+        trend
+      );
 
-      // Determine Label
+      // Determine Label based on Score & Price Change
       let dealLabel = 'fair_price';
-      if (priceChangePercent <= -20) dealLabel = 'hot_deal';
-      else if (priceChangePercent <= -5) dealLabel = 'good_deal';
+      if (smartScore >= 80) dealLabel = 'hot_deal';
+      else if (smartScore >= 60) dealLabel = 'good_deal';
       else if (priceChangePercent > 0) dealLabel = 'price_hike';
       else if (volatilityScore < 3) dealLabel = 'stable';
 
