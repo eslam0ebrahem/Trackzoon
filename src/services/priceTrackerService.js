@@ -229,8 +229,8 @@ export class PriceTrackerService {
       const stats30d = calculatePriceStats(product.priceHistory, 30);
       const trend = predictPriceTrend(product.priceHistory);
 
-      // Calculate Smart Score using robust utility function
-      const smartScore = calculateDealScore(
+      // 1. Calculate Algorithmic Score (Baseline)
+      let smartScore = calculateDealScore(
         currentPrice,
         stats30d,
         volatilityScore,
@@ -238,7 +238,48 @@ export class PriceTrackerService {
         trend
       );
 
-      // Determine Label based on Score & Price Change
+      // 2. AI Analysis (Enhancement)
+      // Trigger if:
+      // - Price drop > 5%
+      // - OR Analysis is older than 7 days
+      // - OR No analysis exists
+      const daysSinceAnalysis = product.lastAiAnalysis
+        ? (Date.now() - new Date(product.lastAiAnalysis).getTime()) / (1000 * 60 * 60 * 24)
+        : 999;
+
+      if (isDrop && Math.abs(priceChangePercent) > 5 || daysSinceAnalysis > 7) {
+        try {
+          // Import dynamically to avoid circular deps if any
+          const { aiService } = await import('./aiService.js');
+          const aiResult = await aiService.analyzeDeal({
+            ...product.toObject(),
+            currentPrice,
+            stats: stats30d
+          });
+
+          if (aiResult) {
+            // Blend scores: 70% AI, 30% Algo (or just trust AI?)
+            // Let's trust AI but keep it grounded
+            smartScore = aiResult.score;
+
+            // Update product with AI insights immediately
+            await Product.updateOne(
+              { asin: asin },
+              {
+                $set: {
+                  aiAnalysis: aiResult.reason,
+                  lastAiAnalysis: new Date()
+                }
+              }
+            );
+            logger.info(`🤖 AI Analysis for ${asin}: Score ${aiResult.score} - ${aiResult.reason}`);
+          }
+        } catch (err) {
+          logger.error('Failed to run AI analysis:', err);
+        }
+      }
+
+      // Determine Label based on Score
       let dealLabel = 'fair_price';
       if (smartScore >= 80) dealLabel = 'hot_deal';
       else if (smartScore >= 60) dealLabel = 'good_deal';

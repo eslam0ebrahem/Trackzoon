@@ -66,6 +66,10 @@ const ProductSchema = new mongoose.Schema({
   discountPercentage: { type: Number, default: 0, index: true }, // Always negative for drops
   lastDropDate: { type: Date, index: true }, // Date of last price drop
 
+  // AI Analysis Fields
+  aiAnalysis: { type: String }, // Text explanation from AI
+  lastAiAnalysis: { type: Date }, // When AI last analyzed this product
+
   // Enhanced Data Fields
   merchant: { type: String }, // e.g., "Amazon.eg" or third-party seller name
   prime: { type: Boolean, default: false }, // Is it a Prime item?
