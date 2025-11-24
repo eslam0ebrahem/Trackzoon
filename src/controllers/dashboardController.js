@@ -49,16 +49,10 @@ export const getDeals = async (req, res) => {
         // 2. Sort Logic (Simple & Fast)
         if (sort === 'smart') {
             sortOptions = { smartScore: -1 }; // High score first
-        } else if (sort === 'discount') {
-            sortOptions = { discountPercentage: 1 }; // Most negative first (-50 before -10)
         } else if (sort === 'date') {
             sortOptions = { lastDropDate: -1 }; // Most recent drop first
             // Also exclude hikes for "Newest" to show only relevant updates
             query.dealLabel = { $ne: 'price_hike' };
-        } else if (sort === 'price_asc') {
-            sortOptions = { currentPrice: 1 };
-        } else if (sort === 'price_desc') {
-            sortOptions = { currentPrice: -1 };
         } else {
             sortOptions = { smartScore: -1 };
         }
