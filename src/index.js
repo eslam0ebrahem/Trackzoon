@@ -63,7 +63,8 @@ bot.telegram.setMyCommands([
   { command: 'report', description: 'Get your daily price report' },
   { command: 'chart', description: 'View price history chart' },
   { command: 'settings', description: 'Manage your preferences' },
-  { command: 'removeone', description: 'Stop tracking a product' }
+  { command: 'removeone', description: 'Stop tracking a product' },
+  { command: 'ask', description: 'Ask AI about your products' }
 ]).then(() => {
   console.log('Bot commands menu updated successfully');
 }).catch(error => {
