@@ -238,41 +238,37 @@ export class PriceTrackerService {
         trend
       );
 
-      // 2. AI Analysis (Enhancement)
+      // 2. AI Analysis (Pure AI Scoring)
       // Trigger if:
-      // - Price drop > 5%
+      // - Price drop > 3% (More sensitive)
       // - OR Analysis is older than 7 days
-      // - OR No analysis exists
       const daysSinceAnalysis = product.lastAiAnalysis
         ? (Date.now() - new Date(product.lastAiAnalysis).getTime()) / (1000 * 60 * 60 * 24)
         : 999;
 
-      if (isDrop && Math.abs(priceChangePercent) > 5 || daysSinceAnalysis > 7) {
+      let aiAnalysisResult = null;
+
+      if ((isDrop && Math.abs(priceChangePercent) > 3) || daysSinceAnalysis > 7) {
         try {
           // Import dynamically to avoid circular deps if any
           const { aiService } = await import('./aiService.js');
+
+          // Pass rich context to AI
           const aiResult = await aiService.analyzeDeal({
             ...product.toObject(),
             currentPrice,
-            stats: stats30d
+            stats: stats30d,
+            priceChange: priceChangePercent.toFixed(2),
+            trend: trend.trend,
+            volatility: volatilityScore >= 8 ? 'High' : volatilityScore >= 4 ? 'Medium' : 'Low'
           });
 
           if (aiResult) {
-            // Blend scores: 70% AI, 30% Algo (or just trust AI?)
-            // Let's trust AI but keep it grounded
-            smartScore = aiResult.score;
+            aiAnalysisResult = aiResult;
 
-            // Update product with AI insights immediately
-            await Product.updateOne(
-              { asin: asin },
-              {
-                $set: {
-                  aiAnalysis: aiResult.reason,
-                  lastAiAnalysis: new Date()
-                }
-              }
-            );
-            logger.info(`🤖 AI Analysis for ${asin}: Score ${aiResult.score} - ${aiResult.reason}`);
+            // Pure AI Score
+            smartScore = aiResult.score;
+            logger.info(`🤖 AI Analysis for ${asin}: Pure AI Score = ${smartScore}`);
           }
         } catch (err) {
           logger.error('Failed to run AI analysis:', err);
@@ -315,6 +311,12 @@ export class PriceTrackerService {
               diff: currentPrice - previousPrice,
               percent: priceChangePercent
             },
+
+            // AI Fields
+            ...(aiAnalysisResult && {
+              aiAnalysis: aiAnalysisResult.reason,
+              lastAiAnalysis: new Date()
+            }),
 
             ...(imageUrl && { imageUrl }),
             // Update enhanced fields (using scrapeResult)

@@ -20,23 +20,33 @@ export class AiService {
 
         try {
             const prompt = `
-        You are an expert shopping assistant. Analyze this product deal for the Egyptian market (Amazon Egypt).
-        
+        You are a strict, expert shopping assistant for the Egyptian market (Amazon Egypt).
+        Evaluate this deal based on value for money, price history, and market context.
+
         Product: ${product.name}
         Current Price: EGP ${product.currentPrice}
         Url: ${product.url}
         
-        Context:
+        Price Context:
+        - Change: ${product.priceChange > 0 ? '+' : ''}${product.priceChange}% ${product.priceChange < 0 ? '(DROP)' : ''}
+        - Trend: ${product.trend || 'Unknown'}
+        - Volatility: ${product.volatility || 'Unknown'}
         - 30-day Low: EGP ${product.stats?.min || 'N/A'}
         - 30-day Average: EGP ${product.stats?.avg || 'N/A'}
         - 30-day High: EGP ${product.stats?.max || 'N/A'}
         
-        Is this a good deal? Consider the product's value, brand reputation, and current market price in Egypt.
-        
-        Return ONLY a JSON object with this format (no markdown, no extra text):
+        Task:
+        1. Rate this deal from 0-100. Be strict. 
+           - 90-100: Absolute steal, buy immediately (rare).
+           - 70-89: Great deal, highly recommended.
+           - 50-69: Fair price, okay to buy if needed.
+           - 0-49: Bad price, overpriced, or fake deal.
+        2. Provide a punchy, 15-word reason.
+
+        Return ONLY a JSON object:
         {
-          "score": <number 0-100, where 0 is terrible and 100 is an amazing steal>,
-          "reason": "<one short sentence explaining why, max 15 words>"
+          "score": <number>,
+          "reason": "<string>"
         }
       `;
 

@@ -164,17 +164,17 @@ export const calculateDealScore = (currentPrice, stats30d, volatilityScore = 0, 
     const discountFromAvg = ((stats30d.average - currentPrice) / stats30d.average) * 100;
     const avgScore = Math.max(0, Math.min(discountFromAvg * 2, 50));
 
-    // 2. Proximity to Low (max 30 points)
+    // 2. Proximity to Low (max 40 points) - INCREASED WEIGHT
     const range = stats30d.average - stats30d.min;
     let lowScore = 0;
 
     if (range > 0) {
         const distFromLow = currentPrice - stats30d.min;
         if (distFromLow <= 0) {
-            lowScore = 30; // Best price!
+            lowScore = 40; // Best price!
         } else {
             const pctOfRange = 1 - (distFromLow / range);
-            lowScore = Math.max(0, pctOfRange * 30);
+            lowScore = Math.max(0, pctOfRange * 40);
         }
     }
 
@@ -193,13 +193,13 @@ export const calculateDealScore = (currentPrice, stats30d, volatilityScore = 0, 
         trendBonus = 5;
     }
 
-    // 3. Volatility Penalty (max -20 points)
+    // 3. Volatility Penalty (max -10 points) - REDUCED PENALTY
     // High volatility means price jumps around a lot, so a "deal" might not be special
-    const volatilityPenalty = Math.min(volatilityScore * 2, 20);
+    const volatilityPenalty = Math.min(volatilityScore, 10);
 
-    // 4. Stability Bonus (max 20 points)
+    // 4. Stability Bonus (max 10 points)
     // If low volatility, this price drop is more significant
-    const stabilityBonus = volatilityScore < 3 ? 20 : (volatilityScore < 6 ? 10 : 0);
+    const stabilityBonus = volatilityScore < 3 ? 10 : 0;
 
     let totalScore = avgScore + lowScore + zScoreBonus - volatilityPenalty + stabilityBonus + trendBonus;
 
