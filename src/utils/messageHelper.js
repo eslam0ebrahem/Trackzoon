@@ -190,100 +190,55 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
     const isDecrease = newPrice < oldPrice;
     const absChange = Math.abs(change);
 
-    // Calculate deal quality metrics
-    let dealContext = '';
-    let dealBadge = '';
-
-    if (product.priceHistory && product.priceHistory.length >= 5) {
-        const stats30d = calculatePriceStats(product.priceHistory, 30);
-        if (stats30d) {
-            const percentBelowAvg = ((stats30d.average - newPrice) / stats30d.average) * 100;
-            const isAtOrBelowLow = newPrice <= stats30d.min;
-            const percentAboveLow = ((newPrice - stats30d.min) / stats30d.min) * 100;
-
-            if (isAtOrBelowLow) {
-                dealBadge = '🌟 *BEST PRICE IN 30 DAYS\\!*';
-                dealContext = `This is the lowest price we've seen in the last month\\!`;
-            } else if (percentAboveLow <= 5) {
-                dealBadge = '🔥 *NEAR 30\\-DAY LOW\\!*';
-                dealContext = `Only ${escapeMarkdownV2(percentAboveLow.toFixed(1))}% above the 30\\-day low \\(EGP${escapeMarkdownV2(stats30d.min.toFixed(2))}\\)\\!`;
-            } else if (percentBelowAvg >= 15) {
-                dealBadge = '💎 *EXCELLENT DEAL\\!*';
-                dealContext = `${escapeMarkdownV2(percentBelowAvg.toFixed(1))}% below the 30\\-day average \\(EGP${escapeMarkdownV2(stats30d.average.toFixed(2))}\\)\\!`;
-            } else if (percentBelowAvg >= 10) {
-                dealBadge = '✨ *GOOD DEAL\\!*';
-                dealContext = `${escapeMarkdownV2(percentBelowAvg.toFixed(1))}% below average price\\!`;
-            }
-        }
+    // 1. Header & Status
+    let header = '';
+    if (isDecrease) {
+        if (absChange >= 20) header = '🔥 *MEGA DROP ALERT*';
+        else if (absChange >= 10) header = '📉 *PRICE DROP ALERT*';
+        else header = '💰 *Price Update*';
+    } else {
+        header = '📈 *Price Increase*';
     }
 
-    // Find tracker info
+    // 2. Price Section (Clean & Bold)
+    const priceSection = `
+*EGP ${escapeMarkdownV2(newPrice.toFixed(2))}*
+~~EGP ${escapeMarkdownV2(oldPrice.toFixed(2))}~~ \\(${isDecrease ? '⬇️' : '⬆️'} *${escapeMarkdownV2(absChange.toFixed(0))}%*\\)
+    `.trim();
+
+    // 3. AI Insight (The "Brain" part)
+    let aiSection = '';
+    if (product.aiAnalysis) {
+        aiSection = `\n🤖 *AI Verdict:*\n_${escapeMarkdownV2(product.aiAnalysis)}_`;
+    }
+
+    // 4. Savings (If applicable)
+    let savingsSection = '';
+    if (isDecrease) {
+        const savings = oldPrice - newPrice;
+        savingsSection = `\n💵 *You Save:* EGP ${escapeMarkdownV2(savings.toFixed(2))}`;
+    }
+
+    // 5. Target Status
+    let targetSection = '';
     const hasThresholdMet = product.trackedBy && product.trackedBy.some(t =>
         newPrice <= t.thresholdPrice && oldPrice > t.thresholdPrice
     );
-
-    let message = '';
-
-    // Title based on deal quality
     if (hasThresholdMet) {
-        message = `🎯 *TARGET PRICE REACHED\\!*\\n\\n`;
-    } else if (dealBadge) {
-        message = `${dealBadge}\\n\\n`;
-    } else if (isDecrease) {
-        if (absChange >= 30) {
-            message = `🔥 *HUGE PRICE DROP\\!*\\n\\n`;
-        } else if (absChange >= 15) {
-            message = `🎉 *Great Price Drop\\!*\\n\\n`;
-        } else {
-            message = `💰 *Price Drop Alert\\!*\\n\\n`;
-        }
-    } else {
-        message = `📈 *Price Increase Alert*\\n\\n`;
+        targetSection = `\n🎯 *Target Reached!*`;
     }
 
-    message += `📦 [${name}](${escapeMarkdownV2(url)})\\n\\n`;
+    // Assemble Message
+    return `
+${header}
 
-    // Price comparison
-    message += `💵 *Price Change:*\\n`;
-    message += `├ Was: ~~EGP${escapeMarkdownV2(oldPrice.toFixed(2))}~~\\n`;
-    message += `├ Now: *EGP${escapeMarkdownV2(newPrice.toFixed(2))}*\\n`;
-    message += `└ Change: ${isDecrease ? '⬇️' : '⬆️'} ${escapeMarkdownV2(absChange.toFixed(1))}%\\n\\n`;
+📦 [${name}](${escapeMarkdownV2(url)})
 
-    // Savings
-    if (isDecrease) {
-        const diff = oldPrice - newPrice;
-        message += `💸 *You Save:* EGP${escapeMarkdownV2(diff.toFixed(2))}\\n\\n`;
-    }
+${priceSection}${savingsSection}${targetSection}
+${aiSection}
 
-    // Deal context from price history
-    if (dealContext) {
-        message += `📊 *Deal Analysis:*\\n${dealContext}\\n\\n`;
-    }
-
-    // AI Insight
-    if (product.aiAnalysis) {
-        message += `🤖 *AI Insight:*\\n_${escapeMarkdownV2(product.aiAnalysis)}_\\n\\n`;
-    }
-
-    // Recommendation
-    if (isDecrease) {
-        if (hasThresholdMet) {
-            message += `✅ *Your target price has been reached\\!*\\n`;
-            message += `This is a great time to buy\\!\\n\\n`;
-        } else if (dealBadge) {
-            message += `⏰ *Act fast\\!* Great deals don't last long\\.\\n\\n`;
-        } else if (absChange >= 20) {
-            message += `⭐ *Significant discount\\!* Consider buying soon\\.\\n\\n`;
-        } else {
-            message += `📉 Keep watching for further drops\\.\\n\\n`;
-        }
-    } else {
-        message += `⚠️ We'll notify you when the price drops again\\.\\n\\n`;
-    }
-
-    message += `🔗 [View on Amazon](${escapeMarkdownV2(url)})`;
-
-    return message;
+🔗 [View on Amazon](${escapeMarkdownV2(url)})
+    `.trim();
 };
 
 const buildWelcomeMessage = (username) => {

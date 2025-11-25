@@ -548,6 +548,29 @@ export class PriceTrackerService {
 
   async notifyUser(tracker, product, oldPrice, newPrice) {
     try {
+      // AI Enhancement: If it's a price drop, get a quick AI analysis
+      // We do this here to include it in the alert message
+      const priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
+      const isDecrease = newPrice < oldPrice;
+
+      if (isDecrease && Math.abs(priceChange) >= 5) {
+        try {
+          const { aiService } = await import('./aiService.js');
+          const aiResult = await aiService.analyzeDeal({
+            ...product.toObject(),
+            currentPrice: newPrice,
+            priceChange: priceChange.toFixed(2),
+            trend: product.aiPrediction?.trend || 'Unknown'
+          });
+
+          if (aiResult) {
+            product.aiAnalysis = aiResult.reason; // Temporarily attach to product object for message builder
+          }
+        } catch (err) {
+          logger.warn('Failed to get AI analysis for alert:', err.message);
+        }
+      }
+
       const message = buildPriceAlertMessage(product, oldPrice, newPrice);
 
       if (product.imageUrl) {
@@ -573,7 +596,8 @@ export class PriceTrackerService {
             name: product.name,
             url: product.url,
             asin: product.asin,
-            imageUrl: product.imageUrl
+            imageUrl: product.imageUrl,
+            aiAnalysis: product.aiAnalysis // Include AI analysis in webhook
           },
           oldPrice,
           newPrice,
