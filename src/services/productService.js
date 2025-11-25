@@ -303,96 +303,76 @@ export class ProductService {
     }
   }
 
-  static async getDeals(chatId, scope = 'user') {
-    let products;
+  static async getDealsUnified({ chatId, limit = 20, page = 1, sort = 'smart', scope = 'global' }) {
+    const skip = (page - 1) * limit;
+    let query = { isOutOfStock: false };
 
-    if (scope === 'global') {
-      // Fetch all products that are not out of stock
-      products = await Product.find({ isOutOfStock: false });
+    // Filter by User if scope is 'user' and chatId is provided
+    if (scope === 'user' && chatId) {
+      query['trackedBy.chatId'] = chatId;
+    }
+
+    // Exclude hikes for "Top Deals" view (smart sort)
+    if (sort === 'smart') {
+      query.dealLabel = { $ne: 'price_hike' };
+      // Also ensure we only show items with a positive score
+      query.smartScore = { $gt: 0 };
+    }
+
+    let sortOptions = {};
+    if (sort === 'smart') {
+      sortOptions = { smartScore: -1 }; // High score first
+    } else if (sort === 'date') {
+      sortOptions = { lastDropDate: -1 }; // Most recent drop first
+      // Also exclude hikes for "Newest" to show only relevant updates
+      query.dealLabel = { $ne: 'price_hike' };
     } else {
-      products = await this.getUserProducts(chatId);
+      sortOptions = { smartScore: -1 };
     }
 
-    const dealsData = [];
+    const [items, total] = await Promise.all([
+      Product.find(query)
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Product.countDocuments(query)
+    ]);
 
-    // Helper to get old price
-    const getPriceFrom24HoursAgo = (priceHistory) => {
-      if (!priceHistory || priceHistory.length === 0) return null;
-      const now = new Date();
-      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      let closestEntry = null;
-      let closestDiff = Infinity;
-
-      for (const entry of priceHistory) {
-        const entryDate = new Date(entry.date);
-        const timeDiff = Math.abs(entryDate.getTime() - twentyFourHoursAgo.getTime());
-        if (timeDiff < closestDiff && timeDiff < 28 * 60 * 60 * 1000 && timeDiff > 20 * 60 * 60 * 1000) {
-          closestDiff = timeDiff;
-          closestEntry = entry;
-        }
-      }
-      return closestEntry || (priceHistory.length > 0 ? priceHistory[0] : null);
+    // Map to a consistent format
+    return {
+      items: items.map(p => ({
+        product: p,
+        // Map fields to match what the bot and dashboard expect
+        currentPrice: p.currentPrice,
+        oldPrice: p.lastPriceChange?.oldPrice || p.currentPrice,
+        priceDiff: p.lastPriceChange?.diff || 0,
+        percentChange: p.discountPercentage || 0,
+        smartScore: p.smartScore || 0,
+        dealLabel: p.dealLabel || 'fair_price',
+        lastDropDate: p.lastDropDate,
+        stats30d: {
+          average: p.stats?.avg || 0,
+          min: p.stats?.min || 0,
+          max: p.stats?.max || 0
+        },
+        trend: p.aiPrediction || { trend: 'UNKNOWN' }
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit)
     };
+  }
 
-    // Import new utils dynamically to avoid circular deps if any (though imports are at top)
-    const { calculateDealScore, predictPriceTrend } = await import('../utils/priceUtils.js');
-
-    for (const product of products) {
-      if (product.isOutOfStock || !product.currentPrice) continue;
-
-      const oldPriceEntry = getPriceFrom24HoursAgo(product.priceHistory);
-      if (!oldPriceEntry) continue;
-
-      const oldPrice = oldPriceEntry.price;
-      const currentPrice = product.currentPrice;
-      const priceDiff = oldPrice - currentPrice;
-
-      // For global deals, we want ONLY good deals
-      if (scope === 'global' && priceDiff <= 0) continue;
-
-      if (priceDiff > 0 || scope === 'user') { // Show even small changes for user if requested? No, usually deals means drops.
-        // Smart Validation: Check against 30-day average
-        const stats30d = calculatePriceStats(product.priceHistory, 30);
-        const statsAll = calculatePriceStats(product.priceHistory, 365); // All time
-
-        // If we have stats, ensure current price is not significantly higher than average
-        if (stats30d) {
-          // If current price is > 5% above average, it's likely a fake deal
-          if (currentPrice > stats30d.average * 1.05) {
-            continue; // Skip this deal
-          }
-
-          // Stricter check: If current price is > 40% above the 30-day LOW, it's not a "hot deal"
-          if (currentPrice > stats30d.min * 1.4) {
-            continue; // Skip this deal
-          }
-        }
-
-        const tracker = product.trackedBy.find(t => t.chatId === chatId);
-
-        // Calculate extra metrics
-        const trend = predictPriceTrend(product.priceHistory);
-        const dealScore = calculateDealScore(currentPrice, stats30d, tracker.volatilityScore || 0, false, trend);
-
-        dealsData.push({
-          product,
-          oldPrice,
-          currentPrice,
-          priceDiff,
-          percentChange: ((currentPrice - oldPrice) / oldPrice) * 100 * -1, // Positive percentage
-          stats30d,
-          statsAll,
-          tracker,
-          dealScore,
-          trend
-        });
-      }
-    }
-
-    // Sort by Deal Score first, then by price difference
-    return dealsData.sort((a, b) => {
-      if (a.dealScore !== b.dealScore) return b.dealScore - a.dealScore;
-      return b.priceDiff - a.priceDiff;
+  // Deprecated: Old in-memory implementation
+  static async getDeals(chatId, scope = 'user') {
+    // Forward to new unified method with default settings
+    const result = await this.getDealsUnified({
+      chatId,
+      scope,
+      limit: 50, // Default limit for bot (fetch enough for client-side pagination)
+      sort: 'smart'
     });
+    return result.items;
   }
 }

@@ -27,60 +27,22 @@ export const getDeals = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
-        const skip = (page - 1) * limit;
         const sort = req.query.sort || 'smart';
-        const minDiscount = parseInt(req.query.minDiscount) || 0;
 
-        let query = { isOutOfStock: false };
-        let sortOptions = {};
+        const chatId = req.query.chatId || req.headers['x-chat-id']; // Support header or query
 
-        // 1. Filter Logic
-        if (minDiscount > 0) {
-            // discountPercentage is negative (e.g., -20). 
-            // If minDiscount is 10, we want items with <= -10
-            query.discountPercentage = { $lte: -minDiscount };
-        }
+        const scope = chatId ? 'user' : 'global';
 
-        // Exclude hikes from "Top Deals" view (smart sort)
-        if (sort === 'smart') {
-            query.dealLabel = { $ne: 'price_hike' };
-        }
-
-        // 2. Sort Logic (Simple & Fast)
-        if (sort === 'smart') {
-            sortOptions = { smartScore: -1 }; // High score first
-        } else if (sort === 'date') {
-            sortOptions = { lastDropDate: -1 }; // Most recent drop first
-            // Also exclude hikes for "Newest" to show only relevant updates
-            query.dealLabel = { $ne: 'price_hike' };
-        } else {
-            sortOptions = { smartScore: -1 };
-        }
-
-        // 3. Execute Query
-        const [items, total] = await Promise.all([
-            Product.find(query)
-                .sort(sortOptions)
-                .skip(skip)
-                .limit(limit)
-                .lean(), // Faster
-            Product.countDocuments(query)
-        ]);
-
-        res.json({
-            items: items.map(p => ({
-                product: p,
-                currentPrice: p.currentPrice,
-                oldPrice: p.lastPriceChange?.oldPrice || p.currentPrice,
-                percentChange: p.discountPercentage || 0,
-                smartScore: p.smartScore || 0,
-                dealLabel: p.dealLabel || 'fair_price',
-                lastDropDate: p.lastDropDate
-            })),
-            total,
+        // Use the unified service method
+        const result = await ProductService.getDealsUnified({
             page,
-            totalPages: Math.ceil(total / limit)
+            limit,
+            sort,
+            scope,
+            chatId
         });
+
+        res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -88,13 +50,13 @@ export const getDeals = async (req, res) => {
 
 export const addProduct = async (req, res) => {
     try {
-        const { url, threshold } = req.body;
+        const { url, threshold, chatId } = req.body;
         if (!url) return res.status(400).json({ error: 'URL is required' });
 
-        // Use a special dashboard ID
-        const DASHBOARD_USER_ID = 999999;
+        // Use provided chatId or default to dashboard ID
+        const userId = chatId || 999999;
 
-        const result = await ProductService.addProduct(url, DASHBOARD_USER_ID, threshold || 0);
+        const result = await ProductService.addProduct(url, userId, threshold || 0);
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -372,6 +334,19 @@ export const archiveProduct = async (req, res) => {
         );
 
         res.json(product);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Feature 9: Get User Products
+export const getUserProducts = async (req, res) => {
+    try {
+        const chatId = req.query.chatId || req.headers['x-chat-id'];
+        if (!chatId) return res.status(400).json({ error: 'Chat ID is required' });
+
+        const products = await ProductService.getUserProducts(chatId);
+        res.json(products);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
