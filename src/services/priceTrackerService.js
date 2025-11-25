@@ -407,12 +407,49 @@ export class PriceTrackerService {
     const isDecrease = newPrice < oldPrice;
 
     // Don't spam - wait at least 3 hours between alerts for the same product
+    // Don't spam - wait at least 3 hours between alerts for the same product
     if (tracker.lastAlertedAt) {
       const hoursSinceLastAlert = (Date.now() - tracker.lastAlertedAt.getTime()) / (1000 * 60 * 60);
       if (hoursSinceLastAlert < 3) {
         return false;
       }
     }
+
+    // --- User Settings Check ---
+    try {
+      const user = await User.findOne({ chatId: tracker.chatId });
+      if (user && user.settings) {
+        // 1. Check Notifications Enabled
+        if (user.settings.notifications === false) return false;
+
+        // 2. Check Quiet Mode
+        if (user.settings.quietMode?.enabled) {
+          const currentHour = new Date().getHours();
+          const { startHour, endHour } = user.settings.quietMode;
+          // Handle range crossing midnight (e.g. 22 to 8)
+          const isQuietTime = startHour > endHour
+            ? (currentHour >= startHour || currentHour < endHour)
+            : (currentHour >= startHour && currentHour < endHour);
+
+          if (isQuietTime) {
+            logger.info(`🤫 Quiet Mode active for ${tracker.chatId} (Hour: ${currentHour}), skipping alert.`);
+            return false;
+          }
+        }
+
+        // 3. Check Min Discount (Only for drops, not threshold hits)
+        if (isDecrease && user.settings.minDiscount > 0) {
+          const dropPercent = Math.abs(priceChange);
+          if (dropPercent < user.settings.minDiscount) {
+            logger.info(`📉 Drop ${dropPercent.toFixed(1)}% < Min Discount ${user.settings.minDiscount}% for ${tracker.chatId}, skipping.`);
+            return false;
+          }
+        }
+      }
+    } catch (err) {
+      logger.error(`Error checking user settings for ${tracker.chatId}:`, err);
+    }
+    // ---------------------------
 
     // ============================================
     // 1. ALWAYS NOTIFY: Threshold Met

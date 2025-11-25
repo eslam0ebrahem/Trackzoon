@@ -20,6 +20,15 @@ const userSettingsSchema = new mongoose.Schema({
   language: {
     type: String,
     default: 'en'
+  },
+  quietMode: {
+    enabled: { type: Boolean, default: false },
+    startHour: { type: Number, default: 22 }, // 10 PM
+    endHour: { type: Number, default: 8 }     // 8 AM
+  },
+  minDiscount: {
+    type: Number,
+    default: 0 // Notify on any drop
   }
 });
 

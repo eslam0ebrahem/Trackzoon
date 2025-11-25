@@ -14,6 +14,10 @@ export default (bot) => {
                 `🔔 Price Alerts: ${user.settings.notifications ? 'Enabled' : 'Disabled'}`,
                 `📊 Daily Reports: ${user.settings.dailyReport ? 'Enabled' : 'Disabled'}`,
                 '',
+                '*Advanced Preferences*',
+                `🌙 Quiet Mode: ${user.settings.quietMode?.enabled ? `On (${user.settings.quietMode.startHour}:00 - ${user.settings.quietMode.endHour}:00)` : 'Off'}`,
+                `📉 Min Discount: ${user.settings.minDiscount > 0 ? user.settings.minDiscount + '%' : 'Any Drop'}`,
+                '',
                 'Click the buttons below to change settings:'
             ].join('\n');
 
@@ -31,6 +35,18 @@ export default (bot) => {
                             {
                                 text: `${user.settings.dailyReport ? '📊' : '📈'} ${user.settings.dailyReport ? 'Disable' : 'Enable'} Daily Report`,
                                 callback_data: 'action_toggle_daily_report'
+                            }
+                        ],
+                        [
+                            {
+                                text: `${user.settings.quietMode?.enabled ? '☀️' : '🌙'} ${user.settings.quietMode?.enabled ? 'Disable' : 'Enable'} Quiet Mode`,
+                                callback_data: 'action_toggle_quiet_mode'
+                            }
+                        ],
+                        [
+                            {
+                                text: '📉 Set Min Discount',
+                                callback_data: 'action_set_min_discount'
                             }
                         ]
                     ]

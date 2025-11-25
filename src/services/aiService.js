@@ -42,6 +42,7 @@ export class AiService {
            - 50-69: Fair price, okay to buy if needed.
            - 0-49: Bad price, overpriced, or fake deal.
         2. Provide a punchy, 15-word reason.
+        3. Compare with general market price in Egypt if possible.
 
         Return ONLY a JSON object:
         {
@@ -91,31 +92,43 @@ export class AiService {
     }
 
     /**
-     * Answer a user's question with context from their tracked products
+     * Answer a user's question with context from their tracked products and global deals
      * @param {string} query - User's question
-     * @param {Array} products - List of user's tracked products
+     * @param {Array} userProducts - List of user's tracked products
+     * @param {Array} globalDeals - List of top global deals (optional)
      * @returns {Promise<string>} - AI response
      */
-    async answerQuestion(query, products) {
+    async answerQuestion(query, userProducts, globalDeals = []) {
         if (!this.apiKey) return "I'm sorry, my AI brain is not connected right now (API Key missing).";
 
         try {
-            // Summarize product context to save tokens
-            const productContext = products.map(p =>
-                `- ${p.name.substring(0, 50)}...: EGP ${p.currentPrice} (Score: ${p.smartScore || 'N/A'})`
-            ).join('\n');
+            // Summarize user product context
+            const userContext = userProducts.length > 0
+                ? userProducts.map(p => `- [Your Tracked] ${p.name.substring(0, 50)}...: EGP ${p.currentPrice} (Score: ${p.smartScore || 'N/A'})`).join('\n')
+                : "User is not tracking any products yet.";
+
+            // Summarize global deals context
+            const dealsContext = globalDeals.length > 0
+                ? globalDeals.map(p => `- [Hot Deal] ${p.name.substring(0, 50)}...: EGP ${p.currentPrice} (${p.discountPercentage?.toFixed(0)}% OFF)`).join('\n')
+                : "No specific global deals active right now.";
 
             const prompt = `
         You are a helpful shopping assistant for Amazon Egypt.
         
         User's Question: "${query}"
         
-        User's Tracked Products:
-        ${productContext}
+        Context:
+        ${userContext}
         
-        Answer the question based on the tracked products and your general knowledge. 
-        If the user asks for recommendations, suggest from their list if applicable.
-        Keep the answer concise (max 3 sentences) and helpful.
+        Top Deals in Database:
+        ${dealsContext}
+        
+        Answer the question based on the context and your general knowledge.
+        - If the user asks for recommendations, prioritize the "Top Deals" or "Your Tracked" items if relevant.
+        - If the user asks about a specific product they track, give detailed advice.
+        - If the user asks for something not in the list, use your general knowledge to suggest what to look for or search online.
+        
+        Keep the answer concise (max 3-4 sentences) and helpful. Use emojis.
       `;
 
             const response = await axios.post(
