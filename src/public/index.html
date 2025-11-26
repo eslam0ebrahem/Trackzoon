@@ -914,7 +914,8 @@
 
                 if (res.ok) {
                     localStorage.setItem('telegramId', id);
-                    window.location.href = '/admin.html';
+                    closeLoginModal();
+                    checkAuth();
                 } else {
                     // Normal user (mock login for now, or redirect to user dashboard if we had one)
                     // For now, just save ID and reload or show user view
