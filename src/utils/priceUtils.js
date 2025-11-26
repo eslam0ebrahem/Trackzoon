@@ -205,3 +205,32 @@ export const calculateDealScore = (currentPrice, stats30d, volatilityScore = 0, 
 
     return Math.max(0, Math.min(Math.round(totalScore), 100));
 };
+
+/**
+ * Calculate probability of further price drop (0-100%)
+ * @param {number} currentPrice
+ * @param {Object} stats30d
+ * @param {Object} trend
+ * @returns {number} Probability percentage
+ */
+export const calculateDropProbability = (currentPrice, stats30d, trend) => {
+    if (!stats30d) return 50; // Unknown
+
+    // 1. Distance from Low (If far from low, high chance to drop)
+    const range = stats30d.max - stats30d.min;
+    if (range === 0) return 0; // Flat line
+
+    const distFromLow = currentPrice - stats30d.min;
+    const positionInRange = distFromLow / range; // 0 = at low, 1 = at high
+
+    let probability = positionInRange * 80; // Max 80% from position
+
+    // 2. Trend Influence
+    if (trend && trend.trend === 'DOWN') {
+        probability += 20; // Trend is down, higher chance
+    } else if (trend && trend.trend === 'UP') {
+        probability -= 20; // Trend is up, lower chance
+    }
+
+    return Math.max(0, Math.min(Math.round(probability), 100));
+};

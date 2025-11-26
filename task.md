@@ -1,0 +1,25 @@
+# 10 Smart Enhancements Roadmap
+
+- [x] **1. Arabic Language Support 🇪🇬** (Replaced with **Currency Converter 💱**)
+    - [x] Added USD conversion to product details.
+- [x] **2. Bulk Import 📦**
+    - [x] Updated `/add` to accept multiple URLs (newline or space separated).
+- [x] **3. Export Data 📂**
+    - [x] Created `/export` command to generate and send a CSV file of tracked products.
+- [x] **4. Global Search 🔍**
+    - [x] Created `/search` command to query the global product database.
+- [x] **5. Snooze Alerts 💤**
+    - [x] Added "Snooze 24h" button to alert messages.
+    - [x] Updated `PriceTrackerService` to respect snooze status.
+- [x] **6. Trending Products 🚀**
+    - [x] Created `/trending` command to show top 5 products with recent price drops.
+- [x] **7. Smart Tags 🏷️**
+    - [x] Implemented keyword-based categorization (e.g., "iPhone" -> "Electronics").
+    - [x] Display tags in `/list` and `/view`.
+- [x] **8. Deal Probability 🎲**
+    - [x] Enhanced `priceUtils` to calculate "Drop Probability" based on historical frequency.
+    - [x] Show in `/view` and alerts.
+- [x] **9. System Health Check 🏥**
+    - [x] Created `/health` command (admin only) to show system stats (memory, uptime, error rate).
+- [x] **10. Price Gap Analysis 📉**
+    - [x] Calculate and show "Gap to Low" (difference between current and all-time low) in alerts.

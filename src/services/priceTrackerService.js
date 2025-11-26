@@ -11,6 +11,7 @@ import { updateProductRating } from './ratingScraper.js';
 
 import { logger } from '../utils/logger.js';
 import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend } from '../utils/priceUtils.js';
+import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
 const scrapingLimit = pLimit(3);
@@ -418,6 +419,13 @@ export class PriceTrackerService {
     // --- User Settings Check ---
     try {
       const user = await User.findOne({ chatId: tracker.chatId });
+
+      // Feature 5: Check Snooze Status
+      if (tracker.snoozeUntil && new Date() < new Date(tracker.snoozeUntil)) {
+        logger.info(`💤 Snoozed until ${tracker.snoozeUntil} for ${tracker.chatId}, skipping alert.`);
+        return false;
+      }
+
       if (user && user.settings) {
         // 1. Check Notifications Enabled
         if (user.settings.notifications === false) return false;
@@ -573,13 +581,31 @@ export class PriceTrackerService {
 
       const message = buildPriceAlertMessage(product, oldPrice, newPrice);
 
-      if (product.imageUrl) {
-        await this.bot.telegram.sendPhoto(tracker.chatId, product.imageUrl, {
+      // Visual Enhancement: Generate Price History Chart
+      let photoUrl = product.imageUrl;
+      try {
+        if (product.priceHistory && product.priceHistory.length >= 2) {
+          const chartUrl = await generatePriceHistoryChart(
+            product.name,
+            product.priceHistory,
+            tracker.thresholdPrice
+          );
+          if (chartUrl) {
+            photoUrl = chartUrl;
+          }
+        }
+      } catch (chartErr) {
+        logger.warn(`Failed to generate chart for alert: ${chartErr.message}`);
+      }
+
+      if (photoUrl) {
+        await this.bot.telegram.sendPhoto(tracker.chatId, photoUrl, {
           caption: message,
           parse_mode: 'MarkdownV2',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🛒 Buy Now', url: product.url }]
+              [{ text: '🛒 Buy Now', url: product.url }],
+              [{ text: '💤 Snooze 24h', callback_data: `action_snooze_${product.asin}` }]
             ]
           }
         });

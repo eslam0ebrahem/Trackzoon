@@ -267,6 +267,28 @@ export class ProductService {
     }
   }
 
+  static async snoozeProduct(asin, chatId, hours) {
+    try {
+      const snoozeUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
+
+      const product = await Product.findOneAndUpdate(
+        { asin: asin, 'trackedBy.chatId': chatId },
+        { $set: { 'trackedBy.$.snoozeUntil': snoozeUntil } },
+        { new: true }
+      );
+
+      if (!product) {
+        throw new BotError('Product not found', ErrorCodes.PRODUCT_NOT_FOUND);
+      }
+
+      return product;
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+      logger.error('Error snoozing product:', error);
+      throw new BotError('Failed to snooze product', ErrorCodes.DATABASE_ERROR);
+    }
+  }
+
   static async getUserProducts(chatId) {
     try {
       return await Product.find({ 'trackedBy.chatId': chatId });

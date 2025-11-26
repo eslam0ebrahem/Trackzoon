@@ -1,7 +1,7 @@
 // Helper utilities for composing and formatting messages for the Telegram bot
 // Uses MarkdownV2 escaping and provides rich message formatting with emojis
 
-import { calculatePriceStats } from './priceUtils.js';
+import { calculatePriceStats, calculateDropProbability } from './priceUtils.js';
 
 const escapeMarkdownV2 = (text = '') => {
     // First, handle any pre-escaped characters (those with a single backslash)
@@ -106,8 +106,29 @@ const formatProductDetails = (product, tracker) => {
         message += `${ratingEmoji} *Rating:* ${escapeMarkdownV2(product.rating.stars.toFixed(1))}/5\\.0 \\(${escapeMarkdownV2(product.rating.count.toLocaleString())} reviews\\)\n\n`;
     }
 
-    message += `💰 *Current Price:* ${escapeMarkdownV2(formatPrice(currentPrice))}\n`;
+    // Feature 7: Smart Tags
+    if (product.tags && product.tags.length > 0) {
+        const tagsStr = product.tags.map(t => `#${t.replace(/\s+/g, '')}`).join(' ');
+        message += `🏷️ *Tags:* ${escapeMarkdownV2(tagsStr)}\n\n`;
+    }
+
+    const usdRate = 50.0; // Approximate EGP/USD rate
+    const usdPrice = (currentPrice / usdRate).toFixed(2);
+
+    message += `💰 *Current Price:* ${escapeMarkdownV2(formatPrice(currentPrice))} \\(~\\$${usdPrice} USD\\)\n`;
     message += `🎯 *Alert Price:* ${escapeMarkdownV2(formatPrice(threshold))}\n\n`;
+
+    // Feature 9: Drop Probability
+    if (product.priceHistory && product.priceHistory.length > 5) {
+        const stats30d = calculatePriceStats(product.priceHistory, 30);
+        const trend = product.aiPrediction || { trend: 'STABLE' };
+        const prob = calculateDropProbability(currentPrice, stats30d, trend);
+
+        if (prob > 50) {
+            message += `🎲 *Drop Chance:* ${prob}% ${prob > 70 ? '🔥' : '🤔'}\n`;
+        }
+    }
+
     message += `📊 *Price Statistics:*\n`;
     message += `   • Lowest: ${escapeMarkdownV2(formatPrice(lowestPrice))}\n`;
     message += `   • Highest: ${escapeMarkdownV2(formatPrice(highestPrice))}\n`;
@@ -219,6 +240,20 @@ const buildPriceAlertMessage = (product, oldPrice, newPrice) => {
         savingsSection = `\n💵 *You Save:* EGP ${escapeMarkdownV2(savings.toFixed(2))}`;
     }
 
+    // Feature 10: Price Gap Analysis
+    let gapSection = '';
+    if (product.stats && product.stats.min > 0) {
+        const gapToLow = newPrice - product.stats.min;
+        if (gapToLow <= 0) {
+            gapSection = `\n🏆 *All-Time Low!* (Best price ever recorded)`;
+        } else {
+            const gapPercent = ((gapToLow / product.stats.min) * 100).toFixed(1);
+            if (gapPercent < 5) {
+                gapSection = `\n🤏 *Only ${escapeMarkdownV2(gapPercent)}% above all-time low*`;
+            }
+        }
+    }
+
     // 5. Target Status
     let targetSection = '';
     const hasThresholdMet = product.trackedBy && product.trackedBy.some(t =>
@@ -234,7 +269,7 @@ ${header}
 
 📦 [${name}](${escapeMarkdownV2(url)})
 
-${priceSection}${savingsSection}${targetSection}
+${priceSection}${savingsSection}${gapSection}${targetSection}
 ${aiSection}
 
 🔗 [View on Amazon](${escapeMarkdownV2(url)})

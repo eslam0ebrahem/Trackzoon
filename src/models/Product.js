@@ -24,6 +24,7 @@ const ProductSchema = new mongoose.Schema({
     alertType: { type: String, enum: ['drop', 'percentage_drop'], default: 'drop' },
     thresholdPrice: { type: Number },
     percentageThreshold: Number,
+    snoozeUntil: { type: Date, default: null } // Feature 5: Snooze Alerts
   }],
   thresholdPrice: { type: Number },
   priceHistory: [{

@@ -14,21 +14,22 @@ import { BotError, ErrorCodes, handleError } from '../utils/errorHandler.js';
 export default (bot) => {
   bot.command('add', async (ctx) => {
     try {
-      const parts = ctx.message.text.split(' ');
-      if (parts.length < 3) {
+      const input = ctx.message.text.replace('/add', '').trim();
+
+      if (!input) {
         // Prompt for URL and price
         stateManager.setState(ctx.chat.id, BotStates.WAITING_FOR_URL_AND_PRICE);
         const message = [
-          '🛍️ *Track a New Product*',
+          '🛍️ *Track New Products*',
           '',
-          '📝 *Send me:*',
+          '📝 *Send me one or more links:*',
           '`<Amazon URL> <alert price>`',
           '',
-          '💡 *Examples:*',
-          '• `https://amzn\\.to/xxx 99\\.99`',
-          '• `https://amazon\\.co\\.uk/dp/B085P5NY9H 68`',
+          '💡 *Bulk Add Example:*',
+          '`https://amzn.to/item1 100`',
+          '`https://amzn.to/item2 250`',
           '',
-          '⚡ *One step \\- that\'s it\\!*'
+          '⚡ *Send multiple lines to add them all at once!*'
         ].join('\n');
 
         return await ctx.reply(message, {
@@ -37,116 +38,83 @@ export default (bot) => {
         });
       }
 
-      let [, url, thresholdStr] = parts;
-      const threshold = parseFloat(thresholdStr);
-      if (isNaN(threshold) || threshold <= 0) {
-        return await ctx.reply(
-          escapeMarkdownV2('❌ Please provide a valid price (a positive number).'),
-          { parse_mode: 'MarkdownV2', ...mainKeyboard() }
-        );
-      }
+      // Split by newline to handle bulk import
+      const lines = input.split('\n').filter(line => line.trim());
+      const results = [];
 
       const processingMsg = await ctx.reply(
-        '🔄 *Processing\\.\\.\\.*\n\nFetching product details\\.\\.\\.',
+        `🔄 *Processing ${lines.length} product(s)...*`,
         { parse_mode: 'MarkdownV2' }
       );
 
-      try {
-        // Clean and validate URL
-        const { resolvedUrl, asin } = await resolveAmazonUrl(url);
-        if (!asin) {
-          await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
-          return await ctx.reply(
-            escapeMarkdownV2('❌ Invalid Amazon URL. Please provide a valid product link.'),
-            { parse_mode: 'MarkdownV2', ...mainKeyboard() }
-          );
-        }
-
-        // Get product details
-        const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
-        let currentPrice;
-        let isOutOfStock = false;
-
+      for (const line of lines) {
         try {
-          const scrapeResult = await getPrice(resolvedUrl);
-          currentPrice = scrapeResult.currentPrice;
-        } catch (priceError) {
-          // Check if it's an out-of-stock error
-          if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
-            console.log(`Product ${asin} is out of stock, using threshold as placeholder`);
-            currentPrice = threshold;
-            isOutOfStock = true;
-          } else {
-            throw priceError;
+          const parts = line.trim().split(/\s+/);
+          const url = parts[0];
+          const thresholdStr = parts[1];
+          const threshold = thresholdStr ? parseFloat(thresholdStr) : 0; // Default to 0 if not provided
+
+          // Clean and validate URL
+          const { resolvedUrl, asin } = await resolveAmazonUrl(url);
+          if (!asin) {
+            results.push(`❌ Invalid URL: ${url.substring(0, 30)}...`);
+            continue;
           }
-        }
 
-        // Add product
-        const { product, isNew, isAlreadyTracked } = await ProductService.addProduct(
-          resolvedUrl,
-          ctx.chat.id,
-          threshold
-        );
+          // Get product details
+          const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
+          let currentPrice;
+          let isOutOfStock = false;
 
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
+          try {
+            const scrapeResult = await getPrice(resolvedUrl);
+            currentPrice = scrapeResult.currentPrice;
+          } catch (priceError) {
+            if (priceError.message.includes('out of stock') || priceError.message.includes('unavailable')) {
+              currentPrice = threshold > 0 ? threshold : 0;
+              isOutOfStock = true;
+            } else {
+              results.push(`❌ Error fetching price for ${asin}`);
+              continue;
+            }
+          }
 
-        if (isAlreadyTracked) {
-          const message = [
-            '⚠️ *Already Tracking*',
-            '',
-            `📦 [${escapeMarkdownV2(name)}](${escapeMarkdownV2(resolvedUrl)})`,
-            '',
-            `You're already tracking this product\\!`,
-            '',
-            `💡 Use /list to see all your products`
-          ].join('\n');
-
-          return await ctx.reply(message, {
-            parse_mode: 'MarkdownV2',
-            disable_web_page_preview: false,
-            ...mainKeyboard()
-          });
-        }
-
-        const statusEmoji = isOutOfStock ? '📭' : '✅';
-        const statusText = isOutOfStock
-          ? 'Currently out of stock \\- we\'ll notify you when it\'s back\\!'
-          : 'Tracking active\\!';
-
-        const message = [
-          `${statusEmoji} *${isNew ? 'Product Added' : 'Tracking Started'}*`,
-          '',
-          `📦 [${escapeMarkdownV2(name)}](${escapeMarkdownV2(resolvedUrl)})`,
-          '',
-          `💵 *Current Price:* EGP${escapeMarkdownV2(currentPrice.toFixed(2))}`,
-          `🎯 *Alert Price:* EGP${escapeMarkdownV2(threshold.toFixed(2))}`,
-          '',
-          `${statusText}`,
-          '',
-          '✨ You can view all your tracked products anytime with /list'
-        ].join('\n');
-
-        await ctx.reply(message, {
-          parse_mode: 'MarkdownV2',
-          ...mainKeyboard(),
-          disable_web_page_preview: true
-        });
-
-      } catch (innerError) {
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
-
-        if (innerError instanceof BotError && innerError.code === 'PRODUCT_ALREADY_TRACKED') {
-          return await ctx.reply(
-            escapeMarkdownV2('❌ You are already tracking this product.'),
-            { parse_mode: 'MarkdownV2', ...mainKeyboard() }
+          // Add product
+          const { isNew, isAlreadyTracked } = await ProductService.addProduct(
+            resolvedUrl,
+            ctx.chat.id,
+            threshold
           );
+
+          if (isAlreadyTracked) {
+            results.push(`⚠️ Already tracking: [${name.substring(0, 20)}...]`);
+          } else {
+            results.push(`✅ Added: [${name.substring(0, 20)}...] (EGP ${currentPrice})`);
+          }
+
+        } catch (err) {
+          console.error('Error processing line:', line, err);
+          results.push(`❌ Failed: ${line.substring(0, 30)}...`);
         }
-        console.error('Error in add command:', innerError);
-        await ctx.reply(
-          escapeMarkdownV2('❌ Error adding the product. Please try again.'),
-          { parse_mode: 'MarkdownV2', ...mainKeyboard() }
-        );
       }
+
+      await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
+
+      // Send summary
+      const summary = [
+        '📋 *Bulk Add Results*',
+        '',
+        ...results,
+        '',
+        '✨ Use /list to view all products'
+      ].join('\n');
+
+      await ctx.reply(summary, {
+        parse_mode: 'Markdown', // Use V1 for simpler list handling
+        disable_web_page_preview: true,
+        ...mainKeyboard()
+      });
+
     } catch (error) {
       console.error('Unexpected error in add command:', error);
       await ctx.reply(

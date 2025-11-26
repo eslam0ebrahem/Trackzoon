@@ -485,4 +485,16 @@ Choose a threshold or set a custom one:`,
       await ctx.answerCbQuery('⚠️ Error generating chart. Please try again.');
     }
   });
+
+  // Snooze alert action
+  bot.action(/action_snooze_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      await ProductService.snoozeProduct(asin, ctx.chat.id, 24); // Snooze for 24 hours
+      await ctx.answerCbQuery('💤 Alerts snoozed for 24 hours.');
+    } catch (error) {
+      console.error('Error in snooze action:', error);
+      await ctx.answerCbQuery('⚠️ Error snoozing alerts. Please try again.');
+    }
+  });
 };
