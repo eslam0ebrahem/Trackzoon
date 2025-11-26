@@ -49,7 +49,7 @@ export class ProductService {
       throw new BotError(
         'Failed to preview product',
         ErrorCodes.SCRAPING_ERROR,
-        'Could not fetch product details. Please check the URL.'
+        `Could not fetch product details: ${error.message}`
       );
     }
   }

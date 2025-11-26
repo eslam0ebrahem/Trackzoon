@@ -997,6 +997,35 @@
             setupTabs();
         });
 
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => {
+                        t.classList.remove('border-blue-500', 'text-blue-600');
+                        t.classList.add('border-transparent', 'text-gray-500');
+                    });
+
+                    // Add active class to clicked tab
+                    tab.classList.add('border-blue-500', 'text-blue-600');
+                    tab.classList.remove('border-transparent', 'text-gray-500');
+
+                    // Hide all tab contents
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.add('hidden');
+                    });
+
+                    // Show target content
+                    const targetId = tab.dataset.tab;
+                    const targetContent = document.getElementById(targetId + 'Tab');
+                    if (targetContent) {
+                        targetContent.classList.remove('hidden');
+                    }
+                });
+            });
+        }
+
         async function checkAuth() {
             const id = localStorage.getItem('telegramId');
             if (!id) {

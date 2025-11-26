@@ -83,6 +83,12 @@ export const previewProduct = async (req, res) => {
         const result = await ProductService.previewProduct(url);
         res.json(result);
     } catch (error) {
+        if (error.code === 'INVALID_URL') {
+            return res.status(400).json({ error: error.message });
+        }
+        if (error.code === 'SCRAPING_ERROR') {
+            return res.status(422).json({ error: error.message, details: error.userMessage });
+        }
         res.status(500).json({ error: error.message });
     }
 };
