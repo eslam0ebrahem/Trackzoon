@@ -258,6 +258,72 @@ export class AiService {
             return null;
         }
     }
+
+    /**
+     * Generate a daily summary of the user's portfolio
+     * @param {Array} products - List of user's tracked products
+     * @returns {Promise<string>} - AI summary
+     */
+    async generateDailySummary(products) {
+        if (!this.apiKey || products.length === 0) return null;
+
+        try {
+            // Calculate some stats to help the AI
+            const totalProducts = products.length;
+            const priceDrops = products.filter(p => p.priceChange < 0).length;
+            const totalSavings = products.reduce((acc, p) => {
+                if (p.priceChange < 0) {
+                    return acc + (p.oldPrice - p.currentPrice);
+                }
+                return acc;
+            }, 0);
+
+            const productContext = products.slice(0, 10).map(p =>
+                `- ${p.name.substring(0, 30)}...: EGP ${p.currentPrice} (${p.priceChange > 0 ? '+' : ''}${p.priceChange}%)`
+            ).join('\n');
+
+            const prompt = `
+        You are a financial portfolio manager for an Amazon shopper.
+        
+        Portfolio Stats:
+        - Total Products: ${totalProducts}
+        - Price Drops Today: ${priceDrops}
+        - Total Potential Savings: EGP ${totalSavings.toFixed(2)}
+        
+        Top Items:
+        ${productContext}
+        
+        Write a short, engaging daily summary (max 2-3 sentences).
+        - If there are savings, celebrate them.
+        - If everything is stable, tell them to be patient.
+        - Use emojis.
+        - Do NOT list every product, just give a high-level vibe check.
+      `;
+
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: 'sonar',
+                    messages: [
+                        { role: 'system', content: 'You are a helpful assistant.' },
+                        { role: 'user', content: prompt }
+                    ]
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 20000
+                }
+            );
+
+            return response.data.choices[0].message.content;
+        } catch (error) {
+            logger.error('AI Daily Summary failed:', error.message);
+            return null;
+        }
+    }
 }
 
 export const aiService = new AiService();
