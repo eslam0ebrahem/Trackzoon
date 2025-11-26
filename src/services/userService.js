@@ -12,8 +12,10 @@ export class UserService {
       let user = await User.findOne({ telegramId: id });
 
       if (!user) {
+        console.log(`Creating new user with telegramId: "${id}"`);
         user = new User({ telegramId: id });
         await user.save();
+        console.log(`User created successfully: "${id}"`);
       }
 
       return user;

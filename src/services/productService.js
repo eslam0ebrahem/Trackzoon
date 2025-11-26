@@ -94,11 +94,12 @@ export class ProductService {
           currentPrice = scrapeResult.currentPrice;
           imageUrl = scrapeResult.imageUrl;
         } catch (priceError) {
-          // If out of stock (includes no-buybox scenarios), use threshold as placeholder
+          // If out of stock (includes no-buybox scenarios) or Captcha, use threshold as placeholder
           if (priceError.message.includes('out of stock') ||
             priceError.message.includes('unavailable') ||
-            priceError.message.includes('no-buybox')) {
-            logger.info(`Product ${asin} is out of stock, tracking with threshold as placeholder`);
+            priceError.message.includes('no-buybox') ||
+            priceError.message.includes('Captcha')) {
+            logger.info(`Product ${asin} scraping issue (${priceError.message}), tracking with threshold as placeholder`);
             currentPrice = threshold;
             isOutOfStock = true;
           } else {
@@ -148,7 +149,7 @@ export class ProductService {
 
       // Update user's product list if User model exists
       await User.findOneAndUpdate(
-        { chatId: chatId },
+        { telegramId: chatId },
         {
           $addToSet: { products: product._id },
           $set: { lastActive: new Date() }
@@ -210,7 +211,7 @@ export class ProductService {
 
       // Remove from user's product list
       await User.findOneAndUpdate(
-        { chatId: chatId },
+        { telegramId: chatId },
         { $pull: { products: product._id } },
         { session }
       ).catch(() => {
