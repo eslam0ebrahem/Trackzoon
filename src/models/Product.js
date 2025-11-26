@@ -18,7 +18,7 @@ const ProductSchema = new mongoose.Schema({
   lastChecked: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now },
   trackedBy: [{
-    chatId: { type: Number, required: true },
+    chatId: { type: String, required: true },
     lastAlertedAt: Date,
     lastFlashDealAlert: Date, // Track flash deal alerts separately
     alertType: { type: String, enum: ['drop', 'percentage_drop'], default: 'drop' },
