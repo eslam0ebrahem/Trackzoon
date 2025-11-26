@@ -1,45 +1,36 @@
-# Implementation Plan - Admin Dashboard & Role-Based Access
+# Implementation Plan - Unified Dashboard Architecture
 
-I will enhance the web dashboard to support an Admin view with advanced controllers and system stats.
+I will refactor the dashboard to provide a seamless experience for Public, User, and Admin roles within a single interface (`index.html`).
 
 ## User Review Required
 > [!IMPORTANT]
-> I will add an `isAdmin` field to the User schema.
-> For simplicity, I will assume the dashboard is accessed via a URL parameter or a simple login page (to be implemented) that sets a local storage flag, or I'll just expose the admin routes and rely on the user to secure the endpoint (e.g. via basic auth or just obscurity for this MVP).
-> **Decision**: I'll implement a simple "Login" page that asks for a Telegram ID. If that ID matches an admin (flag in DB), they get the Admin Dashboard.
+> I will remove `admin.html` and merge its functionality into `index.html`.
+> I will add a new endpoint `/api/user/me` to fetch the current user's profile and role.
 
 ## Proposed Changes
 
-### Database
-#### [MODIFY] [User.js](file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/models/User.js)
-- Add `isAdmin: { type: Boolean, default: false }` to schema.
+### Backend
+#### [NEW] [userRoutes.js](file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/routes/userRoutes.js)
+- `GET /me`: Returns `{ telegramId, username, isAdmin, ... }` based on the `x-telegram-id` header.
 
-### Backend Routes
-#### [NEW] [adminRoutes.js](file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/routes/adminRoutes.js)
-- `GET /stats`: Returns system health, total users, total products.
-- `POST /broadcast`: Sends a message to all users.
-- `POST /scrape-all`: Triggers a manual scrape for all products.
-
-#### [MODIFY] [server.js](file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/server.js)
-- Register `adminRoutes`.
-
-### Frontend (Public)
+### Frontend
 #### [MODIFY] [index.html](file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/public/index.html)
-- Add a simple login form (Enter Telegram ID).
-- Logic to fetch user role on login.
-- Show "Admin Panel" button if admin.
+- **Navigation**:
+    - Default: "Login" button.
+    - Logged In: "Profile" (User) or "Admin Panel" (Admin) dropdown.
+- **Sections**:
+    - `div#public-view`: Top Global Deals (Always visible or default).
+    - `div#user-view`: My Products, Add Product (Visible if logged in).
+    - `div#admin-view`: System Stats, Force Scrape (Visible if `isAdmin`).
+- **Logic**:
+    - On load, check `localStorage.telegramId`.
+    - If present, call `/api/user/me`.
+    - Update UI state based on response.
 
-#### [NEW] [admin.html](file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/public/admin.html)
-- Dashboard view for admins.
-- Widgets: System Health, User Stats.
-- Actions: Broadcast, Force Scrape.
+#### [DELETE] [admin.html](file:///Users/IslamIbrahim/Work/Projects/Trackzoon/src/public/admin.html)
+- Redundant after merge.
 
 ## Verification Plan
-
-### Manual Verification
-1.  **Set Admin**: Manually update my user record in DB to `isAdmin: true`.
-2.  **Login**: Use my Telegram ID on the dashboard.
-3.  **Verify View**: Check if Admin Panel button appears.
-4.  **Test Actions**:
-    - Click "Force Scrape" and check logs.
-    - Send a broadcast message and check Telegram.
+1.  **Public State**: Open incognito, see "Top Deals" and "Login".
+2.  **User State**: Login with normal ID, see "My Products" and "Add Product".
+3.  **Admin State**: Login with Admin ID, see "Admin Panel" with stats and controls.

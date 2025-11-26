@@ -342,7 +342,7 @@ export const archiveProduct = async (req, res) => {
 // Feature 9: Get User Products
 export const getUserProducts = async (req, res) => {
     try {
-        const chatId = req.query.chatId || req.headers['x-chat-id'];
+        const chatId = req.query.chatId || req.headers['x-chat-id'] || req.headers['x-telegram-id'];
         if (!chatId) return res.status(400).json({ error: 'Chat ID is required' });
 
         const products = await ProductService.getUserProducts(chatId);

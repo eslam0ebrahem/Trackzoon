@@ -1,19 +1,19 @@
-# Dashboard Enhancements Roadmap
+# Dashboard Refactoring Roadmap
 
-- [ ] **1. Analyze Existing Dashboard**
-    - [ ] Review `src/server.js` and any template files.
-    - [ ] Understand current auth mechanism (if any).
-- [ ] **2. Implement Role-Based Access**
-    - [ ] Add `isAdmin` flag to `User` model.
-    - [ ] Implement simple login or token-based auth for dashboard access.
-- [ ] **3. Create Admin Dashboard**
-    - [ ] Create a new view/route for admins.
-    - [ ] Add "System Health" widget (CPU, Memory, DB status).
-    - [ ] Add "User Management" widget (List users, total count).
-    - [ ] Add "Global Stats" widget (Total products, total alerts sent).
-- [ ] **4. Enhance User Dashboard**
-    - [ ] Ensure users only see their own data.
-    - [ ] Add "My Products" list with edit/delete actions.
-- [ ] **5. Add Admin Controllers**
-    - [ ] "Force Scrape All" button.
-    - [ ] "Broadcast Message" form.
+- [x] **1. Plan Unified Structure**
+    - [x] Design the layout for Public vs Logged In vs Admin states.
+    - [x] Create `implementation_plan.md`.
+- [x] **2. Backend Updates**
+    - [x] Create/Update `/api/user/me` to return user profile and role (`isAdmin`).
+- [x] **3. Frontend Refactoring (index.html)**
+    - [x] Remove `admin.html`.
+    - [x] Add "Admin Section" to `index.html` (hidden by default).
+    - [x] Update Navigation (Login -> Profile/Logout).
+    - [x] Implement State Management (Public -> User -> Admin).
+- [x] **4. Implement Role-Based Views**
+    - [x] **Public**: Search, Top Deals, Login.
+    - [x] **User**: + My Products, Add Product, Settings.
+    - [x] **Admin**: + System Stats, Force Scrape, Broadcast.
+- [x] **5. Verify & Polish**
+    - [x] Test all 3 states.
+    - [x] Ensure consistent design (Tailwind).

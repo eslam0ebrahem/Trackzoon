@@ -1,30 +1,25 @@
-# Walkthrough - Admin Dashboard
+# Walkthrough - Unified Dashboard
 
-I have added a secure Admin Dashboard to manage the Trackzoon system.
+I have refactored the dashboard into a single, cohesive interface (`index.html`) that adapts to your role.
 
-## How to Access
-1.  Open the dashboard.
-2.  Click the **Login** icon (top right).
-3.  Enter your **Telegram ID**.
-    - If you are an admin, you will be redirected to the Admin Panel.
-    - If not, you will see a "Coming Soon" message for the user dashboard.
+## Features by Role
 
-## Admin Features
-### 1. System Stats 📊
-- **Total Users**: Real-time count of active users.
-- **Total Products**: Number of tracked items.
-- **Active Alerts**: How many users are waiting for price drops.
-- **Uptime**: Server running time.
+### 🌍 Public User (No Login)
+- **Top Global Deals**: View the hottest deals across the platform.
+- **Search**: Find products by name.
+- **Login**: Access your personal dashboard via Telegram ID.
 
-### 2. Force Scrape ⚡
-- **Action**: Click "Force Scrape All Prices".
-- **Effect**: Immediately triggers a price check for ALL products in the database. Use this if you suspect prices are outdated.
+### 👤 Logged In User
+- **My Products Tab**: Switch between "Top Deals" and "My Products" to see your tracked items.
+- **Add Product**: Track new items directly from the dashboard.
+- **Settings**: Manage your preferences.
 
-### 3. Broadcast Message 📢
-- **Action**: Type a message and click "Send Broadcast".
-- **Effect**: Sends a Telegram message to **ALL** users who have notifications enabled. Great for announcements or downtime alerts.
+### 🛡️ Admin
+- **Admin Panel**: A special section appears at the bottom.
+- **System Stats**: Monitor users, products, and uptime.
+- **Actions**: Force scrape all prices or broadcast messages to all users.
 
-## Verification
-- **Login**: Try logging in with a non-admin ID (should fail/alert) and an admin ID (should succeed).
-- **Stats**: Verify numbers match your database.
-- **Actions**: Test the broadcast feature with a small test message.
+## How to Verify
+1.  **Public**: Open the site without logging in. You should see "Top Global Deals" but no "My Products" tab.
+2.  **User**: Click Login, enter a User ID. You should see the "My Products" tab appear.
+3.  **Admin**: Click Login, enter an Admin ID. You should see the "Admin Panel" at the bottom with extra controls.

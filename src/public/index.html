@@ -325,8 +325,7 @@
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
+    <div id="mainContainer" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Compact Stats Bar -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div
@@ -393,12 +392,20 @@
                     class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                     <div
                         class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center bg-gradient-to-r from-red-50 to-white dark:from-red-900/20 dark:to-gray-800 gap-4">
-                        <div class="flex items-center">
-                            <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                                <span class="mr-2">🔥</span> Top Global Deals
-                            </h2>
+                        <div class="flex items-center gap-4">
+                            <!-- Tabs -->
+                            <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700/50 p-1 rounded-lg">
+                                <button onclick="switchTab('global')" id="tab-global"
+                                    class="px-3 py-1.5 text-sm font-bold rounded-md bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white transition-all">
+                                    🔥 Top Deals
+                                </button>
+                                <button onclick="switchTab('my')" id="tab-my"
+                                    class="hidden px-3 py-1.5 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
+                                    📦 My Products
+                                </button>
+                            </div>
                             <span
-                                class="ml-3 text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2.5 py-0.5 rounded-full animate-pulse">Live</span>
+                                class="hidden sm:inline-block text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2.5 py-0.5 rounded-full animate-pulse">Live</span>
                         </div>
 
                         <!-- Filters & Sort -->
@@ -481,6 +488,13 @@
                     </div>
                     <div class="max-h-[600px] overflow-y-auto p-2" id="dealsList">
                         <div class="p-8 text-center text-gray-500 dark:text-gray-400">Loading deals...</div>
+                    </div>
+                    <div class="max-h-[600px] overflow-y-auto p-2 hidden" id="myProductsList">
+                        <div class="p-8 text-center text-gray-500 dark:text-gray-400">
+                            <p class="mb-2">You are not tracking any products yet.</p>
+                            <button onclick="openAddProductModal()" class="text-blue-600 hover:underline">Track your
+                                first product</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -913,6 +927,194 @@
                 alert('Login failed');
             }
         }
+    </script>
+    <script>
+        // State Management
+        const state = {
+            user: null,
+            currentTab: 'global'
+        };
+
+        // Init
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            setupTabs();
+        });
+
+        async function checkAuth() {
+            const id = localStorage.getItem('telegramId');
+            if (!id) {
+                renderPublicState();
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/user/me', {
+                    headers: { 'x-telegram-id': id }
+                });
+
+                if (res.ok) {
+                    state.user = await res.json();
+                    renderUserState();
+                    if (state.user.isAdmin) {
+                        renderAdminState();
+                    }
+                } else {
+                    localStorage.removeItem('telegramId');
+                    renderPublicState();
+                }
+            } catch (err) {
+                console.error('Auth check failed', err);
+                renderPublicState();
+            }
+        }
+
+        function renderPublicState() {
+            document.getElementById('tab-my').classList.add('hidden');
+            document.getElementById('adminSection').classList.add('hidden');
+            // Show Login Button, Hide Profile (if we had one)
+        }
+
+        function renderUserState() {
+            document.getElementById('tab-my').classList.remove('hidden');
+            // Update UI with user info if needed
+        }
+
+        function renderAdminState() {
+            document.getElementById('adminSection').classList.remove('hidden');
+            fetchAdminStats();
+        }
+
+        // Tabs
+        window.switchTab = function (tab) {
+            state.currentTab = tab;
+
+            // Update Buttons
+            const btnGlobal = document.getElementById('tab-global');
+            const btnMy = document.getElementById('tab-my');
+
+            if (tab === 'global') {
+                btnGlobal.classList.add('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'font-bold');
+                btnGlobal.classList.remove('text-gray-500', 'dark:text-gray-400');
+
+                btnMy.classList.remove('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'font-bold');
+                btnMy.classList.add('text-gray-500', 'dark:text-gray-400');
+
+                document.getElementById('dealsList').classList.remove('hidden');
+                document.getElementById('myProductsList').classList.add('hidden');
+            } else {
+                btnMy.classList.add('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'font-bold');
+                btnMy.classList.remove('text-gray-500', 'dark:text-gray-400');
+
+                btnGlobal.classList.remove('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'font-bold');
+                btnGlobal.classList.add('text-gray-500', 'dark:text-gray-400');
+
+                document.getElementById('dealsList').classList.add('hidden');
+                document.getElementById('myProductsList').classList.remove('hidden');
+
+                fetchMyProducts();
+            }
+        };
+
+        // Fetch My Products
+        async function fetchMyProducts() {
+            if (!state.user) return;
+            const container = document.getElementById('myProductsList');
+            container.innerHTML = '<div class="p-8 text-center text-gray-500">Loading your products...</div>';
+
+            try {
+                // We need an endpoint for user products. 
+                // Assuming /api/dashboard/products or similar exists and filters by user if ID is passed?
+                // Or we might need to create one. 
+                // Let's try /api/products/user with header.
+                const res = await fetch('/api/products/user', {
+                    headers: { 'x-telegram-id': state.user.telegramId }
+                });
+                const data = await res.json();
+                const items = Array.isArray(data) ? data : (data.items || []);
+
+                if (items.length > 0) {
+                    // Render items (reuse existing render logic if possible, or simple list)
+                    container.innerHTML = items.map(item => `
+                        <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            <div class="flex items-center gap-3">
+                                <img src="${item.imageUrl || 'https://via.placeholder.com/50'}" class="w-12 h-12 object-contain bg-white rounded p-1">
+                                <div>
+                                    <p class="text-sm font-bold text-gray-900 dark:text-white line-clamp-1">${item.name}</p>
+                                    <p class="text-xs text-gray-500">${item.currentPrice} EGP</p>
+                                </div>
+                            </div>
+                            <button onclick="viewProduct('${item.asin}')" class="text-blue-600 hover:underline text-sm">View</button>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="p-8 text-center text-gray-500 dark:text-gray-400">
+                            <p class="mb-2">You are not tracking any products yet.</p>
+                            <button onclick="openAddProductModal()" class="text-blue-600 hover:underline">Track your first product</button>
+                        </div>`;
+                }
+            } catch (err) {
+                container.innerHTML = '<div class="p-8 text-center text-red-500">Failed to load products.</div>';
+            }
+        }
+
+        // Admin Functions
+        async function fetchAdminStats() {
+            if (!state.user || !state.user.isAdmin) return;
+            try {
+                const res = await fetch('/api/admin/stats', {
+                    headers: { 'x-telegram-id': state.user.telegramId }
+                });
+                const data = await res.json();
+                document.getElementById('adminTotalUsers').innerText = data.users;
+                document.getElementById('adminTotalProducts').innerText = data.products;
+                document.getElementById('adminActiveAlerts').innerText = data.activeAlerts;
+                document.getElementById('adminUptime').innerText = (data.system.uptime / 3600).toFixed(1) + 'h';
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        window.adminForceScrape = async function () {
+            if (!confirm('Are you sure? This is a heavy operation.')) return;
+            try {
+                await fetch('/api/admin/scrape-all', {
+                    method: 'POST',
+                    headers: { 'x-telegram-id': state.user.telegramId }
+                });
+                alert('Scrape started!');
+            } catch (err) {
+                alert('Failed to start scrape');
+            }
+        };
+
+        window.adminBroadcast = async function () {
+            const msg = document.getElementById('adminBroadcastMsg').value;
+            if (!msg) return alert('Enter a message');
+            try {
+                await fetch('/api/admin/broadcast', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-telegram-id': state.user.telegramId
+                    },
+                    body: JSON.stringify({ message: msg })
+                });
+                alert('Broadcast sent!');
+                document.getElementById('adminBroadcastMsg').value = '';
+            } catch (err) {
+                alert('Failed to send');
+            }
+        };
+
+        // Login Modal Helpers
+        window.openLoginModal = function () {
+            document.getElementById('loginModal').classList.remove('hidden');
+        };
+        window.closeLoginModal = function () {
+            document.getElementById('loginModal').classList.add('hidden');
+        };
     </script>
 </body>
 
