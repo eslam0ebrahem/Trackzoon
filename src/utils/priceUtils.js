@@ -104,12 +104,24 @@ export const calculateVolatility = (priceHistory) => {
 
     // Determine interval (minutes)
     let interval;
-    if (score >= 8) interval = 30;      // Very Volatile: Check every 30 mins
-    else if (score >= 4) interval = 60; // Moderately Volatile: Check every hour
-    else if (score >= 1) interval = 120; // Low Volatility: Check every 2 hours
-    else interval = 240;                // Stable: Check every 4 hours
+    if (score >= 8) interval = 60;       // Very Volatile: Check every 1 hour
+    else if (score >= 4) interval = 180; // Moderately Volatile: Check every 3 hours
+    else if (score >= 1) interval = 360; // Low Volatility: Check every 6 hours
+    else interval = 720;                 // Stable: Check every 12 hours
 
     return { score, interval };
+};
+
+/**
+ * Apply random jitter to an interval to avoid predictable patterns
+ * @param {number} intervalMinutes - Base interval in minutes
+ * @param {number} jitterPercent - Max percentage of jitter (default 0.2 = 20%)
+ * @returns {number} - Interval with jitter applied
+ */
+export const applyJitter = (intervalMinutes, jitterPercent = 0.2) => {
+    // Random factor between -jitterPercent and +jitterPercent
+    const factor = (Math.random() * 2 - 1) * jitterPercent;
+    return Math.round(intervalMinutes * (1 + factor));
 };
 
 /**

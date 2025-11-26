@@ -10,7 +10,7 @@ import pLimit from 'p-limit';
 import { updateProductRating } from './ratingScraper.js';
 
 import { logger } from '../utils/logger.js';
-import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend } from '../utils/priceUtils.js';
+import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend, applyJitter } from '../utils/priceUtils.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 
 // Rate limiter: Max 3 concurrent scraping requests to avoid IP bans
@@ -680,10 +680,13 @@ export class PriceTrackerService {
     const dueProducts = products.filter(p => {
       if (force) return true; // Force check all
 
-      // Default to 30 mins if not set
-      const intervalMinutes = p.checkInterval || 30;
+      // Default to 60 mins if not set (was 30)
+      const baseInterval = p.checkInterval || 60;
+      // Apply jitter to avoid predictable patterns
+      const intervalWithJitter = applyJitter(baseInterval);
+
       const lastChecked = p.lastChecked ? new Date(p.lastChecked) : new Date(0);
-      const nextCheck = new Date(lastChecked.getTime() + intervalMinutes * 60000);
+      const nextCheck = new Date(lastChecked.getTime() + intervalWithJitter * 60000);
 
       return now >= nextCheck;
     });

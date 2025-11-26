@@ -645,7 +645,9 @@ async function getPrice(url) {
     const $ = cheerio.load(response.data);
 
     // Check for captcha
-    if ($('title').text().includes('Robot Check')) {
+    if ($('title').text().includes('Robot Check') ||
+      $('form[action*="/errors/validateCaptcha"]').length > 0 ||
+      $('body').text().includes('validateCaptcha')) {
       throw new Error('Amazon Captcha detected');
     }
 
