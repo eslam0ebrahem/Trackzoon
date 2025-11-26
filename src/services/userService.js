@@ -6,6 +6,9 @@ export class UserService {
     try {
       // Ensure telegramId is a string
       const id = String(telegramId);
+      if (!id || id === 'undefined' || id === 'null') {
+        throw new Error('Invalid telegramId');
+      }
       let user = await User.findOne({ telegramId: id });
 
       if (!user) {

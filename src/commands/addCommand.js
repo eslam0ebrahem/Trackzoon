@@ -43,7 +43,7 @@ export default (bot) => {
       const results = [];
 
       const processingMsg = await ctx.reply(
-        `🔄 *Processing ${lines.length} product(s)...*`,
+        `🔄 *Processing ${lines.length} product\\(s\\)\\.\\.\\.*`,
         { parse_mode: 'MarkdownV2' }
       );
 
@@ -109,8 +109,8 @@ export default (bot) => {
         '✨ Use /list to view all products'
       ].join('\n');
 
-      await ctx.reply(summary, {
-        parse_mode: 'Markdown', // Use V1 for simpler list handling
+      await ctx.reply(escapeMarkdownV2(summary), {
+        parse_mode: 'MarkdownV2',
         disable_web_page_preview: true,
         ...mainKeyboard()
       });
