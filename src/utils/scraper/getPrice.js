@@ -657,86 +657,14 @@ async function getPrice(url) {
     // ============================================
     // STEP 1: Smart Availability Check
     // ============================================
-    const availabilityCheck = smartAvailabilityCheck($);
-
-    // Validate availability data
-    const availValidation = validateAvailability(availabilityCheck);
-    if (!availValidation.valid) {
-      logger.error(`❌ Availability validation failed: ${availValidation.reason}`);
-    }
-
-    if (!availabilityCheck.isAvailable) {
-      logger.info(`❌ Product unavailable: ${availabilityCheck.reason}`);
-      throw new Error(`Product is ${availabilityCheck.reason}: ${availabilityCheck.details}`);
-    }
-
-    // ============================================
-    // STEP 2: Multi-Strategy Price Extraction
-    // ============================================
-    const priceResult = smartPriceExtraction($);
-
-    if (!priceResult) {
-      // Last resort: check if we can find any price-like text in buy box
-      const buyBoxText = $('#buybox, #centerCol').text();
-      const priceMatch = buyBoxText.match(/[EGP$€EGP]+\s*(\d{1,6}(?:[.,]\d{2})?)/);
-
-      if (priceMatch) {
-        logger.warn(`⚠️ Fallback regex found price: ${priceMatch[0]}`);
-        const validation = validatePrice(priceMatch[1]);
-
-        if (validation.valid) {
-          return {
-            currentPrice: validation.price,
-            isOutOfStock: false,
-            extractionMethod: 'fallback-regex'
-          };
-        }
-      }
-
-      logger.error('❌ All price extraction strategies failed');
-      logger.warn(`Availability text was: "${availabilityCheck.details}"`);
-      throw new Error('Price not found - page structure may have changed');
-    }
-
-    // ============================================
-    // STEP 3: Validate Price
-    // ============================================
-    const priceValidation = validatePrice(priceResult.priceText);
-
-    if (!priceValidation.valid) {
-      logger.error(`❌ Price validation failed: ${priceValidation.reason}`);
-      throw new Error(`Invalid price data: ${priceValidation.reason}`);
-    }
-
-    // ============================================
-    // STEP 4: Enhanced Data Extraction
-    // ============================================
-    const merchant = extractMerchantInfo($);
-    const delivery = extractDeliveryInfo($);
-    const prime = extractPrimeStatus($);
-    const coupon = extractCouponInfo($);
-    const dealProgress = extractDealProgress($);
-    const otherSellers = extractOtherSellers($);
-
-    logger.debug(`✅ Successfully extracted price: ${priceValidation.price} EGP (strategy: ${priceResult.strategy})`);
-    if (merchant) logger.debug(`🏪 Merchant: ${merchant}`);
-    if (prime) logger.debug(`🚛 Prime: Yes`);
-
-    return {
-      currentPrice: priceValidation.price,
-      isOutOfStock: false,
-      extractionMethod: priceResult.strategy,
-      selector: priceResult.selector,
-      // Enhanced fields
-      merchant,
-      delivery,
-      prime,
-      coupon,
-      dealProgress,
-      otherSellers
-    };
+    return extractFromCheerio($, url);
 
   } catch (error) {
+    // If it's a Captcha error and we haven't retried too many times, throw specific error
+    if (error.message.includes('Captcha')) {
+      throw error;
+    }
+
     if (error.message.includes('out-of-stock') ||
       error.message.includes('third-party') ||
       error.message.includes('unavailable') ||
@@ -750,4 +678,166 @@ async function getPrice(url) {
   }
 }
 
-export { getPrice };
+/**
+ * Extracted logic for processing Cheerio instance
+ */
+function extractFromCheerio($, url) {
+  // ============================================
+  // STEP 1: Smart Availability Check
+  // ============================================
+  const availabilityCheck = smartAvailabilityCheck($);
+
+  // Validate availability data
+  const availValidation = validateAvailability(availabilityCheck);
+  if (!availValidation.valid) {
+    logger.error(`❌ Availability validation failed: ${availValidation.reason}`);
+  }
+
+  if (!availabilityCheck.isAvailable) {
+    logger.info(`❌ Product unavailable: ${availabilityCheck.reason}`);
+    throw new Error(`Product is ${availabilityCheck.reason}: ${availabilityCheck.details}`);
+  }
+
+  // ============================================
+  // STEP 2: Multi-Strategy Price Extraction
+  // ============================================
+  const priceResult = smartPriceExtraction($);
+
+  if (!priceResult) {
+    // Last resort: check if we can find any price-like text in buy box
+    const buyBoxText = $('#buybox, #centerCol').text();
+    const priceMatch = buyBoxText.match(/[EGP$€EGP]+\s*(\d{1,6}(?:[.,]\d{2})?)/);
+
+    if (priceMatch) {
+      logger.warn(`⚠️ Fallback regex found price: ${priceMatch[0]}`);
+      const validation = validatePrice(priceMatch[1]);
+
+      if (validation.valid) {
+        return {
+          currentPrice: validation.price,
+          isOutOfStock: false,
+          extractionMethod: 'fallback-regex'
+        };
+      }
+    }
+
+    logger.error('❌ All price extraction strategies failed');
+    logger.warn(`Availability text was: "${availabilityCheck.details}"`);
+    throw new Error('Price not found - page structure may have changed');
+  }
+
+  // ============================================
+  // STEP 3: Validate Price
+  // ============================================
+  const priceValidation = validatePrice(priceResult.priceText);
+
+  if (!priceValidation.valid) {
+    logger.error(`❌ Price validation failed: ${priceValidation.reason}`);
+    throw new Error(`Invalid price data: ${priceValidation.reason}`);
+  }
+
+  // ============================================
+  // STEP 4: Enhanced Data Extraction
+  // ============================================
+  const merchant = extractMerchantInfo($);
+  const delivery = extractDeliveryInfo($);
+  const prime = extractPrimeStatus($);
+  const coupon = extractCouponInfo($);
+  const dealProgress = extractDealProgress($);
+  const otherSellers = extractOtherSellers($);
+
+  logger.debug(`✅ Successfully extracted price: ${priceValidation.price} EGP (strategy: ${priceResult.strategy})`);
+  if (merchant) logger.debug(`🏪 Merchant: ${merchant}`);
+  if (prime) logger.debug(`🚛 Prime: Yes`);
+
+  return {
+    currentPrice: priceValidation.price,
+    isOutOfStock: false,
+    extractionMethod: priceResult.strategy,
+    selector: priceResult.selector,
+    // Enhanced fields
+    merchant,
+    delivery,
+    prime,
+    coupon,
+    dealProgress,
+    otherSellers
+  };
+}
+
+/**
+ * Fallback: Fetch with Puppeteer
+ */
+async function fetchWithPuppeteer(url) {
+  logger.info('🚀 Launching Puppeteer fallback...');
+  let browser = null;
+  try {
+    const puppeteer = await import('puppeteer');
+    browser = await puppeteer.default.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+
+    // Set realistic user agent
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+    // Check for Captcha
+    const title = await page.title();
+    if (title.includes('Robot Check')) {
+      throw new Error('Puppeteer also hit Captcha');
+    }
+
+    const content = await page.content();
+    return cheerio.load(content);
+  } catch (error) {
+    logger.error(`Puppeteer failed: ${error.message}`);
+    throw error;
+  } finally {
+    if (browser) await browser.close();
+  }
+}
+
+/**
+ * Main Wrapper with Retry Logic
+ */
+async function getPriceWithRetry(url, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      if (i > 0) {
+        const delay = Math.floor(Math.random() * 3000) + 2000; // 2-5s delay
+        logger.info(`⏳ Retry ${i}/${retries} after ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+
+      return await getPrice(url);
+    } catch (error) {
+      if (error.message.includes('Captcha')) {
+        logger.warn(`⚠️ Captcha detected on attempt ${i + 1}`);
+
+        // On last attempt, try Puppeteer
+        if (i === retries) {
+          try {
+            const $ = await fetchWithPuppeteer(url);
+            // Re-use the extraction logic with the Puppeteer-loaded cheerio instance
+            // We need to refactor getPrice slightly to accept $ or separate extraction
+            // For now, let's just re-implement a basic check or recursive call if we refactor
+            // BUT, getPrice expects URL. 
+            // FIX: Refactor getPrice to accept optional $ instance
+            return await extractFromCheerio($, url);
+          } catch (puppeteerError) {
+            throw new Error('Amazon Captcha detected (Puppeteer failed)');
+          }
+        }
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
+
+
+export { getPriceWithRetry as getPrice };
