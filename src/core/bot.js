@@ -17,19 +17,20 @@ const initializeBot = (commands) => {
     }));
     bot.telegram.setMyCommands(botCommands);
 
+    // Use centralized middleware for user attachment
     bot.use(async (ctx, next) => {
       if (ctx.chat && ctx.chat.id) {
         try {
-          let user = await User.findOne({ chatId: ctx.chat.id });
-          if (!user) {
-            user = new User({
-              chatId: ctx.chat.id,
-              username: ctx.from?.username,
-              firstName: ctx.from?.first_name,
-              lastName: ctx.from?.last_name
-            });
+          const { UserService } = await import('../services/userService.js');
+          const user = await UserService.getOrCreateUser(ctx.chat.id);
+
+          // Update user details if changed
+          if (user && (ctx.from?.username !== user.username || ctx.from?.first_name !== user.firstName)) {
+            user.username = ctx.from?.username;
+            user.firstName = ctx.from?.first_name;
             await user.save();
           }
+
           ctx.user = user;
         } catch (error) {
           console.error('Error in user middleware:', error);
