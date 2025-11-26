@@ -38,6 +38,7 @@ const userSchema = new mongoose.Schema({
   username: String,
   webhookUrl: { type: String }, // Feature 17: Webhook
   apiKey: { type: String }, // Feature 20: API Key
+  isAdmin: { type: Boolean, default: false }, // Admin Dashboard
   joinedAt: { type: Date, default: Date.now },
   settings: {
     type: userSettingsSchema,

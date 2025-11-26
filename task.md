@@ -1,25 +1,19 @@
-# 10 Smart Enhancements Roadmap
+# Dashboard Enhancements Roadmap
 
-- [x] **1. Arabic Language Support 🇪🇬** (Replaced with **Currency Converter 💱**)
-    - [x] Added USD conversion to product details.
-- [x] **2. Bulk Import 📦**
-    - [x] Updated `/add` to accept multiple URLs (newline or space separated).
-- [x] **3. Export Data 📂**
-    - [x] Created `/export` command to generate and send a CSV file of tracked products.
-- [x] **4. Global Search 🔍**
-    - [x] Created `/search` command to query the global product database.
-- [x] **5. Snooze Alerts 💤**
-    - [x] Added "Snooze 24h" button to alert messages.
-    - [x] Updated `PriceTrackerService` to respect snooze status.
-- [x] **6. Trending Products 🚀**
-    - [x] Created `/trending` command to show top 5 products with recent price drops.
-- [x] **7. Smart Tags 🏷️**
-    - [x] Implemented keyword-based categorization (e.g., "iPhone" -> "Electronics").
-    - [x] Display tags in `/list` and `/view`.
-- [x] **8. Deal Probability 🎲**
-    - [x] Enhanced `priceUtils` to calculate "Drop Probability" based on historical frequency.
-    - [x] Show in `/view` and alerts.
-- [x] **9. System Health Check 🏥**
-    - [x] Created `/health` command (admin only) to show system stats (memory, uptime, error rate).
-- [x] **10. Price Gap Analysis 📉**
-    - [x] Calculate and show "Gap to Low" (difference between current and all-time low) in alerts.
+- [ ] **1. Analyze Existing Dashboard**
+    - [ ] Review `src/server.js` and any template files.
+    - [ ] Understand current auth mechanism (if any).
+- [ ] **2. Implement Role-Based Access**
+    - [ ] Add `isAdmin` flag to `User` model.
+    - [ ] Implement simple login or token-based auth for dashboard access.
+- [ ] **3. Create Admin Dashboard**
+    - [ ] Create a new view/route for admins.
+    - [ ] Add "System Health" widget (CPU, Memory, DB status).
+    - [ ] Add "User Management" widget (List users, total count).
+    - [ ] Add "Global Stats" widget (Total products, total alerts sent).
+- [ ] **4. Enhance User Dashboard**
+    - [ ] Ensure users only see their own data.
+    - [ ] Add "My Products" list with edit/delete actions.
+- [ ] **5. Add Admin Controllers**
+    - [ ] "Force Scrape All" button.
+    - [ ] "Broadcast Message" form.

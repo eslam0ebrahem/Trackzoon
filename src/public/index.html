@@ -237,6 +237,16 @@
                             </path>
                         </svg>
                     </button>
+                    <!-- Login Button -->
+                    <button onclick="openLoginModal()"
+                        class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                        title="Login">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1">
+                            </path>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
@@ -655,14 +665,17 @@
                     <button onclick="triggerPriceCheck()" id="checkPricesBtn"
                         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
                         </svg>
                         Check Prices Now
                     </button>
                     <button onclick="toggleSystemDashboard()"
                         class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12">
                             </path>
                         </svg>
                     </button>
@@ -784,7 +797,39 @@
         </div>
     </div>
 
-    <!-- Settings Modal -->
+    <!-- Login Modal -->
+    <div id="loginModal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div
+            class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all scale-100 opacity-100">
+            <div
+                class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Login</h3>
+                <button onclick="closeLoginModal()" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telegram ID</label>
+                    <input type="text" id="telegramIdInput"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-all"
+                        placeholder="Enter your Telegram ID">
+                    <p class="text-xs text-gray-500 mt-1">Get this from the bot by typing /id</p>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 flex justify-end space-x-3">
+                <button onclick="closeLoginModal()"
+                    class="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm font-medium">Cancel</button>
+                <button onclick="login()"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm">Access
+                    Dashboard</button>
+            </div>
+        </div>
+    </div>
     <div id="settingsModal"
         class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
         <div
@@ -821,16 +866,54 @@
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 flex justify-end space-x-3">
-                <button onclick="closeSettingsModal()"
+                <button onclick="closeSettingsModal()" <button onclick="closeLoginModal()"
                     class="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm font-medium">Cancel</button>
-                <button onclick="saveSettings()"
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm">Save
-                    Changes</button>
+                <button onclick="login()"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm">Access
+                    Dashboard</button>
             </div>
         </div>
     </div>
 
     <script type="module" src="js/app.js?v=2"></script>
+    <script>
+        function openLoginModal() {
+            document.getElementById('loginModal').classList.remove('hidden');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+
+        async function login() {
+            const id = document.getElementById('telegramIdInput').value;
+            if (!id) {
+                alert('Please enter your Telegram ID');
+                return;
+            }
+
+            // Check if admin
+            try {
+                const res = await fetch('/api/admin/stats', {
+                    headers: { 'x-telegram-id': id }
+                });
+
+                if (res.ok) {
+                    localStorage.setItem('telegramId', id);
+                    window.location.href = '/admin.html';
+                } else {
+                    // Normal user (mock login for now, or redirect to user dashboard if we had one)
+                    // For now, just save ID and reload or show user view
+                    localStorage.setItem('telegramId', id);
+                    alert('Welcome! User dashboard coming soon. If you are an admin, check your ID.');
+                    closeLoginModal(); // Close modal after "login" for non-admins
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Login failed');
+            }
+        }
+    </script>
 </body>
 
 </html>

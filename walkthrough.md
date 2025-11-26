@@ -1,49 +1,30 @@
-# Walkthrough - 10 Smart Enhancements
+# Walkthrough - Admin Dashboard
 
-I have supercharged Trackzoon with 10 new features to make it smarter and more useful! 🚀
+I have added a secure Admin Dashboard to manage the Trackzoon system.
 
-## New Features
+## How to Access
+1.  Open the dashboard.
+2.  Click the **Login** icon (top right).
+3.  Enter your **Telegram ID**.
+    - If you are an admin, you will be redirected to the Admin Panel.
+    - If not, you will see a "Coming Soon" message for the user dashboard.
 
-### 1. Bulk Import 📦
-- **How to use**: Send multiple links at once (one per line) to `/add`.
-- **Benefit**: Track your entire wishlist in seconds.
+## Admin Features
+### 1. System Stats 📊
+- **Total Users**: Real-time count of active users.
+- **Total Products**: Number of tracked items.
+- **Active Alerts**: How many users are waiting for price drops.
+- **Uptime**: Server running time.
 
-### 2. Export Data 📂
-- **How to use**: `/export`
-- **Benefit**: Get a CSV file of all your tracked products to analyze in Excel.
+### 2. Force Scrape ⚡
+- **Action**: Click "Force Scrape All Prices".
+- **Effect**: Immediately triggers a price check for ALL products in the database. Use this if you suspect prices are outdated.
 
-### 3. Global Search 🔍
-- **How to use**: `/search <query>` (e.g., `/search iphone`)
-- **Benefit**: Find products others are tracking without needing a link.
-
-### 4. Snooze Alerts 💤
-- **How to use**: Click the "💤 Snooze 24h" button on any alert.
-- **Benefit**: Stop notifications for a specific product for 24 hours.
-
-### 5. Trending Products 🚀
-- **How to use**: `/trending`
-- **Benefit**: See the top 5 hottest deals across the entire platform.
-
-### 6. Smart Tags 🏷️
-- **Feature**: Products are auto-tagged (e.g., `#Electronics`, `#Home`).
-- **Benefit**: Better organization and quick context.
-
-### 7. Deal Probability 🎲
-- **Feature**: "Drop Chance: 80% 🔥"
-- **Benefit**: AI predicts if the price will drop further based on history.
-
-### 8. Price Gap Analysis 📉
-- **Feature**: "Only 2% above all-time low"
-- **Benefit**: Know exactly how close you are to the best price ever.
-
-### 9. System Health 🏥
-- **How to use**: `/health`
-- **Benefit**: Check server uptime and database status.
-
-### 10. Currency Converter 💱
-- **Feature**: Shows approx USD price next to EGP.
-- **Benefit**: Helpful for comparing with international prices.
+### 3. Broadcast Message 📢
+- **Action**: Type a message and click "Send Broadcast".
+- **Effect**: Sends a Telegram message to **ALL** users who have notifications enabled. Great for announcements or downtime alerts.
 
 ## Verification
-- Run the bot and try the new commands!
-- Check `/view` to see the new Smart Tags, USD price, and Drop Probability.
+- **Login**: Try logging in with a non-admin ID (should fail/alert) and an admin ID (should succeed).
+- **Stats**: Verify numbers match your database.
+- **Actions**: Test the broadcast feature with a small test message.

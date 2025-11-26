@@ -50,3 +50,5 @@ yarn-error.log*
 dist/
 logs/app.log
 logs/error.log
+task.md
+walkthrough.md

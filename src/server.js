@@ -7,6 +7,7 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import systemRoutes from './routes/systemRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import exportRoutes from './routes/exportRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,6 +25,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/admin', adminRoutes);
 
 export const startServer = () => {
     app.listen(PORT, () => {
