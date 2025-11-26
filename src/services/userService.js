@@ -2,15 +2,17 @@ import User from '../models/User.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 
 export class UserService {
-  static async getOrCreateUser(chatId) {
+  static async getOrCreateUser(telegramId) {
     try {
-      let user = await User.findOne({ chatId });
-      
+      // Ensure telegramId is a string
+      const id = String(telegramId);
+      let user = await User.findOne({ telegramId: id });
+
       if (!user) {
-        user = new User({ chatId });
+        user = new User({ telegramId: id });
         await user.save();
       }
-      
+
       return user;
     } catch (error) {
       console.error('Error getting/creating user:', error);
@@ -22,10 +24,10 @@ export class UserService {
     }
   }
 
-  static async getUserSettings(chatId) {
+  static async getUserSettings(telegramId) {
     try {
-      const user = await User.findOne({ chatId });
-      
+      const user = await User.findOne({ telegramId: String(telegramId) });
+
       if (!user) {
         throw new BotError(
           'User not found',
@@ -33,11 +35,11 @@ export class UserService {
           'User not found. Please start the bot first.'
         );
       }
-      
+
       return user;
     } catch (error) {
       if (error instanceof BotError) throw error;
-      
+
       console.error('Error fetching user settings:', error);
       throw new BotError(
         'Failed to fetch settings',
