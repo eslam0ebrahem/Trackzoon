@@ -19,6 +19,9 @@ const scrapingLimit = pLimit(3);
 export class PriceTrackerService {
   constructor(bot) {
     this.bot = bot;
+    // Circuit Breaker State
+    this.consecutiveCaptchaCount = 0;
+    this.coolDownUntil = null;
   }
 
   async checkPrice(product) {
@@ -32,6 +35,13 @@ export class PriceTrackerService {
 
       try {
         scrapeResult = await getPrice(product.url);
+
+        // Success! Reset circuit breaker
+        if (this.consecutiveCaptchaCount > 0) {
+          this.consecutiveCaptchaCount = 0;
+          logger.info('✅ Successful scrape. Resetting Captcha counter.');
+        }
+
         currentPrice = scrapeResult.currentPrice;
         imageUrl = scrapeResult.imageUrl || null; // Optional field
 
@@ -394,6 +404,21 @@ export class PriceTrackerService {
         currentPrice
       };
     } catch (error) {
+      // --- Circuit Breaker Logic ---
+      if (error.message.includes('Captcha')) {
+        this.consecutiveCaptchaCount++;
+        logger.warn(`⚠️ Captcha detected! Count: ${this.consecutiveCaptchaCount}/5`);
+
+        if (this.consecutiveCaptchaCount >= 5) {
+          this.coolDownUntil = Date.now() + (60 * 60 * 1000); // 60 minutes
+          logger.error('🚨 HIGH DETECTION RATE! Circuit Breaker tripped. Pausing all scraping for 60 minutes.');
+        }
+      } else {
+        // Reset on other errors? Maybe not, keep it strict.
+        // But if we get a successful scrape, we definitely reset.
+      }
+      // -----------------------------
+
       logger.error(`Error checking price for product ${product.asin}:`, error);
       throw new BotError(
         'Failed to check price',
@@ -672,6 +697,18 @@ export class PriceTrackerService {
   }
 
   async checkAllPrices(force = false) {
+    // --- Circuit Breaker Check ---
+    if (this.coolDownUntil && Date.now() < this.coolDownUntil) {
+      const minutesLeft = Math.ceil((this.coolDownUntil - Date.now()) / 60000);
+      logger.warn(`❄️ Scraper is cooling down. Resuming in ${minutesLeft} minutes.`);
+      return { succeeded: 0, unchanged: 0, failed: 0, skipped: true };
+    } else if (this.coolDownUntil) {
+      logger.info('☀️ Circuit Breaker reset. Resuming scraping.');
+      this.coolDownUntil = null;
+      this.consecutiveCaptchaCount = 0;
+    }
+    // -----------------------------
+
     const products = await Product.find({});
     logger.info(`Checking prices for ${products.length} products...`);
 

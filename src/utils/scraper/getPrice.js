@@ -766,28 +766,52 @@ function extractFromCheerio($, url) {
 }
 
 /**
- * Fallback: Fetch with Puppeteer
+ * Fallback: Fetch with Puppeteer (Stealth Mode)
  */
 async function fetchWithPuppeteer(url) {
-  logger.info('🚀 Launching Puppeteer fallback...');
+  logger.info('🚀 Launching Puppeteer fallback (Stealth Mode)...');
   let browser = null;
   try {
-    const puppeteer = await import('puppeteer');
-    browser = await puppeteer.default.launch({
+    // Use puppeteer-extra with stealth plugin
+    const puppeteer = (await import('puppeteer-extra')).default;
+    const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
+
+    puppeteer.use(StealthPlugin());
+
+    browser = await puppeteer.launch({
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ]
     });
     const page = await browser.newPage();
 
-    // Set realistic user agent
+    // Set realistic user agent (Stealth plugin handles most, but this helps)
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // Randomize viewport slightly
+    await page.setViewport({
+      width: 1920 + Math.floor(Math.random() * 100),
+      height: 1080 + Math.floor(Math.random() * 100),
+      deviceScaleFactor: 1,
+      hasTouch: false,
+      isLandscape: false,
+      isMobile: false,
+    });
+
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
 
     // Check for Captcha
     const title = await page.title();
     if (title.includes('Robot Check')) {
-      throw new Error('Puppeteer also hit Captcha');
+      throw new Error('Puppeteer also hit Captcha (even with Stealth)');
     }
 
     const content = await page.content();
