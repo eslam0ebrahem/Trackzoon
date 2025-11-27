@@ -38,5 +38,6 @@ router.put('/products/:asin/target', validate(schemas.updateTarget), dashboardCo
 router.put('/products/:asin/archive', validate(schemas.archive), dashboardController.archiveProduct);
 router.post('/admin/check-prices', dashboardController.triggerPriceCheck);
 router.get('/admin/stats', dashboardController.getAdminStats);
+router.post('/admin/broadcast', dashboardController.broadcastMessage);
 
 export default router;

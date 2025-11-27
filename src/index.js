@@ -72,7 +72,7 @@ bot.telegram.setMyCommands([
 });
 
 // Start Web Dashboard immediately to satisfy Railway health check
-startServer();
+startServer(bot);
 
 // Launch the bot
 logger.info('Launching Trackzoon bot...');

@@ -27,7 +27,10 @@ app.use('/api/user', userRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/admin', adminRoutes);
 
-export const startServer = () => {
+export const startServer = (bot) => {
+    if (bot) {
+        app.locals.bot = bot;
+    }
     app.listen(PORT, () => {
         console.log(`🌐 Web Dashboard running at http://localhost:${PORT}`);
     });
