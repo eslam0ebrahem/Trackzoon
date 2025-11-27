@@ -672,4 +672,3 @@ async function downloadCSV() {
 
 // Start App
 // init(); // Removed auto-init to allow auth check first
-export { init };
