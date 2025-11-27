@@ -902,6 +902,7 @@
     <script type="module">
         import { API } from './js/api.js';
 
+        // Make functions available globally for onclick handlers
         window.openLoginModal = function () {
             document.getElementById('loginModal').classList.remove('hidden');
         };
@@ -926,10 +927,7 @@
                 console.error(err);
                 alert('Login failed: ' + err.message);
             }
-        }
-    </script>
-    <script type="module">
-        import { API } from './js/api.js';
+        };
 
         // State Management
         const state = {
@@ -980,14 +978,6 @@
             }
 
             try {
-                // Verify token by calling a protected endpoint or dedicated /me endpoint
-                // Since we added /api/user/me, let's use it.
-                // But wait, API.js doesn't have getMe yet? 
-                // We can just use fetch here or add it to API.js. 
-                // Let's use fetch with header manually or assume API.getHealth is public.
-                // Actually, let's just try to fetch stats. If 401, then logout.
-                // Better: fetch /api/user/me
-
                 const res = await fetch('/api/user/me', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -1012,12 +1002,10 @@
         function renderPublicState() {
             document.getElementById('tab-my').classList.add('hidden');
             document.getElementById('adminSection').classList.add('hidden');
-            // Show Login Button, Hide Profile (if we had one)
         }
 
         function renderUserState() {
             document.getElementById('tab-my').classList.remove('hidden');
-            // Update UI with user info if needed
         }
 
         function renderAdminState() {
@@ -1063,18 +1051,10 @@
             container.innerHTML = '<div class="p-8 text-center text-gray-500">Loading your products...</div>';
 
             try {
-                // We need an endpoint for user products. 
-                // Assuming /api/dashboard/products or similar exists and filters by user if ID is passed?
-                // Or we might need to create one. 
-                // Let's try /api/products/user with header.
-                const res = await fetch('/api/products/user', {
-                    headers: { 'x-telegram-id': state.user.telegramId }
-                });
-                const data = await res.json();
+                const data = await API.getUserProducts();
                 const items = Array.isArray(data) ? data : (data.items || []);
 
                 if (items.length > 0) {
-                    // Render items (reuse existing render logic if possible, or simple list)
                     container.innerHTML = items.map(item => `
                         <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                             <div class="flex items-center gap-3">
@@ -1103,8 +1083,15 @@
         async function fetchAdminStats() {
             if (!state.user || !state.user.isAdmin) return;
             try {
+                // We can use API.getStats() but that's for public stats. 
+                // Admin stats might be different. Let's assume API.getStats() is enough or create a new one.
+                // The previous code called /api/admin/stats.
+                // Let's stick to that but use fetch with header for now as it's not in API.js yet, 
+                // OR better, add it to API.js. I missed adding getAdminStats to API.js.
+                // For now, I'll use manual fetch with token.
+                const token = localStorage.getItem('token');
                 const res = await fetch('/api/admin/stats', {
-                    headers: { 'x-telegram-id': state.user.telegramId }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
                 document.getElementById('adminTotalUsers').innerText = data.users;
@@ -1119,10 +1106,7 @@
         window.adminForceScrape = async function () {
             if (!confirm('Are you sure? This is a heavy operation.')) return;
             try {
-                await fetch('/api/admin/scrape-all', {
-                    method: 'POST',
-                    headers: { 'x-telegram-id': state.user.telegramId }
-                });
+                await API.adminScrapeAll();
                 alert('Scrape started!');
             } catch (err) {
                 alert('Failed to start scrape');
@@ -1133,29 +1117,15 @@
             const msg = document.getElementById('adminBroadcastMsg').value;
             if (!msg) return alert('Enter a message');
             try {
-                await fetch('/api/admin/broadcast', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-telegram-id': state.user.telegramId
-                    },
-                    body: JSON.stringify({ message: msg })
-                });
+                await API.adminBroadcast(msg);
                 alert('Broadcast sent!');
                 document.getElementById('adminBroadcastMsg').value = '';
             } catch (err) {
                 alert('Failed to send');
             }
         };
-
-        // Login Modal Helpers
-        window.openLoginModal = function () {
-            document.getElementById('loginModal').classList.remove('hidden');
-        };
-        window.closeLoginModal = function () {
-            document.getElementById('loginModal').classList.add('hidden');
-        };
     </script>
 </body>
 
 </html>
+```

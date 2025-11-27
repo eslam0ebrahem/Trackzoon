@@ -173,6 +173,28 @@ export const API = {
         return res.json();
     },
 
+    async getUserProducts() {
+        const res = await fetch('/api/products/user', { headers: this.getHeaders() });
+        return res.json();
+    },
+
+    async adminScrapeAll() {
+        const res = await fetch('/api/admin/scrape-all', {
+            method: 'POST',
+            headers: this.getHeaders()
+        });
+        return res.json();
+    },
+
+    async adminBroadcast(message) {
+        const res = await fetch('/api/admin/broadcast', {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ message })
+        });
+        return res.json();
+    },
+
     async addProduct(url, threshold = 0) {
         const res = await fetch('/api/products', {
             method: 'POST',

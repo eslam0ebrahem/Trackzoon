@@ -8,8 +8,12 @@ dotenv.config();
 
 const migrateHistory = async () => {
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
-        logger.info('Connected to MongoDB');
+        await mongoose.connect(process.env.MONGODB_URI, { dbName: 'trackzoon' });
+        logger.info(`Connected to MongoDB. Database name: ${mongoose.connection.name}`);
+
+        // Debug: List collections
+        const collections = await mongoose.connection.db.listCollections().toArray();
+        logger.info(`Available collections: ${collections.map(c => c.name).join(', ')}`);
 
         const products = await Product.find({});
         logger.info(`Found ${products.length} products to migrate`);
