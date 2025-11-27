@@ -37,5 +37,6 @@ router.put('/products/:asin/tags', validate(schemas.updateTags), dashboardContro
 router.put('/products/:asin/target', validate(schemas.updateTarget), dashboardController.updateTargetPrice);
 router.put('/products/:asin/archive', validate(schemas.archive), dashboardController.archiveProduct);
 router.post('/admin/check-prices', dashboardController.triggerPriceCheck);
+router.get('/admin/stats', dashboardController.getAdminStats);
 
 export default router;

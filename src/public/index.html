@@ -901,6 +901,7 @@
     <script type="module" src="js/app.js?v=2"></script>
     <script type="module">
         import { API } from './js/api.js';
+        import { init } from './js/app.js?v=2';
 
         // Make functions available globally for onclick handlers
         window.openLoginModal = function () {
@@ -989,6 +990,8 @@
                     if (data.isAdmin) {
                         renderAdminState();
                     }
+                    // Initialize app data fetching now that we are authenticated
+                    init();
                 } else {
                     localStorage.removeItem('token');
                     renderPublicState();

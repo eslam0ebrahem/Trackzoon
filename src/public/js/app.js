@@ -224,7 +224,7 @@ window.loadSavedView = () => {
 };
 
 // Initialize
-async function init() {
+export async function init() {
     initCharts();
     loadSavedView(); // Load saved view on startup
 
@@ -671,4 +671,5 @@ async function downloadCSV() {
 }
 
 // Start App
-init();
+// init(); // Removed auto-init to allow auth check first
+export { init };

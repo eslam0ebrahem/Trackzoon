@@ -23,6 +23,27 @@ export const getStats = async (req, res) => {
     }
 };
 
+export const getAdminStats = async (req, res) => {
+    try {
+        const totalProducts = await Product.countDocuments();
+        const totalUsers = await User.countDocuments();
+
+        // Calculate active alerts (users with at least one tracked product)
+        const activeAlerts = await Product.countDocuments({ 'trackedBy.0': { $exists: true } });
+
+        res.json({
+            users: totalUsers,
+            products: totalProducts,
+            activeAlerts: activeAlerts,
+            system: {
+                uptime: process.uptime()
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const getDeals = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
