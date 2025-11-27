@@ -1,86 +1,104 @@
 import { STATE } from './config.js';
 
 export const API = {
+    async login(password) {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+        return data;
+    },
+
+    // Helper to get headers with token
+    getHeaders() {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = localStorage.getItem('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+    },
+
     async getStats() {
-        const res = await fetch('/api/stats');
+        const res = await fetch('/api/stats', { headers: this.getHeaders() });
         return res.json();
     },
 
     async getDeals(page = 1, limit = 20, minDiscount = 0, sort = 'smart') {
-        // Sort is now passed as an argument, defaulting to 'smart'
-        const res = await fetch(`/api/deals?page=${page}&limit=${limit}&sort=${sort}&minDiscount=${minDiscount}`);
+        const res = await fetch(`/api/deals?page=${page}&limit=${limit}&sort=${sort}&minDiscount=${minDiscount}`, { headers: this.getHeaders() });
         return res.json();
     },
 
     async getRecent() {
-        const res = await fetch('/api/recent');
+        const res = await fetch('/api/recent', { headers: this.getHeaders() });
         return res.json();
     },
 
     async getTopTracked() {
-        const res = await fetch('/api/top-tracked');
+        const res = await fetch('/api/top-tracked', { headers: this.getHeaders() });
         return res.json();
     },
 
     async getHealth() {
-        const res = await fetch('/api/health');
+        const res = await fetch('/api/health'); // Public endpoint
         return res.json();
     },
 
     async triggerPriceCheck() {
-        const res = await fetch('/api/admin/check-prices', { method: 'POST' });
+        const res = await fetch('/api/admin/check-prices', {
+            method: 'POST',
+            headers: this.getHeaders()
+        });
         return res.json();
     },
 
     async getCategoryStats() {
-        const res = await fetch('/api/stats/categories');
+        const res = await fetch('/api/stats/categories', { headers: this.getHeaders() });
         return res.json();
     },
 
     async getLogs() {
-        const res = await fetch('/api/logs');
+        const res = await fetch('/api/logs', { headers: this.getHeaders() });
         return res.json();
     },
 
     async getHistory(asin) {
-        const res = await fetch(`/api/history/${asin}`);
+        const res = await fetch(`/api/history/${asin}`, { headers: this.getHeaders() });
         return res.json();
     },
 
     async search(query) {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { headers: this.getHeaders() });
         return res.json();
     },
 
     async getForecast(asin) {
-        const res = await fetch(`/api/analytics/forecast/${asin}`);
+        const res = await fetch(`/api/analytics/forecast/${asin}`, { headers: this.getHeaders() });
         return res.json();
     },
 
     async getVolatility(asin) {
-        const res = await fetch(`/api/analytics/volatility/${asin}`);
+        const res = await fetch(`/api/analytics/volatility/${asin}`, { headers: this.getHeaders() });
         return res.json();
     },
 
     async getBestDay(asin) {
-        const res = await fetch(`/api/analytics/best-day/${asin}`);
+        const res = await fetch(`/api/analytics/best-day/${asin}`, { headers: this.getHeaders() });
         return res.json();
     },
 
     async getStockHistory(asin) {
-        const res = await fetch(`/api/analytics/stock-history/${asin}`);
-        return res.json();
-    },
-
-    async getStockHistory(asin) {
-        const res = await fetch(`/api/analytics/stock-history/${asin}`);
+        const res = await fetch(`/api/analytics/stock-history/${asin}`, { headers: this.getHeaders() });
         return res.json();
     },
 
     async bulkImport(urls) {
         const res = await fetch('/api/products/bulk', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: this.getHeaders(),
             body: JSON.stringify({ urls })
         });
         return res.json();
@@ -89,7 +107,7 @@ export const API = {
     async updateTags(asin, tags) {
         const res = await fetch(`/api/products/${asin}/tags`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: this.getHeaders(),
             body: JSON.stringify({ tags })
         });
         return res.json();
@@ -98,7 +116,7 @@ export const API = {
     async updateTargetPrice(asin, targetPrice) {
         const res = await fetch(`/api/products/${asin}/target`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: this.getHeaders(),
             body: JSON.stringify({ targetPrice })
         });
         return res.json();
@@ -107,64 +125,58 @@ export const API = {
     async archiveProduct(asin, isArchived) {
         const res = await fetch(`/api/products/${asin}/archive`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isArchived })
-        });
-        return res.json();
-    },
-
-    async archiveProduct(asin, isArchived) {
-        const res = await fetch(`/api/products/${asin}/archive`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: this.getHeaders(),
             body: JSON.stringify({ isArchived })
         });
         return res.json();
     },
 
     async getSystemHealth() {
-        const res = await fetch('/api/system/health');
+        const res = await fetch('/api/system/health', { headers: this.getHeaders() });
         return res.json();
     },
 
     async getDbStats() {
-        const res = await fetch('/api/system/db-stats');
+        const res = await fetch('/api/system/db-stats', { headers: this.getHeaders() });
         return res.json();
     },
 
     async getQueueStatus() {
-        const res = await fetch('/api/system/queue');
+        const res = await fetch('/api/system/queue', { headers: this.getHeaders() });
         return res.json();
     },
 
     async getSystemMetrics(type) {
-        const res = await fetch(`/api/system/metrics?type=${type}`);
+        const res = await fetch(`/api/system/metrics?type=${type}`, { headers: this.getHeaders() });
         return res.json();
     },
 
     async getSettings() {
-        const res = await fetch('/api/user/settings');
+        const res = await fetch('/api/user/settings', { headers: this.getHeaders() });
         return res.json();
     },
 
     async updateSettings(webhookUrl) {
         const res = await fetch('/api/user/settings', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: this.getHeaders(),
             body: JSON.stringify({ webhookUrl })
         });
         return res.json();
     },
 
     async generateApiKey() {
-        const res = await fetch('/api/user/apikey', { method: 'POST' });
+        const res = await fetch('/api/user/apikey', {
+            method: 'POST',
+            headers: this.getHeaders()
+        });
         return res.json();
     },
 
     async addProduct(url, threshold = 0) {
         const res = await fetch('/api/products', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: this.getHeaders(),
             body: JSON.stringify({ url, threshold })
         });
         const data = await res.json();

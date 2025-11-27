@@ -1,5 +1,7 @@
-import fs from 'fs';
+import winston from 'winston';
+import 'winston-daily-rotate-file';
 import path from 'path';
+import fs from 'fs';
 
 const LOG_DIR = 'logs';
 
@@ -8,40 +10,57 @@ if (!fs.existsSync(LOG_DIR)) {
   fs.mkdirSync(LOG_DIR);
 }
 
-const getTimestamp = () => new Date().toISOString();
+// Define log format
+const logFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+    return `[${timestamp}] [${level.toUpperCase()}] ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
+  })
+);
 
+// Create Winston logger
+const winstonLogger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: logFormat,
+  transports: [
+    // Console transport
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        logFormat
+      )
+    }),
+    // Daily rotate file for all logs
+    new winston.transports.DailyRotateFile({
+      filename: path.join(LOG_DIR, 'app-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '14d',
+      level: 'info'
+    }),
+    // Separate file for errors
+    new winston.transports.DailyRotateFile({
+      filename: path.join(LOG_DIR, 'error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '30d',
+      level: 'error'
+    })
+  ]
+});
+
+// Wrapper to maintain backward compatibility with existing calls
 export const logger = {
-  info: (message, meta = {}) => {
-    const logMessage = `[${getTimestamp()}] [INFO] ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
-    console.log(logMessage);
-    appendLog('app.log', logMessage);
-  },
-  
+  info: (message, meta = {}) => winstonLogger.info(message, meta),
   error: (message, error = null, meta = {}) => {
-    const errorStack = error?.stack || error?.message || error || '';
-    const logMessage = `[${getTimestamp()}] [ERROR] ${message} ${errorStack} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
-    console.error(logMessage);
-    appendLog('error.log', logMessage);
-  },
-  
-  warn: (message, meta = {}) => {
-    const logMessage = `[${getTimestamp()}] [WARN] ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
-    console.warn(logMessage);
-    appendLog('app.log', logMessage);
-  },
-  
-  debug: (message, meta = {}) => {
-    if (process.env.NODE_ENV === 'development') {
-      const logMessage = `[${getTimestamp()}] [DEBUG] ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
-      console.log(logMessage);
+    const errorMeta = { ...meta };
+    if (error) {
+      errorMeta.stack = error.stack || error.message || error;
     }
-  }
+    winstonLogger.error(message, errorMeta);
+  },
+  warn: (message, meta = {}) => winstonLogger.warn(message, meta),
+  debug: (message, meta = {}) => winstonLogger.debug(message, meta)
 };
-
-function appendLog(filename, message) {
-  try {
-    fs.appendFileSync(path.join(LOG_DIR, filename), message + '\n');
-  } catch (err) {
-    console.error('Failed to write to log file:', err);
-  }
-}

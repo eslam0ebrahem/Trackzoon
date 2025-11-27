@@ -93,15 +93,25 @@ export const previewProduct = async (req, res) => {
     }
 };
 
+import PricePoint from '../models/PricePoint.js';
+
 export const getProductHistory = async (req, res) => {
     try {
         const product = await Product.findOne({ asin: req.params.asin });
         if (!product) return res.status(404).json({ error: 'Product not found' });
 
+        // Fetch full history from PricePoint collection
+        const pricePoints = await PricePoint.find({ product: product._id }).sort({ date: 1 });
+
+        // Fallback to embedded history if PricePoints are empty (legacy data)
+        const history = pricePoints.length > 0
+            ? pricePoints.map(p => ({ price: p.price, date: p.date }))
+            : product.priceHistory;
+
         res.json({
             name: product.name,
             currentPrice: product.currentPrice,
-            history: product.priceHistory,
+            history: history,
             image: product.imageUrl
         });
     } catch (error) {

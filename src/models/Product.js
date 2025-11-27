@@ -2,7 +2,7 @@
 import mongoose from 'mongoose';
 
 // Configuration constants
-const MAX_PRICE_HISTORY_ENTRIES = 1000; // Keep last 1000 price records
+const MAX_PRICE_HISTORY_ENTRIES = 100; // Keep last 100 price records (Hybrid approach)
 const PRICE_HISTORY_DAYS_TO_KEEP = 90; // Keep last 90 days
 
 const ProductSchema = new mongoose.Schema({
