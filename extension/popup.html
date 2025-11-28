@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            width: 300px;
+            padding: 15px;
+            font-family: sans-serif;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #232f3e;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #37475a;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 12px;
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>Trackzoon Settings</h3>
+
+    <label>Server URL</label>
+    <input type="text" id="serverUrl" placeholder="http://localhost:3000">
+
+    <label>API Key</label>
+    <input type="password" id="apiKey" placeholder="Enter Extension API Key">
+
+    <button id="saveBtn">Save Settings</button>
+    <div id="status" class="status"></div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

@@ -9,6 +9,7 @@ import systemRoutes from './routes/systemRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import exportRoutes from './routes/exportRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import extensionRoutes from './routes/extensionRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +25,7 @@ app.use(helmet({
 app.use(cors({
     origin: process.env.CORS_ORIGIN || '*', // Default to * but allow restriction via env
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
 }));
 
 app.use(express.json());
@@ -37,6 +38,7 @@ app.use('/api/system', systemRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/v1/extension', extensionRoutes);
 
 export const startServer = (bot) => {
     if (bot) {
