@@ -41,7 +41,7 @@ app.use('/api/system', systemRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/v1/extension', extensionRoutes);
+
 
 export const startServer = (bot) => {
     if (bot) {
