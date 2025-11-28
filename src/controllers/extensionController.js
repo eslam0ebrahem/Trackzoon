@@ -113,11 +113,7 @@ export const syncProduct = async (req, res) => {
             logger.info(`✨ Created new product ${asin} via extension`);
             return res.status(201).json({
                 status: 'created',
-                product: { asin, price },
-                debug: {
-                    dbName: mongoose.connection.name,
-                    dbHost: mongoose.connection.host
-                }
+                product: { asin, price }
             });
         }
 
