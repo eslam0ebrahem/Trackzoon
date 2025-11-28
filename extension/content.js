@@ -65,6 +65,6 @@ if (data && data.price > 0) {
     console.log('Trackzoon: Sending data...', data);
     // Send to Background Script
     chrome.runtime.sendMessage({ action: 'syncProduct', data: data }, (response) => {
-        console.log('Trackzoon: Sync response:', response);
+        console.log('Trackzoon: Sync response:', JSON.stringify(response, null, 2));
     });
 }

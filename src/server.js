@@ -31,6 +31,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Extension Routes (Must be before /api catch-all)
+app.use('/api/v1/extension', extensionRoutes);
+
 // Use Dashboard Routes
 app.use('/api', dashboardRoutes);
 app.use('/api/analytics', analyticsRoutes);
