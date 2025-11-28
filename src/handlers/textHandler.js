@@ -7,6 +7,7 @@ import { getPrice } from '../utils/scraper/getPrice.js';
 import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 import { Markup } from 'telegraf';
 import { ProductService } from '../services/productService.js';
+import { marketIntelligenceService } from '../services/marketIntelligenceService.js';
 
 async function handleProductUrl(ctx) {
     try {
@@ -479,10 +480,80 @@ export default (bot) => {
             const state = stateManager.getState(ctx.chat.id);
 
             if (!state) {
-                return await ctx.reply('❓ I don\'t understand that command\\. Use /help to see available commands\\.', {
-                    parse_mode: 'MarkdownV2',
-                    ...mainKeyboard()
-                });
+                // Feature: Smart Shopping Assistant
+                // If text is not a command and we are not in a state, treat it as a shopping query
+                const text = ctx.message.text.trim();
+
+                // Ignore commands (starting with /)
+                if (text.startsWith('/')) {
+                    return await ctx.reply('❓ I don\'t understand that command\\. Use /help to see available commands\\.', {
+                        parse_mode: 'MarkdownV2',
+                        ...mainKeyboard()
+                    });
+                }
+
+                // If it looks like a URL, suggest /add
+                if (isValidAmazonUrl(text)) {
+                    return await ctx.reply('💡 It looks like you sent a product link\\. Use /add to track it\\!', {
+                        parse_mode: 'MarkdownV2',
+                        ...mainKeyboard()
+                    });
+                }
+
+                // Otherwise, perform AI Search
+                try {
+                    const processingMsg = await ctx.reply('🧠 *Thinking\\.\\.\\.* \nSearching specifically for you\\.\\.\\.', { parse_mode: 'MarkdownV2' });
+
+                    const result = await marketIntelligenceService.searchProduct(text);
+
+                    await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
+
+                    if (!result || !result.products || result.products.length === 0) {
+                        return await ctx.reply('😕 I couldn\'t find any products matching your description\\. Try being more specific\\.', {
+                            parse_mode: 'MarkdownV2'
+                        });
+                    }
+
+                    // Send Summary
+                    if (result.summary) {
+                        await ctx.reply(`📝 *Insight:*\n${escapeMarkdownV2(result.summary)}`, { parse_mode: 'MarkdownV2' });
+                    }
+
+                    // Send Products
+                    for (const product of result.products) {
+                        const message = [
+                            `📦 *${escapeMarkdownV2(product.title)}*`,
+                            `💰 *Price:* EGP ${escapeMarkdownV2(String(product.price))}`,
+                            `💡 *Why:* ${escapeMarkdownV2(product.reason)}`
+                        ].join('\n');
+
+                        // Create "Track This" button
+                        // We can use a deep link or just a callback that triggers the add flow
+                        // For simplicity, let's provide a button that copies the command or just the link
+                        // Better: Inline button "Track This" that triggers a custom action
+
+                        await ctx.reply(message, {
+                            parse_mode: 'MarkdownV2',
+                            reply_markup: {
+                                inline_keyboard: [
+                                    [{ text: '🔗 View on Amazon', url: product.url }],
+                                    // We can't easily "Track This" without the user sending the URL again or complex state
+                                    // So we encourage them to click the link or copy it. 
+                                    // OR, we can use a callback data with the URL, but URLs can be long.
+                                    // Let's just give the link for now as per MVP.
+                                ]
+                            }
+                        });
+                    }
+
+                    return;
+
+                } catch (error) {
+                    console.error('Smart Assistant Error:', error);
+                    return await ctx.reply('⚠️ I encountered an error while searching\\. Please try again later\\.', {
+                        parse_mode: 'MarkdownV2'
+                    });
+                }
             }
 
             switch (state.state) {

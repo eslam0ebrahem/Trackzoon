@@ -91,7 +91,21 @@ const ProductSchema = new mongoose.Schema({
     price: Number,
     condition: String,
     seller: String
-  }]
+  }],
+
+  // Market Intelligence (Perplexity API)
+  marketComparisonData: [{
+    platform: String, // e.g., "Noon", "Jumia"
+    price: Number,
+    url: String,
+    lastChecked: { type: Date, default: Date.now }
+  }],
+  aiBuyingAdvice: {
+    advice: { type: String, enum: ['wait', 'buy_now', 'neutral'], default: 'neutral' },
+    reasoning: String,
+    newsSummary: String,
+    lastUpdated: { type: Date, default: Date.now }
+  }
 });
 
 // Indexes for performance optimization (Phase 1)
