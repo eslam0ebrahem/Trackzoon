@@ -80,10 +80,20 @@ export const syncProduct = async (req, res) => {
 
         } else {
             // CREATE NEW
-            // Note: We don't have chatId here, so 'trackedBy' will be empty initially.
-            // This product will exist in DB but no user is tracking it yet unless we assign a default admin?
-            // User requirement: "If new: Create the product entry."
+            // Check if manual creation is requested
+            const { create } = req.body;
 
+            if (!create) {
+                // Return 'new_product' status so frontend can prompt user
+                logger.info(`🆕 New product detected ${asin}, waiting for user confirmation`);
+                return res.json({
+                    status: 'new_product',
+                    message: 'Product not tracked. User confirmation required.',
+                    product: { asin, name, price }
+                });
+            }
+
+            // If create=true, proceed with creation
             product = new Product({
                 asin,
                 url,
