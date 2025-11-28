@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Product from '../models/Product.js';
 import PricePoint from '../models/PricePoint.js';
 import { logger } from '../utils/logger.js';
@@ -110,7 +111,14 @@ export const syncProduct = async (req, res) => {
             });
 
             logger.info(`✨ Created new product ${asin} via extension`);
-            return res.status(201).json({ status: 'created', product: { asin, price } });
+            return res.status(201).json({
+                status: 'created',
+                product: { asin, price },
+                debug: {
+                    dbName: mongoose.connection.name,
+                    dbHost: mongoose.connection.host
+                }
+            });
         }
 
     } catch (error) {
