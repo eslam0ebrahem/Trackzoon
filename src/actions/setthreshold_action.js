@@ -1,12 +1,13 @@
 // bot/actions/setthreshold_action.js
-import Product from '../models/Product.js';
+import { ProductService } from '../services/productService.js';
 import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
 export default (bot, settingThreshold) => {
   bot.action(/setthreshold_(.+)/, async (ctx) => {
     try {
       const asin = ctx.match[1];
-      const product = await Product.findOne({ asin, 'trackedBy.chatId': ctx.chat.id });
+      // Use ProductService to get product and verify subscription
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
 
       if (!product) {
         return ctx.editMessageText(

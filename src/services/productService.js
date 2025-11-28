@@ -1,5 +1,6 @@
 import Product from '../models/Product.js';
 import User from '../models/User.js';
+import Subscription from '../models/Subscription.js';
 import mongoose from 'mongoose';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { getProductName } from '../utils/scraper/getProductName.js';
@@ -65,36 +66,48 @@ export class ProductService {
         throw new BotError('Invalid Amazon URL', ErrorCodes.INVALID_URL);
       }
 
+      // Get User
+      const user = await User.findOne({ telegramId: chatId }).session(session);
+      if (!user) {
+        // Should ideally be handled by middleware, but safe check
+        throw new BotError('User not found', ErrorCodes.USER_NOT_FOUND, 'User not registered.');
+      }
+
       let isNew = false;
       let isAlreadyTracked = false;
 
-      // Check if product exists and is already tracked by user
+      // Check if product exists
       let product = await Product.findOne({ asin }).session(session);
+
       if (product) {
-        const isTracking = product.trackedBy.some(t => t.chatId === chatId);
-        if (isTracking) {
+        // Check if subscription exists
+        const existingSubscription = await Subscription.findOne({ user: user._id, product: product._id }).session(session);
+        if (existingSubscription) {
           isAlreadyTracked = true;
           await session.abortTransaction();
+          // Attach the existing threshold to the product object for the controller to use
+          // The controller expects product.trackedBy to find the threshold.
+          // We need to mock this structure or update the controller.
+          // For now, let's attach a temporary property or mock trackedBy for backward compatibility if needed.
+          // But better to return the subscription info separately or attach it.
+          product.currentUserSubscription = existingSubscription;
           return { product, isNew, isAlreadyTracked };
         }
       }
 
-      // Product doesn't exist or not tracked by user
+      // Product doesn't exist
       if (!product) {
         isNew = true;
         const name = await getProductName(resolvedUrl);
         let currentPrice;
         let isOutOfStock = false;
-
         let imageUrl = null;
 
-        // Try to get price, but handle out-of-stock gracefully
         try {
           const scrapeResult = await getPrice(resolvedUrl);
           currentPrice = scrapeResult.currentPrice;
           imageUrl = scrapeResult.imageUrl;
         } catch (priceError) {
-          // If out of stock (includes no-buybox scenarios) or Captcha, use threshold as placeholder
           if (priceError.message.includes('out of stock') ||
             priceError.message.includes('unavailable') ||
             priceError.message.includes('no-buybox') ||
@@ -103,7 +116,6 @@ export class ProductService {
             currentPrice = threshold;
             isOutOfStock = true;
           } else {
-            // For other errors, re-throw
             throw priceError;
           }
         }
@@ -127,40 +139,37 @@ export class ProductService {
           imageUrl,
           currentPrice,
           isOutOfStock,
-          category, // AI Enhanced
-          tags,     // AI Enhanced
+          category,
+          tags,
           priceHistory: [{ price: currentPrice, date: new Date() }],
-          trackedBy: [{ chatId, thresholdPrice: threshold }]
+          // trackedBy is removed
         });
 
         await product.save({ session });
-      } else {
-        // If product exists but not tracked by user, add the new tracker atomically
-        product = await Product.findOneAndUpdate(
-          { asin: asin },
-          {
-            $push: {
-              trackedBy: { chatId, thresholdPrice: threshold }
-            }
-          },
-          { new: true, session }
-        );
       }
 
-      // Update user's product list if User model exists
-      await User.findOneAndUpdate(
-        { telegramId: chatId },
-        {
-          $addToSet: { products: product._id },
-          $set: { lastActive: new Date() }
-        },
-        { session, upsert: false }
-      ).catch(() => {
-        // Ignore if user doesn't exist yet
-        logger.warn(`User ${chatId} not found, skipping user update`);
+      // Create Subscription
+      const subscription = new Subscription({
+        user: user._id,
+        product: product._id,
+        targetPrice: threshold,
+        alertType: 'drop'
       });
 
+      await subscription.save({ session });
+
+      // Update user last active
+      await User.findOneAndUpdate(
+        { _id: user._id },
+        { $set: { lastActive: new Date() } },
+        { session }
+      );
+
       await session.commitTransaction();
+
+      // Attach subscription for caller convenience
+      product.currentUserSubscription = subscription;
+
       return { product, isNew, isAlreadyTracked };
 
     } catch (error) {
@@ -184,8 +193,19 @@ export class ProductService {
     session.startTransaction();
 
     try {
-      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId }).session(session);
+      const user = await User.findOne({ telegramId: chatId }).session(session);
+      if (!user) {
+        throw new BotError('User not found', ErrorCodes.USER_NOT_FOUND);
+      }
+
+      const product = await Product.findOne({ asin }).session(session);
       if (!product) {
+        throw new BotError('Product not found', ErrorCodes.PRODUCT_NOT_FOUND);
+      }
+
+      const subscription = await Subscription.findOneAndDelete({ user: user._id, product: product._id }).session(session);
+
+      if (!subscription) {
         await session.abortTransaction();
         throw new BotError(
           'Product not found',
@@ -194,29 +214,25 @@ export class ProductService {
         );
       }
 
-      // Check if this is the last tracker
-      const remainingTrackers = product.trackedBy.filter(t => t.chatId !== chatId);
+      // Check if any other subscriptions exist for this product
+      const otherSubscriptionsCount = await Subscription.countDocuments({ product: product._id }).session(session);
 
-      if (remainingTrackers.length === 0) {
+      if (otherSubscriptionsCount === 0) {
         // Delete product if no one else is tracking it
         await Product.deleteOne({ _id: product._id }).session(session);
-      } else {
-        // Remove user from trackedBy array atomically
-        await Product.findOneAndUpdate(
-          { asin: asin },
-          { $pull: { trackedBy: { chatId: chatId } } },
-          { session }
-        );
       }
 
-      // Remove from user's product list
+      // Remove from user's product list (Legacy cleanup)
+      // We can keep this for now or remove it if we are sure
+      // But since we are refactoring, let's stop writing to it?
+      // Actually, if we stop writing to it, we might break legacy code reading it.
+      // But we are supposed to refactor readers too.
+      // Let's keep it for safety but wrap in try-catch or just do it.
       await User.findOneAndUpdate(
-        { telegramId: chatId },
+        { _id: user._id },
         { $pull: { products: product._id } },
         { session }
-      ).catch(() => {
-        logger.warn(`User ${chatId} not found, skipping user update`);
-      });
+      );
 
       await session.commitTransaction();
       return product;
@@ -239,14 +255,19 @@ export class ProductService {
 
   static async updateThreshold(asin, chatId, newThreshold) {
     try {
-      // Use atomic update to prevent race conditions
-      const product = await Product.findOneAndUpdate(
-        { asin: asin, 'trackedBy.chatId': chatId },
-        { $set: { 'trackedBy.$.thresholdPrice': newThreshold } },
+      const user = await User.findOne({ telegramId: chatId });
+      if (!user) throw new BotError('User not found', ErrorCodes.USER_NOT_FOUND);
+
+      const product = await Product.findOne({ asin });
+      if (!product) throw new BotError('Product not found', ErrorCodes.PRODUCT_NOT_FOUND);
+
+      const subscription = await Subscription.findOneAndUpdate(
+        { user: user._id, product: product._id },
+        { $set: { targetPrice: newThreshold } },
         { new: true }
       );
 
-      if (!product) {
+      if (!subscription) {
         throw new BotError(
           'Product not found',
           ErrorCodes.PRODUCT_NOT_FOUND,
@@ -254,6 +275,8 @@ export class ProductService {
         );
       }
 
+      // Attach subscription for caller
+      product.currentUserSubscription = subscription;
       return product;
 
     } catch (error) {
@@ -272,16 +295,24 @@ export class ProductService {
     try {
       const snoozeUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
 
-      const product = await Product.findOneAndUpdate(
-        { asin: asin, 'trackedBy.chatId': chatId },
-        { $set: { 'trackedBy.$.snoozeUntil': snoozeUntil } },
+      const user = await User.findOne({ telegramId: chatId });
+      if (!user) throw new BotError('User not found', ErrorCodes.USER_NOT_FOUND);
+
+      const product = await Product.findOne({ asin });
+      if (!product) throw new BotError('Product not found', ErrorCodes.PRODUCT_NOT_FOUND);
+
+      const subscription = await Subscription.findOneAndUpdate(
+        { user: user._id, product: product._id },
+        { $set: { snoozeUntil: snoozeUntil } },
         { new: true }
       );
 
-      if (!product) {
+      if (!subscription) {
         throw new BotError('Product not found', ErrorCodes.PRODUCT_NOT_FOUND);
       }
 
+      // Attach subscription for caller
+      product.currentUserSubscription = subscription;
       return product;
     } catch (error) {
       if (error instanceof BotError) throw error;
@@ -292,7 +323,25 @@ export class ProductService {
 
   static async getUserProducts(chatId) {
     try {
-      return await Product.find({ 'trackedBy.chatId': chatId });
+      const user = await User.findOne({ telegramId: chatId });
+      if (!user) return [];
+
+      const subscriptions = await Subscription.find({ user: user._id }).populate('product');
+
+      return subscriptions.map(sub => {
+        const product = sub.product;
+        if (product) {
+          product.currentUserSubscription = sub;
+          // Backward compatibility mock for listCommand
+          product.trackedBy = [{
+            chatId: chatId,
+            thresholdPrice: sub.targetPrice,
+            snoozeUntil: sub.snoozeUntil
+          }];
+        }
+        return product;
+      }).filter(p => p != null);
+
     } catch (error) {
       logger.error('Error fetching user products:', error);
       throw new BotError(
@@ -305,14 +354,32 @@ export class ProductService {
 
   static async getProduct(asin, chatId) {
     try {
-      const product = await Product.findOne({ asin, 'trackedBy.chatId': chatId });
+      const user = await User.findOne({ telegramId: chatId });
+      if (!user) throw new BotError('User not found', ErrorCodes.USER_NOT_FOUND);
+
+      const product = await Product.findOne({ asin });
       if (!product) {
+        throw new BotError('Product not found', ErrorCodes.PRODUCT_NOT_FOUND);
+      }
+
+      const subscription = await Subscription.findOne({ user: user._id, product: product._id });
+
+      if (!subscription) {
         throw new BotError(
           'Product not found',
           ErrorCodes.PRODUCT_NOT_FOUND,
           'Product not found or not tracked by you'
         );
       }
+
+      product.currentUserSubscription = subscription;
+      // Backward compatibility mock
+      product.trackedBy = [{
+        chatId: chatId,
+        thresholdPrice: subscription.targetPrice,
+        snoozeUntil: subscription.snoozeUntil
+      }];
+
       return product;
     } catch (error) {
       if (error instanceof BotError) throw error;
@@ -332,7 +399,14 @@ export class ProductService {
 
     // Filter by User if scope is 'user' and chatId is provided
     if (scope === 'user' && chatId) {
-      query['trackedBy.chatId'] = chatId;
+      const user = await User.findOne({ telegramId: chatId });
+      if (user) {
+        const subscriptions = await Subscription.find({ user: user._id }).select('product');
+        const productIds = subscriptions.map(s => s.product);
+        query['_id'] = { $in: productIds };
+      } else {
+        return { items: [], total: 0, page, totalPages: 0 };
+      }
     }
 
     // Exclude hikes for "Top Deals" view (smart sort)

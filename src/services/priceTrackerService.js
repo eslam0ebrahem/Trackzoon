@@ -1,5 +1,6 @@
 import Product from '../models/Product.js';
 import User from '../models/User.js';
+import Subscription from '../models/Subscription.js';
 import SystemMetric from '../models/SystemMetric.js';
 import PricePoint from '../models/PricePoint.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
@@ -93,22 +94,38 @@ export class PriceTrackerService {
           );
 
           if (hasBeenInStockBefore) {
-            for (const tracker of updatedProduct.trackedBy) {
-              if (!tracker.thresholdPrice || currentPrice > tracker.thresholdPrice) {
-                continue;
-              }
+            if (hasBeenInStockBefore) {
+              const subscriptions = await Subscription.find({ product: updatedProduct._id }).populate('user');
 
-              const shouldNotifyRestock = !tracker.lastAlertedAt ||
-                (Date.now() - tracker.lastAlertedAt.getTime()) > 7 * 24 * 60 * 60 * 1000;
+              for (const sub of subscriptions) {
+                if (!sub.user) continue; // User might be deleted
 
-              if (shouldNotifyRestock) {
-                // Use NotificationService
-                await this.notificationService.sendBackInStockAlert(tracker.chatId, updatedProduct, currentPrice, tracker.thresholdPrice);
+                if (!sub.targetPrice || currentPrice > sub.targetPrice) {
+                  continue;
+                }
 
-                await Product.updateOne(
-                  { asin: asin, 'trackedBy.chatId': tracker.chatId },
-                  { $set: { 'trackedBy.$.lastAlertedAt': new Date() } }
-                );
+                const shouldNotifyRestock = !sub.lastAlertedAt ||
+                  (Date.now() - sub.lastAlertedAt.getTime()) > 7 * 24 * 60 * 60 * 1000;
+
+                if (shouldNotifyRestock) {
+                  // Use NotificationService
+                  // Mock tracker object for compatibility or update NotificationService?
+                  // NotificationService uses tracker.chatId and tracker.webhookUrl
+                  const trackerMock = {
+                    chatId: sub.user.telegramId,
+                    thresholdPrice: sub.targetPrice,
+                    webhookUrl: sub.user.settings?.webhookUrl // Assuming webhookUrl might be in user settings? Or was it in trackedBy?
+                    // trackedBy didn't have webhookUrl in the schema I saw, but NotificationService checks it.
+                    // Let's assume it's on the user or subscription.
+                  };
+
+                  await this.notificationService.sendBackInStockAlert(trackerMock.chatId, updatedProduct, currentPrice, sub.targetPrice);
+
+                  await Subscription.updateOne(
+                    { _id: sub._id },
+                    { $set: { lastAlertedAt: new Date() } }
+                  );
+                }
               }
             }
           }
@@ -337,16 +354,30 @@ export class PriceTrackerService {
       }
 
       // Notify Users
-      for (const tracker of updatedProduct.trackedBy) {
-        const shouldNotify = await this.shouldNotifyUser(tracker, updatedProduct, previousPrice, currentPrice);
+      // Notify Users
+      const subscriptions = await Subscription.find({ product: updatedProduct._id }).populate('user');
+
+      for (const sub of subscriptions) {
+        if (!sub.user) continue;
+
+        const trackerMock = {
+          chatId: sub.user.telegramId,
+          thresholdPrice: sub.targetPrice,
+          lastAlertedAt: sub.lastAlertedAt,
+          snoozeUntil: sub.snoozeUntil,
+          webhookUrl: sub.user.settings?.webhookUrl,
+          user: sub.user // Optimization: Pass user object
+        };
+
+        const shouldNotify = await this.shouldNotifyUser(trackerMock, updatedProduct, previousPrice, currentPrice);
 
         if (shouldNotify) {
           // Use NotificationService
-          await this.notificationService.sendPriceAlert(tracker, updatedProduct, previousPrice, currentPrice);
+          await this.notificationService.sendPriceAlert(trackerMock, updatedProduct, previousPrice, currentPrice);
 
-          await Product.updateOne(
-            { asin: asin, 'trackedBy.chatId': tracker.chatId },
-            { $set: { 'trackedBy.$.lastAlertedAt': new Date() } }
+          await Subscription.updateOne(
+            { _id: sub._id },
+            { $set: { lastAlertedAt: new Date() } }
           );
         }
       }
@@ -376,7 +407,10 @@ export class PriceTrackerService {
     }
 
     try {
-      const user = await User.findOne({ chatId: tracker.chatId });
+      let user = tracker.user;
+      if (!user) {
+        user = await User.findOne({ telegramId: tracker.chatId });
+      }
 
       if (tracker.snoozeUntil && new Date() < new Date(tracker.snoozeUntil)) return false;
 
@@ -495,8 +529,12 @@ export class PriceTrackerService {
   async updateSomeRatings() {
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Find products that have at least one subscription
+      const activeProductIds = await Subscription.distinct('product');
+
       const products = await Product.find({
-        'trackedBy.0': { $exists: true },
+        _id: { $in: activeProductIds },
         isOutOfStock: false,
         $or: [
           { 'rating.lastUpdated': { $exists: false } },

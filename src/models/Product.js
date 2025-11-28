@@ -17,15 +17,7 @@ const ProductSchema = new mongoose.Schema({
   outOfStockSince: { type: Date, default: null }, // Track when product went out of stock
   lastChecked: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now },
-  trackedBy: [{
-    chatId: { type: String, required: true },
-    lastAlertedAt: Date,
-    lastFlashDealAlert: Date, // Track flash deal alerts separately
-    alertType: { type: String, enum: ['drop', 'percentage_drop'], default: 'drop' },
-    thresholdPrice: { type: Number },
-    percentageThreshold: Number,
-    snoozeUntil: { type: Date, default: null } // Feature 5: Snooze Alerts
-  }],
+  // trackedBy: [{ ... }] // Removed in v2 migration
   thresholdPrice: { type: Number },
   priceHistory: [{
     price: { type: Number, required: true },

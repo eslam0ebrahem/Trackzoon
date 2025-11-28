@@ -44,10 +44,7 @@ const userSchema = new mongoose.Schema({
     type: userSettingsSchema,
     default: () => ({})
   },
-  products: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product'
-  }],
+  // products: ... // Removed in v2 migration
   // Savings tracking
   savings: {
     total: { type: Number, default: 0 },
