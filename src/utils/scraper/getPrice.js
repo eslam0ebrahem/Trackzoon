@@ -613,11 +613,20 @@ async function getPrice(url) {
     // ENHANCED REQUEST CONFIGURATION
     // ============================================
     const userAgents = [
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0'
+      // Chrome on Windows
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      // Chrome on macOS
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      // Firefox on Windows
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
+      // Firefox on macOS
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0',
+      // Safari on macOS
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+      // Edge on Windows
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0'
     ];
 
     const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
@@ -660,9 +669,22 @@ async function getPrice(url) {
     return extractFromCheerio($, url);
 
   } catch (error) {
-    // If it's a Captcha error and we haven't retried too many times, throw specific error
-    if (error.message.includes('Captcha')) {
-      throw error;
+    // Check if we should try the fallback (Puppeteer)
+    const isCaptcha = error.message.includes('Captcha') || error.message.includes('Robot Check');
+    const isForbidden = error.response && (error.response.status === 403 || error.response.status === 503);
+    const isNetworkError = error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT';
+
+    // If it's a blocking issue, try Puppeteer
+    if (isCaptcha || isForbidden || isNetworkError) {
+      logger.warn(`⚠️ Axios failed (${error.message}). Attempting Puppeteer fallback...`);
+      try {
+        return await fetchWithPuppeteer(url);
+      } catch (puppeteerError) {
+        logger.error(`❌ Puppeteer fallback also failed: ${puppeteerError.message}`);
+        // Throw the original error or a combined one? 
+        // Let's throw the Puppeteer error as it's the final attempt
+        throw puppeteerError;
+      }
     }
 
     if (error.message.includes('out-of-stock') ||
@@ -815,7 +837,8 @@ async function fetchWithPuppeteer(url) {
     }
 
     const content = await page.content();
-    return cheerio.load(content);
+    const $ = cheerio.load(content);
+    return extractFromCheerio($, url);
   } catch (error) {
     logger.error(`Puppeteer failed: ${error.message}`);
     throw error;
@@ -838,26 +861,16 @@ async function getPriceWithRetry(url, retries = 2) {
 
       return await getPrice(url);
     } catch (error) {
-      if (error.message.includes('Captcha')) {
-        logger.warn(`⚠️ Captcha detected on attempt ${i + 1}`);
-
-        // On last attempt, try Puppeteer
-        if (i === retries) {
-          try {
-            const $ = await fetchWithPuppeteer(url);
-            // Re-use the extraction logic with the Puppeteer-loaded cheerio instance
-            // We need to refactor getPrice slightly to accept $ or separate extraction
-            // For now, let's just re-implement a basic check or recursive call if we refactor
-            // BUT, getPrice expects URL. 
-            // FIX: Refactor getPrice to accept optional $ instance
-            return await extractFromCheerio($, url);
-          } catch (puppeteerError) {
-            throw new Error('Amazon Captcha detected (Puppeteer failed)');
-          }
-        }
-        continue;
+      // If it's a permanent failure (like product not found), don't retry
+      if (error.message.includes('Product is') || error.message.includes('Price not found')) {
+        throw error;
       }
-      throw error;
+
+      logger.warn(`⚠️ Attempt ${i + 1} failed: ${error.message}`);
+
+      if (i === retries) {
+        throw error;
+      }
     }
   }
 }

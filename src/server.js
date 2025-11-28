@@ -1,3 +1,4 @@
+import helmet from 'helmet';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -15,7 +16,17 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// Security Middleware
+app.use(helmet({
+    contentSecurityPolicy: false, // Disable CSP for now to avoid breaking inline scripts if any
+}));
+
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || '*', // Default to * but allow restriction via env
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
