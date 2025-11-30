@@ -6,21 +6,19 @@ import Subscription from '../models/Subscription.js';
 import { PriceTrackerService } from '../services/priceTrackerService.js';
 import { sendMessage } from '../utils/messageHelper.js';
 
+import { authMiddleware } from '../middleware/authMiddleware.js';
+
 const router = express.Router();
 
 // Middleware to check admin status
-const checkAdmin = async (req, res, next) => {
-    const telegramId = req.headers['x-telegram-id'];
-    if (!telegramId) return res.status(401).json({ error: 'Unauthorized' });
-
-    const user = await User.findOne({ telegramId });
-    if (!user || !user.isAdmin) {
+const checkAdmin = (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Forbidden' });
     }
-    req.adminUser = user;
     next();
 };
 
+router.use(authMiddleware);
 router.use(checkAdmin);
 
 // GET /stats - System Overview
@@ -79,6 +77,18 @@ router.post('/scrape-all', async (req, res) => {
 
         const result = await service.checkAllPrices(true); // Force check
         res.json({ message: 'Scrape started', result });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Alias for check-prices (used by System Dashboard)
+router.post('/check-prices', async (req, res) => {
+    try {
+        const service = new PriceTrackerService(null);
+        service.bot = { telegram: { sendMessage: () => Promise.resolve(), sendPhoto: () => Promise.resolve() } };
+        const result = await service.checkAllPrices(true);
+        res.json({ message: 'Price check started', result });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

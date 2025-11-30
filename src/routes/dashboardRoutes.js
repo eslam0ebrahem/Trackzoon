@@ -36,8 +36,5 @@ router.post('/products/bulk', validate(schemas.bulkImport), dashboardController.
 router.put('/products/:asin/tags', validate(schemas.updateTags), dashboardController.updateTags);
 router.put('/products/:asin/target', validate(schemas.updateTarget), dashboardController.updateTargetPrice);
 router.put('/products/:asin/archive', validate(schemas.archive), dashboardController.archiveProduct);
-router.post('/admin/check-prices', dashboardController.triggerPriceCheck);
-router.get('/admin/stats', dashboardController.getAdminStats);
-router.post('/admin/broadcast', dashboardController.broadcastMessage);
 
 export default router;

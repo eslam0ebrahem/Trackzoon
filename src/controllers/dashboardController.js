@@ -23,26 +23,7 @@ export const getStats = async (req, res) => {
     }
 };
 
-export const getAdminStats = async (req, res) => {
-    try {
-        const totalProducts = await Product.countDocuments();
-        const totalUsers = await User.countDocuments();
 
-        // Calculate active alerts (total subscriptions)
-        const activeAlerts = await Subscription.countDocuments();
-
-        res.json({
-            users: totalUsers,
-            products: totalProducts,
-            activeAlerts: activeAlerts,
-            system: {
-                uptime: process.uptime()
-            }
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
 
 export const getDeals = async (req, res) => {
     try {
@@ -84,17 +65,7 @@ export const addProduct = async (req, res) => {
     }
 };
 
-export const triggerPriceCheck = async (req, res) => {
-    try {
-        // Run in background to avoid timeout
-        const tracker = new PriceTrackerService(process.env.TELEGRAM_BOT_TOKEN);
-        tracker.checkAllPrices(true).catch(err => console.error('Manual price check failed:', err));
 
-        res.json({ message: 'Price check started successfully' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
 
 export const previewProduct = async (req, res) => {
     try {
@@ -408,33 +379,4 @@ export const getUserProducts = async (req, res) => {
 };
 
 // Feature 10: Broadcast Message
-export const broadcastMessage = async (req, res) => {
-    try {
-        const { message } = req.body;
-        if (!message) return res.status(400).json({ error: 'Message is required' });
 
-        const bot = req.app.locals.bot;
-        if (!bot) return res.status(503).json({ error: 'Bot not initialized' });
-
-        const users = await User.find({});
-        let success = 0;
-        let failed = 0;
-
-        // Send in chunks to avoid rate limits
-        for (const user of users) {
-            try {
-                await bot.telegram.sendMessage(user.telegramId, `📢 *Announcement*\n\n${message}`, { parse_mode: 'Markdown' });
-                success++;
-            } catch (e) {
-                console.error(`Failed to send to ${user.telegramId}:`, e.message);
-                failed++;
-            }
-            // Small delay
-            await new Promise(resolve => setTimeout(resolve, 50));
-        }
-
-        res.json({ success, failed, total: users.length });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
