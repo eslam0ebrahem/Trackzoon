@@ -15,7 +15,14 @@ export const API = {
     // Helper to get headers with token
     getHeaders() {
         const headers = { 'Content-Type': 'application/json' };
-        const token = localStorage.getItem('token');
+        let token = null;
+        try {
+            token = localStorage.getItem('token');
+        } catch (e) {
+            // Check in-memory state if storage failed
+            if (window.state && window.state.token) token = window.state.token;
+        }
+
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }

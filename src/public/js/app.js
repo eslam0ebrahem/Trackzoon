@@ -195,12 +195,15 @@ window.saveCurrentView = () => {
         filter: STATE.currentFilter, // Use state instead of DOM
         viewMode: STATE.currentView // Use state
     };
-    localStorage.setItem('trackzoon_saved_view', JSON.stringify(view));
+    try {
+        localStorage.setItem('trackzoon_saved_view', JSON.stringify(view));
+    } catch (e) { console.warn('Storage access denied', e); }
     alert('View settings saved!');
 };
 
 window.loadSavedView = () => {
-    const saved = localStorage.getItem('trackzoon_saved_view');
+    let saved = null;
+    try { saved = localStorage.getItem('trackzoon_saved_view'); } catch (e) { }
     if (saved) {
         const view = JSON.parse(saved);
         if (view.sort) {
@@ -245,10 +248,10 @@ export async function init() {
     themeToggle.addEventListener('click', () => {
         if (document.documentElement.classList.contains('dark')) {
             document.documentElement.classList.remove('dark');
-            localStorage.theme = 'light';
+            try { localStorage.theme = 'light'; } catch (e) { }
         } else {
             document.documentElement.classList.add('dark');
-            localStorage.theme = 'dark';
+            try { localStorage.theme = 'dark'; } catch (e) { }
         }
     });
 
@@ -258,6 +261,8 @@ export async function init() {
 
     searchInput.addEventListener('input', debounce(async (e) => {
         const query = e.target.value;
+
+        // The original API.search(query) call and subsequent logic
         if (query.length < 2) {
             searchResults.classList.add('hidden');
             return;
