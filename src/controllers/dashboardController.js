@@ -1,5 +1,6 @@
 import Product from '../models/Product.js';
 import User from '../models/User.js';
+import Subscription from '../models/Subscription.js';
 import { ProductService } from '../services/productService.js';
 import { PriceTrackerService } from '../services/priceTrackerService.js';
 import { calculateDealScore } from '../utils/priceUtils.js';
@@ -9,9 +10,8 @@ export const getStats = async (req, res) => {
         const totalProducts = await Product.countDocuments();
         const totalUsers = await User.countDocuments();
 
-        // Calculate total tracked items (sum of trackedBy arrays)
-        const products = await Product.find({}, 'trackedBy');
-        const totalTrackedItems = products.reduce((sum, p) => sum + p.trackedBy.length, 0);
+        // Calculate total tracked items (total subscriptions)
+        const totalTrackedItems = await Subscription.countDocuments();
 
         res.json({
             totalProducts,
@@ -28,8 +28,8 @@ export const getAdminStats = async (req, res) => {
         const totalProducts = await Product.countDocuments();
         const totalUsers = await User.countDocuments();
 
-        // Calculate active alerts (users with at least one tracked product)
-        const activeAlerts = await Product.countDocuments({ 'trackedBy.0': { $exists: true } });
+        // Calculate active alerts (total subscriptions)
+        const activeAlerts = await Subscription.countDocuments();
 
         res.json({
             users: totalUsers,
@@ -191,21 +191,24 @@ export const getRecentActivity = async (req, res) => {
 
 export const getTopTracked = async (req, res) => {
     try {
-        const products = await Product.find({}, 'name asin currentPrice imageUrl trackedBy');
+        const topProducts = await Subscription.aggregate([
+            { $group: { _id: '$product', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 5 },
+            { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
+            { $unwind: '$product' },
+            {
+                $project: {
+                    name: '$product.name',
+                    asin: '$product.asin',
+                    currentPrice: '$product.currentPrice',
+                    imageUrl: '$product.imageUrl',
+                    trackerCount: '$count'
+                }
+            }
+        ]);
 
-        // Sort by number of trackers
-        const sorted = products
-            .sort((a, b) => b.trackedBy.length - a.trackedBy.length)
-            .slice(0, 5)
-            .map(p => ({
-                name: p.name,
-                asin: p.asin,
-                currentPrice: p.currentPrice,
-                imageUrl: p.imageUrl,
-                trackerCount: p.trackedBy.length
-            }));
-
-        res.json(sorted);
+        res.json(topProducts);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -228,14 +231,29 @@ export const getHealth = (req, res) => {
 
 export const exportData = async (req, res) => {
     try {
-        const products = await Product.find({});
+        // Aggregate products with subscription counts
+        const products = await Product.aggregate([
+            {
+                $lookup: {
+                    from: 'subscriptions',
+                    localField: '_id',
+                    foreignField: 'product',
+                    as: 'subscriptions'
+                }
+            },
+            {
+                $addFields: {
+                    trackerCount: { $size: '$subscriptions' }
+                }
+            }
+        ]);
 
         // Simple CSV format
         const headers = ['ASIN', 'Name', 'URL', 'Current Price', 'Highest Price', 'Lowest Price', 'Trackers'];
         const rows = products.map(p => {
-            const prices = p.priceHistory.map(h => h.price);
-            const max = Math.max(...prices);
-            const min = Math.min(...prices);
+            const prices = p.priceHistory ? p.priceHistory.map(h => h.price) : [];
+            const max = prices.length > 0 ? Math.max(...prices) : p.currentPrice;
+            const min = prices.length > 0 ? Math.min(...prices) : p.currentPrice;
 
             return [
                 p.asin,
@@ -244,7 +262,7 @@ export const exportData = async (req, res) => {
                 p.currentPrice,
                 max,
                 min,
-                p.trackedBy.length
+                p.trackerCount
             ].join(',');
         });
 

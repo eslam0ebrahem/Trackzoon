@@ -2,6 +2,7 @@ import express from 'express';
 import User from '../models/User.js';
 import Product from '../models/Product.js';
 import SystemMetric from '../models/SystemMetric.js';
+import Subscription from '../models/Subscription.js';
 import { PriceTrackerService } from '../services/priceTrackerService.js';
 import { sendMessage } from '../utils/messageHelper.js';
 
@@ -28,7 +29,8 @@ router.get('/stats', async (req, res) => {
         const [userCount, productCount, activeAlerts] = await Promise.all([
             User.countDocuments(),
             Product.countDocuments(),
-            Product.countDocuments({ 'trackedBy.0': { $exists: true } }) // Approximation
+            Product.countDocuments(),
+            Subscription.countDocuments() // Exact count of active subscriptions
         ]);
 
         // Get recent system metrics

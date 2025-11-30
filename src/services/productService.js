@@ -437,7 +437,7 @@ export class ProductService {
     ]);
 
     // Map to a consistent format
-    return {
+    const result = {
       items: items.map(p => ({
         product: p,
         // Map fields to match what the bot and dashboard expect
@@ -459,6 +459,36 @@ export class ProductService {
       page,
       totalPages: Math.ceil(total / limit)
     };
+
+    // If chatId is provided, enrich with user-specific tracker data
+    if (chatId) {
+      const user = await User.findOne({ telegramId: chatId });
+      if (user) {
+        const productIds = result.items.map(i => i.product._id);
+        const subscriptions = await Subscription.find({
+          user: user._id,
+          product: { $in: productIds }
+        });
+
+        const subMap = new Map(subscriptions.map(s => [s.product.toString(), s]));
+
+        result.items.forEach(item => {
+          const pid = item.product._id.toString();
+          const sub = subMap.get(pid);
+          if (sub) {
+            item.tracker = {
+              chatId: chatId,
+              thresholdPrice: sub.targetPrice,
+              snoozeUntil: sub.snoozeUntil
+            };
+            // Also attach to product for consistency if needed
+            item.product.currentUserSubscription = sub;
+          }
+        });
+      }
+    }
+
+    return result;
   }
 
   // Deprecated: Old in-memory implementation
