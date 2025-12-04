@@ -800,8 +800,12 @@ async function fetchWithPuppeteer(url) {
 
     puppeteer.use(StealthPlugin());
 
+    // Use a unique user data dir to avoid conflicts
+    const userDataDir = `/tmp/puppeteer_profile_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
     browser = await puppeteer.launch({
       headless: 'new',
+      userDataDir, // Explicitly set unique dir
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -810,13 +814,39 @@ async function fetchWithPuppeteer(url) {
         '--no-first-run',
         '--no-zygote',
         '--single-process',
-        '--disable-gpu'
-      ]
+        '--disable-gpu',
+        '--disable-extensions',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--mute-audio',
+        '--no-default-browser-check',
+        '--autoplay-policy=user-gesture-required',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-notifications',
+        '--disable-background-networking',
+        '--disable-breakpad',
+        '--disable-component-update',
+        '--disable-domain-reliability',
+        '--disable-sync',
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
     });
     const page = await browser.newPage();
 
     // Set realistic user agent (Stealth plugin handles most, but this helps)
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    // Optimize page loading
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const resourceType = req.resourceType();
+      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
 
     // Randomize viewport slightly
     await page.setViewport({
@@ -828,7 +858,7 @@ async function fetchWithPuppeteer(url) {
       isMobile: false,
     });
 
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }); // Increased timeout
 
     // Check for Captcha
     const title = await page.title();
@@ -843,7 +873,13 @@ async function fetchWithPuppeteer(url) {
     logger.error(`Puppeteer failed: ${error.message}`);
     throw error;
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (e) {
+        logger.error(`Error closing browser: ${e.message}`);
+      }
+    }
   }
 }
 
