@@ -12,6 +12,7 @@ import { stateManager } from './utils/stateManager.js';
 import { escapeMarkdownV2 } from './utils/messageHelper.js';
 import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
 import { startServer } from './server.js';
+import { startKeepAlive } from './services/keepAliveService.js';
 
 // Initialize Sentry error monitoring first
 initSentry();
@@ -73,6 +74,7 @@ bot.telegram.setMyCommands([
 
 // Start Web Dashboard immediately to satisfy Railway health check
 startServer(bot);
+startKeepAlive();
 
 // Launch the bot
 logger.info('Launching Trackzoon bot...');
