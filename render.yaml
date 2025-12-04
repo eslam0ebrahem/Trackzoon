@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: trackzoon-bot
+    env: docker
+    plan: free
+    buildCommand: docker build -t trackzoon-bot .
+    startCommand: docker run -p 3000:3000 trackzoon-bot
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: true
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/google-chrome-stable
+      # Add other environment variables here or in the Render Dashboard
+      # - key: MONGODB_URI
+      #   sync: false
+      # - key: BOT_TOKEN
+      #   sync: false
+      # - key: PERPLEXITY_API_KEY
+      #   sync: false
+
+  - type: redis
+    name: trackzoon-redis
+    plan: free
+    ipAllowList: [] # Allow internal connections only
