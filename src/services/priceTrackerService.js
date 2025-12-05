@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import SystemMetric from '../models/SystemMetric.js';
 import PricePoint from '../models/PricePoint.js';
+import pLimit from 'p-limit';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { logger } from '../utils/logger.js';
 import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend, applyJitter } from '../utils/priceUtils.js';
@@ -43,12 +44,15 @@ export class PriceTrackerService {
             previousPrice === 0 ||
             currentPrice !== previousPrice;
 
+          const nextCheck = new Date(Date.now() + applyJitter(product.checkInterval || 60) * 60000);
+
           const updateOps = {
             $set: {
               isOutOfStock: false,
               outOfStockSince: null,
               currentPrice: currentPrice,
               lastChecked: new Date(),
+              nextCheck, // Update next check time
               ...(imageUrl && { imageUrl }),
               ...(scrapeResult.merchant && { merchant: scrapeResult.merchant }),
               ...(scrapeResult.prime !== undefined && { prime: scrapeResult.prime }),
@@ -152,7 +156,8 @@ export class PriceTrackerService {
                 $set: {
                   isOutOfStock: true,
                   outOfStockSince: new Date(),
-                  lastChecked: new Date()
+                  lastChecked: new Date(),
+                  nextCheck: new Date(Date.now() + applyJitter(60) * 60000) // Check again in ~1 hour
                 },
                 $push: {
                   stockHistory: {
@@ -165,7 +170,12 @@ export class PriceTrackerService {
           } else {
             await Product.findOneAndUpdate(
               { asin: asin },
-              { $set: { lastChecked: new Date() } }
+              {
+                $set: {
+                  lastChecked: new Date(),
+                  nextCheck: new Date(Date.now() + applyJitter(60) * 60000) // Check again in ~1 hour
+                }
+              }
             );
           }
           return null;
@@ -197,6 +207,7 @@ export class PriceTrackerService {
           {
             $set: {
               lastChecked: new Date(),
+              nextCheck: new Date(Date.now() + applyJitter(checkInterval) * 60000),
               volatilityScore,
               checkInterval,
               smartScore,
@@ -305,6 +316,7 @@ export class PriceTrackerService {
           $set: {
             currentPrice: currentPrice,
             lastChecked: new Date(),
+            nextCheck: new Date(Date.now() + applyJitter(checkInterval) * 60000),
             volatilityScore,
             checkInterval,
             smartScore,
@@ -477,33 +489,29 @@ export class PriceTrackerService {
       return { succeeded: 0, unchanged: 0, failed: 0, skipped: true };
     }
 
-    const products = await Product.find({});
-    logger.info(`Checking prices for ${products.length} products...`);
-
     const now = new Date();
-    const dueProducts = products.filter(p => {
-      if (force) return true;
-      const baseInterval = p.checkInterval || 60;
-      const intervalWithJitter = applyJitter(baseInterval);
-      const lastChecked = p.lastChecked ? new Date(p.lastChecked) : new Date(0);
-      const nextCheck = new Date(lastChecked.getTime() + intervalWithJitter * 60000);
-      return now >= nextCheck;
-    });
+    // OPTIMIZATION: Only fetch products needed
+    const query = force ? {} : { nextCheck: { $lte: now } };
 
-    logger.info(`Smart Scheduling: Checking ${dueProducts.length} products`);
+    // Fetch only needed fields initially to save memory if object is huge
+    // But we need most fields for analysis, so standard find is okay if count is low.
+    // For scalability, we might convert this to a cursor if > 1000 items.
+    // For now, fetching "due" products is already a huge win (e.g. 50 instead of 1000).
+    const dueProducts = await Product.find(query).limit(100); // Process in batches of 100 max per run to prevent OOM
 
-    // Use scraperService.scrapeProduct which handles limiting internally? 
-    // No, scraperService.scrapeProduct uses pLimit.
-    // But here we are mapping over products.
-    // We should just call checkPrice and let ScraperService handle the concurrency limit?
-    // Wait, ScraperService limit is for *scraping*. checkPrice does more.
-    // If we fire 100 checkPrice calls, they will all start, but await scraperService.scrapeProduct.
-    // scraperService.scrapeProduct is limited to 3.
-    // So 100 checkPrice calls will be pending.
-    // That's fine for Node.js.
+    if (dueProducts.length === 0) {
+      return { succeeded: 0, unchanged: 0, failed: 0 };
+    }
+
+    logger.info(`Smart Scheduling: Checking ${dueProducts.length} due products (Force: ${force})`);
+
+    // Use p-limit to control concurrency at the APPLICATION level
+    // ScraperService also has a limit, but we want to control how many DB writes/price checks happen at once.
+    // Let's match the ScraperService limit or slightly higher.
+    const limit = pLimit(5);
 
     const results = await Promise.allSettled(
-      dueProducts.map(product => this.checkPrice(product))
+      dueProducts.map(product => limit(() => this.checkPrice(product)))
     );
 
     const succeeded = results.filter(r => r.status === 'fulfilled' && r.value).length;
@@ -517,7 +525,7 @@ export class PriceTrackerService {
     try {
       await SystemMetric.create({
         type: 'scraper',
-        data: { succeeded, unchanged, failed, total: products.length, duration: 0 }
+        data: { succeeded, unchanged, failed, total: dueProducts.length, duration: 0 }
       });
     } catch (e) {
       logger.error('Failed to save system metrics:', e);

@@ -45,6 +45,7 @@ const ProductSchema = new mongoose.Schema({
     avg: { type: Number, default: 0 },
     volatility: { type: Number, default: 0 }
   },
+  nextCheck: { type: Date, default: Date.now, index: true }, // Optimized Scheduling
   lastPriceChange: {
     date: { type: Date },
     oldPrice: Number,
@@ -105,6 +106,7 @@ ProductSchema.index({ asin: 1 }, { unique: true });
 ProductSchema.index({ 'trackedBy.chatId': 1 });
 ProductSchema.index({ asin: 1, 'trackedBy.chatId': 1 });
 ProductSchema.index({ lastChecked: 1 }); // For finding stale products
+ProductSchema.index({ nextCheck: 1 }); // For optimized scheduler
 ProductSchema.index({ category: 1 });
 ProductSchema.index({ 'stats.min': 1 });
 ProductSchema.index({ 'lastPriceChange.date': -1 });
