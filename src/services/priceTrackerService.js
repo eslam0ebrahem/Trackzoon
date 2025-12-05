@@ -9,6 +9,7 @@ import { logger } from '../utils/logger.js';
 import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend, applyJitter } from '../utils/priceUtils.js';
 import { scraperService } from './scraperService.js';
 import { NotificationService } from './notificationService.js';
+import { priceCheckQueue } from '../queue/priceQueue.js';
 
 export class PriceTrackerService {
   constructor(bot) {
@@ -508,30 +509,27 @@ export class PriceTrackerService {
     // Use p-limit to control concurrency at the APPLICATION level
     // ScraperService also has a limit, but we want to control how many DB writes/price checks happen at once.
     // Let's match the ScraperService limit or slightly higher.
-    const limit = pLimit(5);
 
-    const results = await Promise.allSettled(
-      dueProducts.map(product => limit(() => this.checkPrice(product)))
+    // REFACTOR: Use BullMQ
+    // We Map products to Jobs.
+
+    // Clean queue before adding new batch? No, let them stack or handle dups.
+    // Ideally we assume the queue handles it.
+
+    const jobPromises = dueProducts.map(product =>
+      priceCheckQueue.add('check-price', { product: product.toObject() }, {
+        jobId: `check-${product._id}-${now.getTime()}` // Prevent duplicates in same batch if any
+      })
     );
 
-    const succeeded = results.filter(r => r.status === 'fulfilled' && r.value).length;
-    const failed = results.filter(r => r.status === 'rejected').length;
-    const unchanged = results.filter(r => r.status === 'fulfilled' && !r.value).length;
+    await Promise.all(jobPromises);
 
-    logger.info(`Price check completed: ${succeeded} updated, ${unchanged} unchanged, ${failed} failed`);
+    // We cannot easily return "succeeded/failed" counts because jobs are async now.
+    // We return "queued" count.
 
-    this.updateSomeRatings().catch(err => logger.error('Error updating ratings:', err));
+    logger.info(`Queued ${jobPromises.length} products for checking.`);
 
-    try {
-      await SystemMetric.create({
-        type: 'scraper',
-        data: { succeeded, unchanged, failed, total: dueProducts.length, duration: 0 }
-      });
-    } catch (e) {
-      logger.error('Failed to save system metrics:', e);
-    }
-
-    return { succeeded, unchanged, failed };
+    return { queued: jobPromises.length };
   }
 
   async updateSomeRatings() {

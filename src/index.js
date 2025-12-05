@@ -13,6 +13,7 @@ import { escapeMarkdownV2 } from './utils/messageHelper.js';
 import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
 import { startServer } from './server.js';
 import { startKeepAlive } from './services/keepAliveService.js';
+import { createWorker } from './queue/priceQueue.js'; // Import Worker Factory
 
 // Initialize Sentry error monitoring first
 initSentry();
@@ -80,6 +81,16 @@ startKeepAlive();
 logger.info('Launching Trackzoon bot...');
 bot.launch().then(() => {
   logger.info('Bot successfully launched!');
+
+  // Start Worker in the SAME process if simpler hosting is desired (Combined Mode)
+  // Check env var process_TYPE or NODE_TYPE. Default to combined.
+  if (!process.env.PROCESS_TYPE || process.env.PROCESS_TYPE === 'combined') {
+    logger.info('🔄 Application running in COMBINED mode (Web + Worker)');
+    createWorker(bot);
+    logger.info('🛠️ Internal Worker started');
+  } else {
+    logger.info(`ℹ️ Application running in ${process.env.PROCESS_TYPE} mode. Worker not started internally.`);
+  }
 
 }).catch(async error => {
   logger.error('Failed to launch bot:', error);
