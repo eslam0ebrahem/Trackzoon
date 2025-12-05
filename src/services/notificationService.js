@@ -3,6 +3,7 @@ import { buildPriceAlertMessage, escapeMarkdownV2 } from '../utils/messageHelper
 import { sendMessageWithRetry } from '../utils/retry.js';
 import { sendWebhook } from './webhookService.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
+import { calculatePriceStats } from '../utils/priceUtils.js';
 
 export class NotificationService {
     constructor(bot) {
@@ -11,7 +12,33 @@ export class NotificationService {
 
     async sendPriceAlert(tracker, product, oldPrice, newPrice) {
         try {
-            const message = buildPriceAlertMessage(product, oldPrice, newPrice);
+            // Enhanced Message Building
+            const stats30d = product.priceHistory ? calculatePriceStats(product.priceHistory, 30) : null;
+            const avgPrice = stats30d ? stats30d.average : 0;
+            const maxPrice = stats30d ? stats30d.max : 0;
+            const isAllTimeLow = stats30d && newPrice <= stats30d.min;
+
+            const savings = oldPrice - newPrice;
+            const percentDrop = ((savings / oldPrice) * 100).toFixed(1);
+
+            let header = '📉 *Price Drop Alert!*';
+            if (isAllTimeLow) header = '🔥 *ALL TIME LOW!*';
+            else if (Number(percentDrop) > 20) header = '⚡ *HUGE DROP!*';
+
+            const message = [
+                header,
+                '',
+                `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
+                '',
+                `💰 *Now:* EGP ${escapeMarkdownV2(newPrice.toFixed(2))}`,
+                `❌ *Was:* ~EGP ${escapeMarkdownV2(oldPrice.toFixed(2))}~`,
+                `📉 *Drop:* ${escapeMarkdownV2(percentDrop)}% (Save EGP ${escapeMarkdownV2(savings.toFixed(2))})`,
+                '',
+                avgPrice > 0 ? `📊 *Ave:* EGP ${escapeMarkdownV2(avgPrice.toFixed(0))} | *Max:* EGP ${escapeMarkdownV2(maxPrice.toFixed(0))}` : '',
+                tracker.thresholdPrice ? `🎯 *Target:* EGP ${escapeMarkdownV2(tracker.thresholdPrice.toFixed(2))}` : '',
+                '',
+                '🛒 *Click link above to buy now!*'
+            ].filter(Boolean).join('\n');
             let photoUrl = product.imageUrl;
 
             // Try to generate chart

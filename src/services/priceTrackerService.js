@@ -419,20 +419,21 @@ export class PriceTrackerService {
       if (hoursSinceLastAlert < 3) return false;
     }
 
+    // 1. Check User Settings (Quiet Mode, Min Discount)
     try {
       let user = tracker.user;
-      if (!user) {
-        user = await User.findOne({ telegramId: tracker.chatId });
-      }
+      if (!user) user = await User.findOne({ telegramId: tracker.chatId });
 
       if (tracker.snoozeUntil && new Date() < new Date(tracker.snoozeUntil)) return false;
 
       if (user && user.settings) {
         if (user.settings.notifications === false) return false;
 
+        // Quiet Mode
         if (user.settings.quietMode?.enabled) {
           const currentHour = new Date().getHours();
           const { startHour, endHour } = user.settings.quietMode;
+          // Handle wrapping intervals (e.g. 23:00 to 07:00)
           const isQuietTime = startHour > endHour
             ? (currentHour >= startHour || currentHour < endHour)
             : (currentHour >= startHour && currentHour < endHour);
@@ -440,44 +441,51 @@ export class PriceTrackerService {
           if (isQuietTime) return false;
         }
 
-        if (isDecrease && user.settings.minDiscount > 0) {
+        // Min Discount (Only applies if no specific threshold set)
+        if (!tracker.thresholdPrice && isDecrease && user.settings.minDiscount > 0) {
           const dropPercent = Math.abs(priceChange);
-          if (dropPercent < user.settings.minDiscount) return false;
+          if (dropPercent < user.settings.minDiscount) return false; // Ignore tiny drops
         }
       }
     } catch (err) {
       logger.error(`Error checking user settings for ${tracker.chatId}:`, err);
     }
 
+    // 2. Threshold Check (Priority)
+    // If user set a target, ALWAYS alert if met/crossed
     if (tracker.thresholdPrice && oldPrice > tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
       return true;
     }
 
-    if (!isDecrease) return false;
+    // 3. Smart Filtering
+    if (!isDecrease) return false; // No alert for price increase/stable
 
-    if (!product.priceHistory || product.priceHistory.length < 5) {
+    // Always alert for massive drops (>20%)
+    if (Math.abs(priceChange) >= 20) return true;
+
+    // Calculate context stats
+    const stats30d = calculatePriceStats(product.priceHistory, 30);
+
+    // If no history, default to simple rule: Alert if drop > 10%
+    if (!stats30d) return Math.abs(priceChange) >= 10;
+
+    // "Fake Deal" Detector:
+    // If price is still above the 30-day average, only alert if it's a huge drop (>15%)
+    // This prevents alerting when a price spiked to 200% yesterday and returned to 110% today.
+    if (newPrice > stats30d.average) {
       return Math.abs(priceChange) >= 15;
     }
 
-    const stats30d = calculatePriceStats(product.priceHistory, 30);
-    if (!stats30d) return Math.abs(priceChange) >= 10;
+    // "All Time Low" Detector
+    if (newPrice <= stats30d.min) return true;
 
-    const percentBelowAvg = ((stats30d.average - newPrice) / stats30d.average) * 100;
-    const isAtOrBelowLow = newPrice <= stats30d.min;
+    // "Near Low" Detector (within 5% of low)
     const percentAboveLow = ((newPrice - stats30d.min) / stats30d.min) * 100;
-    const isNearLow = percentAboveLow <= 5;
+    if (percentAboveLow <= 5 && Math.abs(priceChange) >= 5) return true;
 
-    if (isAtOrBelowLow) return true;
-    if (isNearLow && Math.abs(priceChange) >= 10) return true;
-    if (percentBelowAvg >= 15 && Math.abs(priceChange) >= 10) return true;
-    if (percentBelowAvg >= 20 && Math.abs(priceChange) >= 5) return true;
-
-    if (newPrice > stats30d.min * 1.4) return false;
-
-    if (tracker.thresholdPrice && isDecrease) {
-      const percentFromThreshold = ((newPrice - tracker.thresholdPrice) / tracker.thresholdPrice) * 100;
-      if (percentFromThreshold <= 10 && Math.abs(priceChange) >= 5) return true;
-    }
+    // General "Good Deal": Below average by 10% AND dropped by at least 5% recently
+    const percentBelowAvg = ((stats30d.average - newPrice) / stats30d.average) * 100;
+    if (percentBelowAvg >= 10 && Math.abs(priceChange) >= 5) return true;
 
     return false;
   }
