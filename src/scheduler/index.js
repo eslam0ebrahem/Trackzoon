@@ -26,12 +26,10 @@ const startScheduler = (bot) => {
     try {
       const results = await priceTracker.checkAllPrices();
       const duration = (Date.now() - startTime) / 1000;
-      
-      console.log(`Price check completed in ${duration.toFixed(1)}s:
-          - ${results.succeeded} prices updated
-          - ${results.unchanged} prices unchanged
-          - ${results.failed} checks failed`);
-      
+
+      console.log(`Price check processing:
+          - ${results.queued} products queued for background checking`);
+
       // Log to Sentry if too many failures
       if (results.failed > results.succeeded && results.failed > 5) {
         captureMessage(
@@ -51,28 +49,28 @@ const startScheduler = (bot) => {
   const sendDailyReports = async () => {
     console.log('Starting daily report generation...');
     const startTime = Date.now();
-    
+
     try {
       // Find all users with daily reports enabled
       const users = await User.find({ 'settings.dailyReport': true });
       console.log(`Sending daily reports to ${users.length} users...`);
-      
+
       let sent = 0;
       let failed = 0;
       let skipped = 0;
-      
+
       for (const user of users) {
         try {
           // Get user's tracked products with full details
-          const products = await Product.find({ 
-            'trackedBy.chatId': user.chatId 
+          const products = await Product.find({
+            'trackedBy.chatId': user.chatId
           });
-          
+
           if (products.length === 0) {
             skipped++;
             continue; // Skip users with no products
           }
-          
+
           // Build and send report
           const reportMessage = buildDailyReportMessage(
             products.map(p => ({
@@ -81,7 +79,7 @@ const startScheduler = (bot) => {
             })),
             user.firstName || user.username || 'there'
           );
-          
+
           await sendMessageWithRetry(bot, user.chatId, reportMessage, {
             parse_mode: 'MarkdownV2',
             disable_web_page_preview: true,
@@ -98,9 +96,9 @@ const startScheduler = (bot) => {
               ]
             }
           });
-          
+
           sent++;
-          
+
           // Add small delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (error) {
@@ -108,13 +106,13 @@ const startScheduler = (bot) => {
           failed++;
         }
       }
-      
+
       const duration = (Date.now() - startTime) / 1000;
       console.log(`Daily reports completed in ${duration.toFixed(1)}s:
           - ${sent} reports sent successfully
           - ${skipped} users skipped (no products)
           - ${failed} failed to send`);
-      
+
       // Log to Sentry if too many failures
       if (failed > sent && failed > 3) {
         captureMessage(
@@ -132,17 +130,17 @@ const startScheduler = (bot) => {
   // Create and store cron tasks
   const priceCheckTask = cron.schedule('0,30 * * * *', runPriceCheck);
   const dailyReportTask = cron.schedule('0 8 * * *', sendDailyReports);
-  
+
   // Store tasks for cleanup
   activeTasks.push(priceCheckTask, dailyReportTask);
 
   // Run initial check after 1 minute
   setTimeout(runPriceCheck, 60 * 1000);
-  
+
   console.log('Scheduler started:');
   console.log('- Price checks: Every 30 minutes');
   console.log('- Daily reports: Every day at 8:00 AM');
-  
+
   // Return cleanup function
   return () => {
     console.log('Stopping scheduler...');

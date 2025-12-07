@@ -45,7 +45,7 @@ const ProductSchema = new mongoose.Schema({
     avg: { type: Number, default: 0 },
     volatility: { type: Number, default: 0 }
   },
-  nextCheck: { type: Date, default: Date.now, index: true }, // Optimized Scheduling
+  nextCheck: { type: Date, default: Date.now }, // Optimized Scheduling
   lastPriceChange: {
     date: { type: Date },
     oldPrice: Number,

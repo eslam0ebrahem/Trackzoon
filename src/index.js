@@ -98,8 +98,10 @@ bot.launch().then(() => {
 
   // If there's a conflict (409), it means another instance is running
   if (error.response?.error_code === 409) {
-    logger.warn('Conflict detected (409). Another instance might be closing. Retrying in 3 seconds...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    logger.warn('Conflict detected (409). Another instance might be closing. Retrying with jitter...');
+    // Random delay between 2000ms and 7000ms to break sync loops
+    const jitter = Math.floor(Math.random() * 5000) + 2000;
+    await new Promise(resolve => setTimeout(resolve, jitter));
     return bot.launch().then(() => {
       logger.info('Bot successfully launched on retry!');
     }).catch(err => {
