@@ -26,6 +26,13 @@ export const priceCheckQueue = new Queue('price-check-queue', {
     },
 });
 
+// Prevent crash on Redis connection errors
+priceCheckQueue.on('error', (err) => {
+    // Only log if it's not a temporary connection issue to avoid spamming logs? 
+    // Actually, we want to know if it fails.
+    logger.warn(`Redis Queue Error: ${err.message}`);
+});
+
 // Worker Factory
 export const createWorker = (bot) => {
     const priceTracker = new PriceTrackerService(bot);

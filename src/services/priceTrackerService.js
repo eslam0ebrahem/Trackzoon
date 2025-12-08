@@ -524,20 +524,47 @@ export class PriceTrackerService {
     // Clean queue before adding new batch? No, let them stack or handle dups.
     // Ideally we assume the queue handles it.
 
-    const jobPromises = dueProducts.map(product =>
-      priceCheckQueue.add('check-price', { product: product.toObject() }, {
-        jobId: `check-${product._id}-${now.getTime()}` // Prevent duplicates in same batch if any
-      })
-    );
+    try {
+      // Try to add to Queue
+      const jobPromises = dueProducts.map(product =>
+        priceCheckQueue.add('check-price', { product: product.toObject() }, {
+          jobId: `check-${product._id}-${now.getTime()}` // Prevent duplicates in same batch if any
+        })
+      );
 
-    await Promise.all(jobPromises);
+      await Promise.all(jobPromises);
 
-    // We cannot easily return "succeeded/failed" counts because jobs are async now.
-    // We return "queued" count.
+      logger.info(`Queued ${jobPromises.length} products for checking.`);
+      return { queued: jobPromises.length };
 
-    logger.info(`Queued ${jobPromises.length} products for checking.`);
+    } catch (queueError) {
+      logger.warn(`⚠️ Queue usage failed (Redis down?), falling back to IN-MEMORY processing. Error: ${queueError.message}`);
 
-    return { queued: jobPromises.length };
+      // FAILSAFE: In-memory concurrency fallback
+      const limit = pLimit(5);
+      const results = await Promise.allSettled(
+        dueProducts.map(product => limit(() => this.checkPrice(product)))
+      );
+
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value).length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      const unchanged = results.filter(r => r.status === 'fulfilled' && !r.value).length;
+
+      logger.info(`(Fallback) Price check completed: ${succeeded} updated, ${unchanged} unchanged, ${failed} failed`);
+
+      this.updateSomeRatings().catch(err => logger.error('Error updating ratings:', err));
+
+      try {
+        await SystemMetric.create({
+          type: 'scraper',
+          data: { succeeded, unchanged, failed, total: dueProducts.length, duration: 0 }
+        });
+      } catch (e) {
+        logger.error('Failed to save system metrics:', e);
+      }
+
+      return { succeeded, unchanged, failed };
+    }
   }
 
   async updateSomeRatings() {
