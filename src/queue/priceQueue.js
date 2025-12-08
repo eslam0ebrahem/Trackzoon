@@ -46,7 +46,7 @@ export const createWorker = (bot) => {
             // PriceTrackerService.checkPrice expects a Mongoose Document because it calls .save() on it.
             // BullMQ serializes to JSON. We must Re-fetch or Hydrate the document.
             // Efficient Approach: Pass ID, fetch fresh from DB (safer for distributed systems anyway).
-            const { Product } = await import('../models/index.js'); // Assuming index.js exports models or direct import
+            // const { Product } = await import('../models/index.js'); // REMOVED: File does not exist
             const ProductModel = (await import('../models/Product.js')).default;
 
             const productDoc = await ProductModel.findById(product._id);
