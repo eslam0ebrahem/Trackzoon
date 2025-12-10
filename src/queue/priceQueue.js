@@ -65,7 +65,7 @@ export const createWorker = (bot) => {
         connection: {
             url: process.env.REDIS_URL || 'redis://localhost:6379'
         },
-        concurrency: 5, // Replace p-limit with this!
+        concurrency: 1, // Reduced to 1 to prevent OOM on Render free tier (Pupeteer is heavy)
         limiter: {
             max: 10,      // Max 10 jobs
             duration: 1000, // Per 1 second (Rate limiting)

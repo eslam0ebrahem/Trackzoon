@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import fs from 'fs/promises';
 import { logger } from '../logger.js';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -879,6 +880,15 @@ async function fetchWithPuppeteer(url) {
       } catch (e) {
         logger.error(`Error closing browser: ${e.message}`);
       }
+    }
+    // Clean up temporary user data dir
+    try {
+      if (userDataDir && userDataDir.includes('/tmp/puppeteer_profile_')) {
+        await fs.rm(userDataDir, { recursive: true, force: true });
+        logger.debug(`🧹 Cleaned up Puppeteer profile: ${userDataDir}`);
+      }
+    } catch (cleanupError) {
+      logger.warn(`Failed to cleanup temp dir ${userDataDir}: ${cleanupError.message}`);
     }
   }
 }

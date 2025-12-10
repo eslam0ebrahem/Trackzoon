@@ -541,7 +541,7 @@ export class PriceTrackerService {
       logger.warn(`⚠️ Queue usage failed (Redis down?), falling back to IN-MEMORY processing. Error: ${queueError.message}`);
 
       // FAILSAFE: In-memory concurrency fallback
-      const limit = pLimit(5);
+      const limit = pLimit(1);
       const results = await Promise.allSettled(
         dueProducts.map(product => limit(() => this.checkPrice(product)))
       );

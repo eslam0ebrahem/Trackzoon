@@ -4,7 +4,7 @@ import { logger } from '../utils/logger.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 
 // Rate limiter: Max 3 concurrent scraping requests
-const scrapingLimit = pLimit(3);
+const scrapingLimit = pLimit(1);
 const MAX_QUEUE_SIZE = 10; // Fail fast if more than 10 requests are pending
 
 export class ScraperService {
