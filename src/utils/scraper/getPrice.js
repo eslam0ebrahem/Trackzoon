@@ -794,6 +794,9 @@ function extractFromCheerio($, url) {
 async function fetchWithPuppeteer(url) {
   logger.info('🚀 Launching Puppeteer fallback (Stealth Mode)...');
   let browser = null;
+  // Use a unique user data dir to avoid conflicts
+  const userDataDir = `/tmp/puppeteer_profile_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
   try {
     // Use puppeteer-extra with stealth plugin
     const puppeteer = (await import('puppeteer-extra')).default;
@@ -801,8 +804,7 @@ async function fetchWithPuppeteer(url) {
 
     puppeteer.use(StealthPlugin());
 
-    // Use a unique user data dir to avoid conflicts
-    const userDataDir = `/tmp/puppeteer_profile_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
 
     browser = await puppeteer.launch({
       headless: 'new',
