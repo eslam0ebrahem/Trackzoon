@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { PriceTrackerService } from '../services/priceTrackerService.js';
 import User from '../models/User.js';
 import Product from '../models/Product.js';
+import Subscription from '../models/Subscription.js';
 import { buildDailyReportMessage } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
 import { captureError, captureMessage } from '../config/sentry.js';
@@ -61,26 +62,41 @@ const startScheduler = (bot) => {
 
       for (const user of users) {
         try {
-          // Get user's tracked products with full details
-          const products = await Product.find({
-            'trackedBy.chatId': user.chatId
-          });
+          // Get user's subscriptions with full product details
+          const subscriptions = await Subscription.find({ user: user._id }).populate('product');
+
+          if (subscriptions.length === 0) {
+            skipped++;
+            continue; // Skip users with no subscriptions
+          }
+
+          // Map subscriptions to the format expected by buildDailyReportMessage
+          // It expects a 'trackedBy' array on the product with thresholdPrice
+          const products = subscriptions
+            .filter(sub => sub.product) // Safety check for deleted products
+            .map(sub => {
+              const productObj = sub.product.toObject();
+              return {
+                ...productObj,
+                trackedBy: [{
+                  chatId: user.telegramId,
+                  thresholdPrice: sub.targetPrice
+                }]
+              };
+            });
 
           if (products.length === 0) {
             skipped++;
-            continue; // Skip users with no products
+            continue;
           }
 
           // Build and send report
           const reportMessage = buildDailyReportMessage(
-            products.map(p => ({
-              ...p.toObject(),
-              trackedBy: p.trackedBy.filter(t => t.chatId === user.chatId)
-            })),
+            products,
             user.firstName || user.username || 'there'
           );
 
-          await sendMessageWithRetry(bot, user.chatId, reportMessage, {
+          await sendMessageWithRetry(bot, user.telegramId, reportMessage, {
             parse_mode: 'MarkdownV2',
             disable_web_page_preview: true,
             reply_markup: {
@@ -102,7 +118,7 @@ const startScheduler = (bot) => {
           // Add small delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (error) {
-          console.error(`Failed to send daily report to user ${user.chatId}:`, error.message);
+          console.error(`Failed to send daily report to user ${user.telegramId}:`, error.message);
           failed++;
         }
       }
