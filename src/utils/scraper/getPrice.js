@@ -691,7 +691,8 @@ async function getPrice(url) {
     if (error.message.includes('out-of-stock') ||
       error.message.includes('third-party') ||
       error.message.includes('unavailable') ||
-      error.message.includes('no-buybox')) {
+      error.message.includes('no-buybox') ||
+      error.message.includes('no-buy-box')) {
       // This is an expected "error" - product is just not available
       throw error;
     }

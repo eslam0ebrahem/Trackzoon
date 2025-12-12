@@ -148,7 +148,8 @@ export class PriceTrackerService {
         if (priceError.message.includes('out-of-stock') ||
           priceError.message.includes('third-party') ||
           priceError.message.includes('unavailable') ||
-          priceError.message.includes('no-buybox')) {
+          priceError.message.includes('no-buybox') ||
+          priceError.message.includes('no-buy-box')) {
 
           if (!wasOutOfStock) {
             await Product.findOneAndUpdate(
