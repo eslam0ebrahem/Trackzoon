@@ -138,3 +138,28 @@ const shutdown = (signal) => {
 process.once('SIGINT', () => shutdown('SIGINT'));
 process.once('SIGTERM', () => shutdown('SIGTERM'));
 process.once('SIGUSR2', () => shutdown('SIGUSR2')); // For nodemon restarts
+
+// Prevent crash on Puppeteer Protocol Error (TargetCloseError)
+process.on('uncaughtException', (error) => {
+  if (error.message && error.message.includes('TargetCloseError') && error.message.includes('Protocol error')) {
+    logger.error('⚠️ Caught unhandled Puppeteer Protocol Error (preventing crash):', error.message);
+    // Do not exit
+    return;
+  }
+
+  // For other errors, log and exit responsibly
+  logger.error('❌ Uncaught Exception:', error);
+  captureError(error, { context: 'uncaughtException' });
+
+  // Give it a moment to flush logs then exit
+  setTimeout(() => process.exit(1), 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  if (reason && reason.message && reason.message.includes('TargetCloseError')) {
+    logger.error('⚠️ Caught unhandled Rejection (Puppeteer Protocol Error):', reason.message);
+    return;
+  }
+  logger.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  captureError(reason, { context: 'unhandledRejection' });
+});

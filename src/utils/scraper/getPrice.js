@@ -789,6 +789,20 @@ function extractFromCheerio($, url) {
   };
 }
 
+// Initialize puppeteer-extra only once to prevent memory leaks/re-registration issues
+let puppeteerInstance = null;
+
+async function getPuppeteer() {
+  if (puppeteerInstance) return puppeteerInstance;
+
+  const puppeteer = (await import('puppeteer-extra')).default;
+  const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
+  puppeteer.use(StealthPlugin());
+
+  puppeteerInstance = puppeteer;
+  return puppeteerInstance;
+}
+
 /**
  * Fallback: Fetch with Puppeteer (Stealth Mode)
  */
@@ -799,11 +813,7 @@ async function fetchWithPuppeteer(url) {
   const userDataDir = `/tmp/puppeteer_profile_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
   try {
-    // Use puppeteer-extra with stealth plugin
-    const puppeteer = (await import('puppeteer-extra')).default;
-    const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
-
-    puppeteer.use(StealthPlugin());
+    const puppeteer = await getPuppeteer();
 
 
 
