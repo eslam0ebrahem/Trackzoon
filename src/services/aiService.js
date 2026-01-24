@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { logger } from '../utils/logger.js';
 import { SystemPrompts } from '../utils/prompts.js';
+import { getPrice } from '../utils/scraper/getPrice.js';
+import { cleanHtml } from '../utils/htmlCleaner.js';
 
 export class AiService {
     constructor() {
@@ -269,12 +271,14 @@ export class AiService {
         }
     }
 
+
     /**
      * Check product availability and price using AI (for robust fallback)
      * @param {string} url - Product URL
+     * @param {string} [pageContent] - Optional cleaned HTML content (CyberScraper workflow)
      * @returns {Promise<{isAvailable: boolean, price: number | null, currency: string, reason: string}>}
      */
-    async checkProductAvailability(url) {
+    async checkProductAvailability(url, pageContent = null) {
         if (!this.apiKey) {
             logger.warn('Skipping AI availability check: PERPLEXITY_API_KEY not configured');
             return null;
@@ -283,9 +287,33 @@ export class AiService {
         try {
             logger.info('🤖 Initiating AI-powered price check...');
 
+            // 1. Stealth Fetch (if content not provided)
+            let finalContent = pageContent;
+            if (!finalContent) {
+                try {
+                    logger.debug('🕵️‍♀️ Fetching content via Stealth Scraper...');
+                    const rawResult = await getPrice(url, { returnContent: true });
+                    // 2. Clean HTML
+                    finalContent = cleanHtml(rawResult.content);
+                    logger.debug(`✅ Content fetched & cleaned (${finalContent.length} chars)`);
+                } catch (fetchError) {
+                    logger.warn(`Stealth fetch failed, falling back to URL-only analysis: ${fetchError.message}`);
+                }
+            }
+
+            let promptContext = `Go to this Amazon URL: ${url}`;
+
+            if (finalContent) {
+                promptContext = `
+                Analyze the following product page content (from ${url}):
+                
+                ${finalContent.substring(0, 15000)} // Truncate to avoid token limits
+                `;
+            }
+
             return await this.ask({
                 systemPrompt: SystemPrompts.AVAILABILITY_CHECK_JSON,
-                userPrompt: `Check availability for this URL: ${url}`,
+                userPrompt: `${promptContext}\n\nExtract availability and price.`,
                 model: 'sonar',
                 temperature: 0.1,
                 jsonMode: true

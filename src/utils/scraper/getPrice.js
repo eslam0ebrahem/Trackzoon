@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
+import path from 'path';
 import { logger } from '../logger.js';
 import { aiService } from '../../services/aiService.js';
 
@@ -41,7 +42,8 @@ function checkAvailabilityText($) {
   for (const selector of selectors) {
     const element = $(selector).first();
     if (element.length) {
-      // Clone and remove script/style tags
+      // Placeholder to ensure I read the file first.
+      // I will skip this edit for a moment and read the file first.emove script/style tags
       const clone = element.clone();
       clone.find('script, style, noscript').remove();
       let text = clone.text().trim().toLowerCase();
@@ -636,7 +638,8 @@ function extractOtherSellers($) {
   return otherSellers;
 }
 
-async function getPrice(url) {
+async function getPrice(url, options = {}) {
+  const { returnContent = false } = options;
   try {
     logger.debug(`🌐 Fetching: ${url}`);
 
@@ -695,6 +698,16 @@ async function getPrice(url) {
     }
 
     // ============================================
+    // MODE: CONTENT EXTRACTION (For AI Analysis)
+    // ============================================
+    if (returnContent) {
+      return {
+        content: response.data,
+        extractionMethod: 'axios-stealth'
+      };
+    }
+
+    // ============================================
     // STEP 1: Smart Availability Check
     // ============================================
     return await extractFromCheerio($, url);
@@ -709,7 +722,7 @@ async function getPrice(url) {
     if (isCaptcha || isForbidden || isNetworkError) {
       logger.warn(`⚠️ Axios failed (${error.message}). Attempting Puppeteer fallback...`);
       try {
-        return await fetchWithPuppeteer(url);
+        return await fetchWithPuppeteer(url, options);
       } catch (puppeteerError) {
         logger.error(`❌ Puppeteer fallback also failed: ${puppeteerError.message}`);
         // Throw the original error or a combined one? 
@@ -963,11 +976,12 @@ async function getPuppeteer() {
 /**
  * Fallback: Fetch with Puppeteer (Stealth Mode)
  */
-async function fetchWithPuppeteer(url) {
+async function fetchWithPuppeteer(url, options = {}) {
+  const { returnContent = false } = options;
   logger.info('🚀 Launching Puppeteer fallback (Stealth Mode)...');
   let browser = null;
-  // Use a unique user data dir to avoid conflicts
-  const userDataDir = `/tmp/puppeteer_profile_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  // Use persistent user data dir for session continuity (Stealth)
+  const userDataDir = path.resolve(process.cwd(), '.puppeteer_profile');
 
   try {
     const puppeteer = await getPuppeteer();
@@ -1073,6 +1087,14 @@ async function fetchWithPuppeteer(url) {
     await simulateHumanBehavior(page);
 
     const content = await page.content();
+
+    if (returnContent) {
+      return {
+        content,
+        extractionMethod: 'puppeteer-stealth'
+      };
+    }
+
     const $ = cheerio.load(content);
     return extractFromCheerio($, url);
   } catch (error) {
@@ -1086,22 +1108,27 @@ async function fetchWithPuppeteer(url) {
         logger.error(`Error closing browser: ${e.message}`);
       }
     }
-    // Clean up temporary user data dir
-    try {
-      if (userDataDir && userDataDir.includes('/tmp/puppeteer_profile_')) {
-        await fs.rm(userDataDir, { recursive: true, force: true });
-        logger.debug(`🧹 Cleaned up Puppeteer profile: ${userDataDir}`);
-      }
-    } catch (cleanupError) {
-      logger.warn(`Failed to cleanup temp dir ${userDataDir}: ${cleanupError.message}`);
-    }
+    // Persistent profile - do not delete
+    // if (userDataDir && userDataDir.includes('/tmp/puppeteer_profile_')) {
+    //   await fs.rm(userDataDir, { recursive: true, force: true });
+    // }
   }
 }
 
 /**
  * Main Wrapper with Retry Logic
  */
-async function getPriceWithRetry(url, retries = 2) {
+async function getPriceWithRetry(url, optionsOrRetries = {}) {
+  let retries = 2;
+  let options = {};
+
+  if (typeof optionsOrRetries === 'number') {
+    retries = optionsOrRetries;
+  } else if (typeof optionsOrRetries === 'object') {
+    options = optionsOrRetries;
+    if (options.retries !== undefined) retries = options.retries;
+  }
+
   for (let i = 0; i <= retries; i++) {
     try {
       if (i > 0) {
@@ -1110,7 +1137,7 @@ async function getPriceWithRetry(url, retries = 2) {
         await new Promise(r => setTimeout(r, delay));
       }
 
-      return await getPrice(url);
+      return await getPrice(url, options);
     } catch (error) {
       // If it's a permanent failure (like product not found or AI confirmed unavailable), don't retry
       if (error.message.includes('Product is') ||
