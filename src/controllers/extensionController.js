@@ -3,6 +3,7 @@ import Product from '../models/Product.js';
 import PricePoint from '../models/PricePoint.js';
 import { logger } from '../utils/logger.js';
 import { calculateDealScore, calculateVolatility, predictPriceTrend, calculatePriceStats } from '../utils/priceUtils.js';
+import { aiService } from '../services/aiService.js';
 
 export const syncProduct = async (req, res) => {
     try {
@@ -12,7 +13,23 @@ export const syncProduct = async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        logger.info(`📥 Extension Sync: ${asin} - ${price} EGP`);
+        // AI VERIFICATION FALLBACK
+        // If extension reports OutOfStock, double check with AI to be sure (and recover price if possible)
+        if (isOutOfStock || price === 0) {
+            logger.info(`🕵️ Extension flagged ${asin} as OOS. Verifying with AI...`);
+            const aiResult = await aiService.checkProductAvailability(url);
+
+            if (aiResult && aiResult.isAvailable && aiResult.price) {
+                logger.info(`✅ AI Correction: Item IS available at ${aiResult.price} EGP`);
+                // Override extension data
+                price = aiResult.price;
+                isOutOfStock = false;
+            } else if (aiResult && !aiResult.isAvailable) {
+                logger.debug(`✅ AI Confirmed OOS: ${aiResult.reason}`);
+            }
+        }
+
+        logger.info(`📥 Extension Sync: ${asin} - ${price} EGP (OOS: ${isOutOfStock})`);
 
         let product = await Product.findOne({ asin });
 

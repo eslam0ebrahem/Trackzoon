@@ -43,17 +43,74 @@ function scrapeProduct() {
     const imgEl = document.getElementById('landingImage');
     const imageUrl = imgEl ? imgEl.src : '';
 
-    // 5. Check Stock
-    const availabilityEl = document.getElementById('availability');
-    const availabilityText = availabilityEl ? availabilityEl.innerText.toLowerCase() : '';
-    const isOutOfStock = availabilityText.includes('currently unavailable') ||
-        availabilityText.includes('out of stock');
+    // 5. Check Stock (Smart Availability Check)
+    let isOutOfStock = false;
+    let availabilityReason = 'unknown';
+
+    const availabilityEl = document.getElementById('availability') || document.querySelector('#availability .a-color-state');
+    const availabilityText = availabilityEl ? availabilityEl.innerText.toLowerCase().trim() : '';
+
+    // Strategy 1: Explicit "Out of Stock" patterns
+    const outOfStockPatterns = [
+        'currently unavailable',
+        'temporarily unavailable',
+        'out of stock',
+        'temporarily out of stock',
+        'not available',
+        'currently not available',
+        'no longer available',
+        'discontinued'
+    ];
+
+    if (outOfStockPatterns.some(p => availabilityText.includes(p))) {
+        isOutOfStock = true;
+        availabilityReason = 'pattern-match';
+    }
+
+    // Strategy 2: "Unqualified Buy Box" (e.g., "See All Buying Options")
+    // This usually means no main seller, so we treat it as out of stock/unavailable for tracking
+    if (!isOutOfStock) {
+        const unqualifiedSelectors = [
+            '#unqualifiedBuyBox',
+            '#buybox-see-all-buying-choices',
+            '#buybox-see-all-buying-choices-announce',
+            'a[title="See All Buying Options"]',
+            '#fod-cx-box' // "No featured offers available"
+        ];
+
+        for (const sel of unqualifiedSelectors) {
+            const el = document.querySelector(sel);
+            if (el) {
+                // Double check for "No featured offers" text to be sure
+                if (sel === '#fod-cx-box') {
+                    if (el.innerText.toLowerCase().includes('no featured offers')) {
+                        isOutOfStock = true;
+                        availabilityReason = 'no-featured-offers';
+                        break;
+                    }
+                } else {
+                    isOutOfStock = true;
+                    availabilityReason = 'unqualified-buybox';
+                    break;
+                }
+            }
+        }
+    }
+
+    // Strategy 3: Third Party Seller Check
+    // If it says "Available from these sellers.", it might mean no authorized seller
+    if (!isOutOfStock && availabilityText.includes('available from these sellers')) {
+        isOutOfStock = true; // Treated as unavailable for main price tracking
+        availabilityReason = 'third-party-only';
+    }
+
+    console.log(`Trackzoon: Stock Check -> OutOfStock: ${isOutOfStock} (${availabilityReason})`);
 
     return {
         asin,
         url,
         name,
-        price,
+        price: isOutOfStock ? 0 : price, // Force price to 0 if out of stock to trigger server verification
         imageUrl,
         isOutOfStock
     };
