@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
 import { logger } from '../logger.js';
+import { aiService } from '../../services/aiService.js';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -16,6 +17,11 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
  * 3. Data validation layer
  * 4. Better error reporting
  */
+
+// ============================================
+// AI-POWERED FALLBACK (Perplexity/Sonar)
+// Logic moved to src/services/aiService.js
+// ============================================
 
 // ============================================
 // 1. SMART AVAILABILITY DETECTION
@@ -691,7 +697,7 @@ async function getPrice(url) {
     // ============================================
     // STEP 1: Smart Availability Check
     // ============================================
-    return extractFromCheerio($, url);
+    return await extractFromCheerio($, url);
 
   } catch (error) {
     // Check if we should try the fallback (Puppeteer)
@@ -729,7 +735,7 @@ async function getPrice(url) {
 /**
  * Extracted logic for processing Cheerio instance
  */
-function extractFromCheerio($, url) {
+async function extractFromCheerio($, url) {
   // ============================================
   // STEP 1: Smart Availability Check
   // ============================================
@@ -741,15 +747,45 @@ function extractFromCheerio($, url) {
     logger.error(`❌ Availability validation failed: ${availValidation.reason}`);
   }
 
-  if (!availabilityCheck.isAvailable) {
-    logger.info(`❌ Product unavailable: ${availabilityCheck.reason}`);
-    throw new Error(`Product is ${availabilityCheck.reason}: ${availabilityCheck.details}`);
-  }
+  // MOVED: Unavailability check is now handled after AI check.
 
   // ============================================
   // STEP 2: Multi-Strategy Price Extraction
   // ============================================
   const priceResult = smartPriceExtraction($);
+
+  // LOGIC ENHANCEMENT: If unavailable OR no price found, try AI verification
+  const isStandardUnavailable = !availabilityCheck.isAvailable;
+
+  if (isStandardUnavailable || !priceResult) {
+    logger.info('⚠️ Standard scraper reported unavailable/no-price. Verifying with AI...');
+    const aiResult = await aiService.checkProductAvailability(url);
+
+    if (aiResult) {
+      // If AI says it IS available, or gives a valid price, we trust it over the "dumb" scraper
+      if (aiResult.isAvailable && aiResult.price) {
+        logger.info(`✅ AI recovered product availability! Price: ${aiResult.price}`);
+        return {
+          currentPrice: aiResult.price,
+          isOutOfStock: false,
+          currency: aiResult.currency || 'EGP',
+          extractionMethod: 'ai-perplexity',
+          merchant: 'AI Detected',
+          delivery: aiResult.reason
+        };
+      }
+      // If AI confirms it's unavailable, strictly return unavailable
+      if (!aiResult.isAvailable) {
+        throw new Error(`Item unavailable (AI confirmed): ${aiResult.reason || availabilityCheck.reason}`);
+      }
+    }
+  }
+
+  // If AI didn't rescue, throw original error
+  if (!availabilityCheck.isAvailable) {
+    logger.info(`❌ Product unavailable: ${availabilityCheck.reason}`);
+    throw new Error(`Product is ${availabilityCheck.reason}: ${availabilityCheck.details}`);
+  }
 
   if (!priceResult) {
     // Last resort: check if we can find any price-like text in buy box
@@ -944,8 +980,10 @@ async function getPriceWithRetry(url, retries = 2) {
 
       return await getPrice(url);
     } catch (error) {
-      // If it's a permanent failure (like product not found), don't retry
-      if (error.message.includes('Product is') || error.message.includes('Price not found')) {
+      // If it's a permanent failure (like product not found or AI confirmed unavailable), don't retry
+      if (error.message.includes('Product is') ||
+        error.message.includes('Price not found') ||
+        error.message.includes('AI confirmed')) {
         throw error;
       }
 

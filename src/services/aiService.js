@@ -324,6 +324,76 @@ export class AiService {
             return null;
         }
     }
+    /**
+     * Check product availability and price using AI (for robust fallback)
+     * @param {string} url - Product URL
+     * @returns {Promise<{isAvailable: boolean, price: number | null, currency: string, reason: string}>}
+     */
+    async checkProductAvailability(url) {
+        if (!this.apiKey) {
+            logger.warn('Skipping AI availability check: PERPLEXITY_API_KEY not configured');
+            return null;
+        }
+
+        try {
+            logger.info('🤖 Initiating AI-powered price check...');
+            const prompt = `
+                You are a price scaling assistant. Go to this Amazon URL: ${url}
+                
+                Extract the following strictly in JSON format. Do not output any markdown formatting or explanation, just the raw JSON object.
+                {
+                    "isAvailable": boolean, // true if currently in stock and can be bought (exclude "See All Buying Options" if no main seller).
+                    "price": number | null, // The current main price.
+                    "currency": string, // "EGP", "USD", etc.
+                    "reason": string // Short reason.
+                }
+            `;
+
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: 'sonar',
+                    messages: [
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.1
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 30000
+                }
+            );
+
+            const content = response.data.choices[0]?.message?.content;
+            if (!content) return null;
+
+            // Robust JSON extraction
+            try {
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    logger.info(`🤖 AI Result: ${JSON.stringify(data)}`);
+                    return data;
+                } else {
+                    logger.warn(`⚠️ Could not find JSON in AI response: ${content}`);
+                    return null;
+                }
+            } catch (parseError) {
+                logger.error(`❌ Failed to parse AI JSON: ${parseError.message} | Content: ${content}`);
+                return null;
+            }
+
+        } catch (error) {
+            logger.error(`❌ AI Fetch Error: ${error.message}`);
+            if (error.response) {
+                logger.error(`Response Data: ${JSON.stringify(error.response.data)}`);
+            }
+            return null;
+        }
+    }
 }
 
 export const aiService = new AiService();
