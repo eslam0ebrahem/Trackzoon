@@ -849,6 +849,103 @@ async function extractFromCheerio($, url) {
   };
 }
 
+// ============================================
+// 5. HUMAN SIMULATION & STEALTH (CyberScraper Port)
+// ============================================
+
+/**
+ * Simulate human-like browsing behavior (Mouse moves, scrolling)
+ * Ported from CyberScraper-2077
+ */
+async function simulateHumanBehavior(page) {
+  logger.info('🤖 Simulating human behavior...');
+
+  try {
+    // 1. Random Scrolling
+    await page.evaluate(async () => {
+      const distance = Math.floor(Math.random() * (window.innerHeight / 2));
+      window.scrollBy(0, distance);
+    });
+    await new Promise(r => setTimeout(r, Math.random() * 500 + 500)); // 0.5-1s
+
+    // 2. Random Mouse Movements
+    const width = 1920;
+    const height = 1080;
+
+    // Move mouse to random coordinates a few times
+    for (let i = 0; i < 3; i++) {
+      const x = Math.floor(Math.random() * width) % 800; // Limit to typical content area
+      const y = Math.floor(Math.random() * height) % 800;
+
+      // Puppeteer mouse move
+      await page.mouse.move(x, y, { steps: 5 }); // 'steps' makes it smoother
+      await new Promise(r => setTimeout(r, Math.random() * 300 + 100));
+    }
+
+    // 3. Hover over random element
+    const randomSelector = ['a', 'button', 'input', 'img'].concat(['#title', '#price'])[Math.floor(Math.random() * 6)];
+    try {
+      const element = await page.$(randomSelector);
+      if (element) {
+        await element.hover();
+        await new Promise(r => setTimeout(r, Math.random() * 500 + 300));
+      }
+    } catch (e) {
+      // Ignore hover errors
+    }
+
+  } catch (error) {
+    logger.warn(`Human simulation warning: ${error.message}`);
+  }
+}
+
+/**
+ * Attempt to bypass Cloudflare protection
+ * Ported from CyberScraper-2077
+ */
+async function bypassCloudflare(page, url) {
+  logger.info('🛡️ Checking for Cloudflare...');
+
+  // Initial check
+  let content = await page.content();
+  let title = await page.title();
+
+  const isCloudflare = content.includes('Cloudflare') ||
+    title.includes('Just a moment') ||
+    content.includes('ray ID') ||
+    content.includes('Verify you are human');
+
+  if (!isCloudflare) return;
+
+  logger.warn('⚠️ Cloudflare detected! Initiating bypass protocol...');
+
+  const maxRetries = 3;
+  for (let i = 0; i < maxRetries; i++) {
+    logger.info(`🔄 Cloudflare Bypass Attempt ${i + 1}/${maxRetries}`);
+
+    // Wait a bit
+    await new Promise(r => setTimeout(r, 3000));
+
+    // Simulate interaction (sometimes needed to trigger check)
+    await simulateHumanBehavior(page);
+
+    // Check if passed
+    content = await page.content();
+    if (!content.includes('Verify you are human') && !title.includes('Just a moment')) {
+      logger.info('✅ Cloudflare seemingly bypassed!');
+      return;
+    }
+
+    // Reload if stuck
+    if (i < maxRetries - 1) {
+      logger.info('♻️ Reloading page...');
+      await page.reload({ waitUntil: 'domcontentloaded' });
+    }
+  }
+
+  logger.error('❌ Failed to bypass Cloudflare after retries');
+}
+
 // Initialize puppeteer-extra only once to prevent memory leaks/re-registration issues
 let puppeteerInstance = null;
 
@@ -922,6 +1019,34 @@ async function fetchWithPuppeteer(url) {
       }
     });
 
+    // START CyberScraper Stealth Port
+
+    // 1. Inject Permissions Patch (before page load)
+    await page.evaluateOnNewDocument(() => {
+      const originalQuery = window.navigator.permissions.query;
+      if (originalQuery) {
+        window.navigator.permissions.query = (parameters) => (
+          parameters.name === 'notifications' ?
+            Promise.resolve({ state: Notification.permission }) :
+            originalQuery(parameters)
+        );
+      }
+    });
+
+    // 2. Set Robust Headers
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Referer': 'https://www.google.com/',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1'
+    });
+
+    // END CyberScraper Stealth Port
+
     // Randomize viewport slightly
     await page.setViewport({
       width: 1920 + Math.floor(Math.random() * 100),
@@ -937,8 +1062,15 @@ async function fetchWithPuppeteer(url) {
     // Check for Captcha
     const title = await page.title();
     if (title.includes('Robot Check')) {
-      throw new Error('Puppeteer also hit Captcha (even with Stealth)');
+      logger.warn('⚠️ Captcha page detected. Attempting to bypass...');
+      // Solve captcha requires solver, but we can try simple reload/wait
+      await new Promise(r => setTimeout(r, 2000));
+      await page.reload({ waitUntil: 'domcontentloaded' });
     }
+
+    // NEW: Cloudflare & Human Simulation
+    await bypassCloudflare(page, url);
+    await simulateHumanBehavior(page);
 
     const content = await page.content();
     const $ = cheerio.load(content);
