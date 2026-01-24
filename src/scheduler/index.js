@@ -144,7 +144,7 @@ const startScheduler = (bot) => {
   };
 
   // Create and store cron tasks
-  const priceCheckTask = cron.schedule('0,30 * * * *', runPriceCheck);
+  const priceCheckTask = cron.schedule('0 * * * *', runPriceCheck);
   const dailyReportTask = cron.schedule('0 8 * * *', sendDailyReports);
 
   // Store tasks for cleanup
@@ -154,7 +154,7 @@ const startScheduler = (bot) => {
   setTimeout(runPriceCheck, 60 * 1000);
 
   console.log('Scheduler started:');
-  console.log('- Price checks: Every 30 minutes');
+  console.log('- Price checks: Every hour');
   console.log('- Daily reports: Every day at 8:00 AM');
 
   // Return cleanup function
