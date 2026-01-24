@@ -1,9 +1,11 @@
 import Product from '../models/Product.js';
 import { calculateVolatility, predictPriceTrend } from '../utils/priceUtils.js';
+import { aiService } from './aiService.js';
+import { logger } from '../utils/logger.js';
 
 class AnalyticsService {
     /**
-     * Get price forecast for the next 7 days
+     * Get price forecast for the next 7 days (AI Optimized)
      * @param {string} asin 
      */
     static async getPriceForecast(asin) {
@@ -13,37 +15,68 @@ class AnalyticsService {
         }
 
         const history = product.priceHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
-        const { trend, confidence, slope } = predictPriceTrend(history);
 
-        // Generate next 7 days points
+        // 1. Try AI Forecast first
+        try {
+            const aiPrompt = `
+                Analyze the price history for: "${product.name}"
+                History (Date: Price):
+                ${history.slice(-10).map(h => `${new Date(h.date).toLocaleDateString()}: ${h.price}`).join('\n')}
+                
+                Current Price: ${product.currentPrice}
+
+                Predict the price for the next 7 days considering:
+                1. Market volatility.
+                2. If the current price is a sudden drop (likely to rebound).
+                3. If it's stable.
+
+                Return strictly JSON:
+                {
+                  "forecast": [
+                    { "day": 1, "price": <number> },
+                    ...
+                    { "day": 7, "price": <number> }
+                  ],
+                  "trend": "RISE" | "FALL" | "STABLE",
+                  "confidence": <0.0 - 1.0>
+                }
+            `;
+
+            const aiResult = await aiService.ask({
+                systemPrompt: 'You are a financial analyst specializing in e-commerce pricing.',
+                userPrompt: aiPrompt,
+                model: 'sonar',
+                jsonMode: true
+            });
+
+            if (aiResult && aiResult.forecast && Array.isArray(aiResult.forecast)) {
+                // Map AI relative days to actual dates
+                const forecast = aiResult.forecast.map(f => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + f.day);
+                    return { date: d, price: f.price };
+                });
+                return { forecast, trend: aiResult.trend, confidence: aiResult.confidence };
+            }
+
+        } catch (error) {
+            logger.warn(`AI Forecast failed for ${asin}, falling back to linear regression: ${error.message}`);
+        }
+
+        // 2. Fallback to Linear Prediction
+        const { trend, confidence, slope } = predictPriceTrend(history);
         const forecast = [];
         const lastEntry = history[history.length - 1];
         const lastPrice = lastEntry.price;
         const lastDate = new Date(lastEntry.date);
-
-        // If confidence is too low, predict flat line
         const effectiveSlope = confidence > 0.3 ? slope : 0;
 
         for (let i = 1; i <= 7; i++) {
             const nextDate = new Date(lastDate);
             nextDate.setDate(lastDate.getDate() + i);
-
-            // Simple linear projection: y = mx + c
-            // We assume each array index in history was 1 unit of time roughly? 
-            // predictPriceTrend used index as X. 
-            // So we just add slope * i to the last price? 
-            // Wait, predictPriceTrend calculated slope based on index (0, 1, 2...).
-            // So the slope is "price change per history entry".
-            // This is rough because history entries might not be evenly spaced.
-            // But for a simple estimation it's okay.
-
             let predictedPrice = lastPrice + (effectiveSlope * i);
-            predictedPrice = Math.max(0, Math.round(predictedPrice * 100) / 100); // Ensure positive
-
-            forecast.push({
-                date: nextDate,
-                price: predictedPrice
-            });
+            predictedPrice = Math.max(0, Math.round(predictedPrice * 100) / 100);
+            forecast.push({ date: nextDate, price: predictedPrice });
         }
 
         return { forecast, trend, confidence };

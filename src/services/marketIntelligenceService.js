@@ -1,7 +1,6 @@
-import axios from 'axios';
 import { logger } from '../utils/logger.js';
+import { aiService } from './aiService.js';
 
-const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
 const MODEL_RESEARCH = 'sonar-pro'; // Deep research
 const MODEL_FAST = 'sonar'; // Fast queries
 
@@ -62,60 +61,6 @@ Do not include any text outside the JSON.
 `;
 
 class MarketIntelligenceService {
-    constructor() {
-        this.apiKey = process.env.PERPLEXITY_API_KEY;
-        if (!this.apiKey) {
-            logger.warn('PERPLEXITY_API_KEY is not set. Market Intelligence features will be disabled.');
-        }
-    }
-
-    async _callPerplexity(systemPrompt, userMessage, model = MODEL_FAST) {
-        if (!this.apiKey) {
-            throw new Error('Perplexity API key is missing.');
-        }
-
-        try {
-            const response = await axios.post(
-                PERPLEXITY_API_URL,
-                {
-                    model: model,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userMessage }
-                    ],
-                    temperature: 0.2
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-
-            const content = response.data.choices[0].message.content;
-
-            // Attempt to parse JSON (handle potential markdown code blocks or chatty text)
-            let jsonString = content;
-            const codeBlockMatch = content.match(/```json\n([\s\S]*?)\n```/);
-            if (codeBlockMatch) {
-                jsonString = codeBlockMatch[1];
-            } else {
-                // Fallback: try to find the first { and last }
-                const firstBrace = content.indexOf('{');
-                const lastBrace = content.lastIndexOf('}');
-                if (firstBrace !== -1 && lastBrace !== -1) {
-                    jsonString = content.substring(firstBrace, lastBrace + 1);
-                }
-            }
-            return JSON.parse(jsonString);
-
-        } catch (error) {
-            logger.error('Perplexity API Error:', error.response?.data || error.message);
-            throw error;
-        }
-    }
-
     /**
      * Search for products based on natural language query.
      * @param {string} query - User's shopping query
@@ -123,7 +68,17 @@ class MarketIntelligenceService {
      */
     async searchProduct(query) {
         logger.info(`Market Intelligence: Searching for "${query}"`);
-        return this._callPerplexity(PROMPT_SEARCH_PRODUCT, query, MODEL_RESEARCH);
+        try {
+            return await aiService.ask({
+                systemPrompt: PROMPT_SEARCH_PRODUCT,
+                userPrompt: query,
+                model: MODEL_RESEARCH,
+                jsonMode: true
+            });
+        } catch (error) {
+            logger.error('Market Intelligence Search failed', error);
+            return { summary: "Search unavailable", products: [] };
+        }
     }
 
     /**
@@ -134,7 +89,17 @@ class MarketIntelligenceService {
     async comparePrices(productName) {
         logger.info(`Market Intelligence: Comparing prices for "${productName}"`);
         const query = `Find the price of "${productName}" in Egypt on Noon, Jumia, and other major retailers.`;
-        return this._callPerplexity(PROMPT_COMPARE_PRICES, query, MODEL_FAST);
+        try {
+            return await aiService.ask({
+                systemPrompt: PROMPT_COMPARE_PRICES,
+                userPrompt: query,
+                model: MODEL_FAST,
+                jsonMode: true
+            });
+        } catch (error) {
+            logger.error('Market Intelligence Price Compare failed', error);
+            return { competitors: [], lowestPrice: 0, lowestPlatform: "None" };
+        }
     }
 
     /**
@@ -146,8 +111,20 @@ class MarketIntelligenceService {
     async analyzeDeal(productName, currentPrice) {
         logger.info(`Market Intelligence: Analyzing deal for "${productName}" at ${currentPrice}`);
         const query = `Analyze this deal: "${productName}" at ${currentPrice} EGP. Is a new model coming out? Are there defects?`;
-        return this._callPerplexity(PROMPT_ANALYZE_DEAL, query, MODEL_RESEARCH);
+        try {
+            return await aiService.ask({
+                systemPrompt: PROMPT_ANALYZE_DEAL,
+                userPrompt: query,
+                model: MODEL_RESEARCH,
+                jsonMode: true
+            });
+        } catch (error) {
+            logger.error('Market Intelligence Deal Analysis failed', error);
+            // Fallback object
+            return { advice: "neutral", reasoning: "AI analysis unavailable", newsSummary: "" };
+        }
     }
 }
 
 export const marketIntelligenceService = new MarketIntelligenceService();
+

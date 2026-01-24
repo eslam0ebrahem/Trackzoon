@@ -8,6 +8,59 @@ export class AiService {
     }
 
     /**
+     * Generic method to call Perplexity AI
+     * @param {Object} options - { systemPrompt, userPrompt, model, temperature, jsonMode }
+     * @returns {Promise<any>} - Parsed JSON or string content
+     */
+    async ask({ systemPrompt, userPrompt, model = 'sonar', temperature = 0.2, jsonMode = false }) {
+        if (!this.apiKey) {
+            throw new Error('PERPLEXITY_API_KEY not configured');
+        }
+
+        try {
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: model,
+                    messages: [
+                        { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: temperature
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 30000
+                }
+            );
+
+            const content = response.data.choices[0].message.content;
+
+            if (jsonMode) {
+                const jsonString = content.replace(/```json/g, '').replace(/```/g, '').trim();
+                // Simple cleanup to extract JSON if surrounded by text
+                const firstBrace = jsonString.indexOf('{');
+                const lastBrace = jsonString.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                    return JSON.parse(jsonString.substring(firstBrace, lastBrace + 1));
+                }
+                return JSON.parse(jsonString);
+            }
+
+            return content;
+
+        } catch (error) {
+            if (error.response) {
+                logger.error(`AI API Error: ${JSON.stringify(error.response.data)}`);
+            }
+            throw new Error(`AI Request failed: ${error.message}`);
+        }
+    }
+
+    /**
      * Analyze a product deal using Perplexity AI
      * @param {Object} product - Product object
      * @returns {Promise<Object>} - { score: number, reason: string }
