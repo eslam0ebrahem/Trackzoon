@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { logger } from '../utils/logger.js';
+import { SystemPrompts } from '../utils/prompts.js';
 
 export class AiService {
     constructor() {
@@ -23,7 +24,7 @@ export class AiService {
                 {
                     model: model,
                     messages: [
-                        { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
+                        { role: 'system', content: systemPrompt || SystemPrompts.SHOPPING_ASSISTANT },
                         { role: 'user', content: userPrompt }
                     ],
                     temperature: temperature
@@ -72,10 +73,7 @@ export class AiService {
         }
 
         try {
-            const prompt = `
-        You are a strict, expert shopping assistant for the Egyptian market (Amazon Egypt).
-        Evaluate this deal based on value for money, price history, and market context.
-
+            const userPrompt = `
         Product: ${product.name}
         Current Price: EGP ${product.currentPrice}
         Url: ${product.url}
@@ -87,48 +85,15 @@ export class AiService {
         - 30-day Low: EGP ${product.stats?.min || 'N/A'}
         - 30-day Average: EGP ${product.stats?.avg || 'N/A'}
         - 30-day High: EGP ${product.stats?.max || 'N/A'}
-        
-        Task:
-        1. Rate this deal from 0-100. Be strict. 
-           - 90-100: Absolute steal, buy immediately (rare).
-           - 70-89: Great deal, highly recommended.
-           - 50-69: Fair price, okay to buy if needed.
-           - 0-49: Bad price, overpriced, or fake deal.
-        2. Provide a punchy, 15-word reason.
-        3. Compare with general market price in Egypt if possible.
-
-        Return ONLY a JSON object:
-        {
-          "score": <number>,
-          "reason": "<string>"
-        }
       `;
 
-            const response = await axios.post(
-                this.apiUrl,
-                {
-                    model: 'sonar',
-                    messages: [
-                        { role: 'system', content: 'You are a helpful shopping assistant that outputs only valid JSON.' },
-                        { role: 'user', content: prompt }
-                    ],
-                    temperature: 0.1
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 30000 // 30s timeout
-                }
-            );
-
-            const content = response.data.choices[0].message.content;
-
-            // Clean up markdown code blocks if present
-            const jsonString = content.replace(/```json/g, '').replace(/```/g, '').trim();
-
-            const result = JSON.parse(jsonString);
+            const result = await this.ask({
+                systemPrompt: SystemPrompts.ANALYZE_DEAL_JSON,
+                userPrompt: userPrompt,
+                model: 'sonar',
+                temperature: 0.1,
+                jsonMode: true
+            });
 
             return {
                 score: Math.min(100, Math.max(0, parseInt(result.score) || 50)),
@@ -136,9 +101,6 @@ export class AiService {
             };
 
         } catch (error) {
-            if (error.response) {
-                logger.error(`AI Analysis API Error: ${JSON.stringify(error.response.data)}`);
-            }
             logger.error(`AI Analysis failed for ${product.asin}:`, error.message);
             return null;
         }
@@ -166,8 +128,6 @@ export class AiService {
                 : "No specific global deals active right now.";
 
             const prompt = `
-        You are a helpful shopping assistant for Amazon Egypt.
-        
         User's Question: "${query}"
         
         Context:
@@ -184,25 +144,11 @@ export class AiService {
         Keep the answer concise (max 3-4 sentences) and helpful. Use emojis.
       `;
 
-            const response = await axios.post(
-                this.apiUrl,
-                {
-                    model: 'sonar',
-                    messages: [
-                        { role: 'system', content: 'You are a helpful shopping assistant.' },
-                        { role: 'user', content: prompt }
-                    ]
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 30000
-                }
-            );
-
-            return response.data.choices[0].message.content;
+            return await this.ask({
+                systemPrompt: SystemPrompts.SHOPPING_ASSISTANT,
+                userPrompt: prompt,
+                model: 'sonar'
+            });
 
         } catch (error) {
             logger.error('AI Question failed:', error.message);
@@ -223,34 +169,25 @@ export class AiService {
         Categorize this product for an e-commerce dashboard.
         Product: "${name}"
         
-        Return ONLY a JSON object:
-        {
-          "category": "<One broad category e.g. Electronics, Home, Fashion, Gaming, Beauty>",
-          "tags": ["<tag1>", "<tag2>", "<tag3>"] (Max 3 specific tags)
-        }
+        Return JSON object with "category" and "tags" (array).
       `;
 
-            const response = await axios.post(
-                this.apiUrl,
-                {
-                    model: 'sonar',
-                    messages: [
-                        { role: 'system', content: 'You are a helpful assistant that outputs only valid JSON.' },
-                        { role: 'user', content: prompt }
-                    ]
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 10000
-                }
-            );
+            // Using Generic JSON prompt structure implicitly via ask if needed, 
+            // but here we can just use a simple inline system prompt or add a specialized one.
+            // For now, let's reuse a simple system prompt or define one inline since it wasn't in the main list
+            // actually let's stick to the pattern.
 
-            const content = response.data.choices[0].message.content;
-            const jsonString = content.replace(/```json/g, '').replace(/```/g, '').trim();
-            return JSON.parse(jsonString);
+            return await this.ask({
+                systemPrompt: `You are a helpful assistant. ${SystemPrompts.DATA_EXPORT_INSTRUCTIONS || 'Return valid JSON.'}`,
+                // Note: DATA_EXPORT_INSTRUCTIONS isn't exported directly, so I'll just use inline for this minor one
+                // OR better, I can assume the generic helper handles JSON mode well enough if I instruct it.
+                // Let's rely on the ask method's jsonMode which we improved.
+                systemPrompt: "You are a categorization assistant. Return only a JSON object with 'category' and 'tags'.",
+                userPrompt: prompt,
+                model: 'sonar',
+                jsonMode: true
+            });
+
         } catch (error) {
             logger.error('AI Categorization failed:', error.message);
             return { category: 'Uncategorized', tags: [] };
@@ -266,46 +203,21 @@ export class AiService {
         if (!this.apiKey) return null;
 
         try {
-            // Simplify history for prompt
             const history = product.priceHistory.slice(-10).map(h => h.price).join(', ');
 
             const prompt = `
-        Analyze the price trend for this product.
         Product: ${product.name}
         Recent Prices (Oldest to Newest): [${history}]
         Current Price: ${product.currentPrice}
-        
-        Will the price likely DROP, RISE, or STAY STABLE in the next 7 days?
-        
-        Return ONLY a JSON object:
-        {
-          "trend": "<DROP|RISE|STABLE>",
-          "confidence": <0.0 to 1.0>,
-          "reason": "<Very short reason>"
-        }
       `;
 
-            const response = await axios.post(
-                this.apiUrl,
-                {
-                    model: 'sonar',
-                    messages: [
-                        { role: 'system', content: 'You are a financial analyst that outputs only valid JSON.' },
-                        { role: 'user', content: prompt }
-                    ]
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 15000
-                }
-            );
+            return await this.ask({
+                systemPrompt: SystemPrompts.TREND_PREDICTION_JSON,
+                userPrompt: prompt,
+                model: 'sonar',
+                jsonMode: true
+            });
 
-            const content = response.data.choices[0].message.content;
-            const jsonString = content.replace(/```json/g, '').replace(/```/g, '').trim();
-            return JSON.parse(jsonString);
         } catch (error) {
             logger.error('AI Prediction failed:', error.message);
             return null;
@@ -321,7 +233,6 @@ export class AiService {
         if (!this.apiKey || products.length === 0) return null;
 
         try {
-            // Calculate some stats to help the AI
             const totalProducts = products.length;
             const priceDrops = products.filter(p => p.priceChange < 0).length;
             const totalSavings = products.reduce((acc, p) => {
@@ -336,8 +247,6 @@ export class AiService {
             ).join('\n');
 
             const prompt = `
-        You are a financial portfolio manager for an Amazon shopper.
-        
         Portfolio Stats:
         - Total Products: ${totalProducts}
         - Price Drops Today: ${priceDrops}
@@ -346,37 +255,20 @@ export class AiService {
         Top Items:
         ${productContext}
         
-        Write a short, engaging daily summary (max 2-3 sentences).
-        - If there are savings, celebrate them.
-        - If everything is stable, tell them to be patient.
-        - Use emojis.
-        - Do NOT list every product, just give a high-level vibe check.
+        Write a short, engaging daily summary (max 2-3 sentences). celebrate savings.
       `;
 
-            const response = await axios.post(
-                this.apiUrl,
-                {
-                    model: 'sonar',
-                    messages: [
-                        { role: 'system', content: 'You are a helpful assistant.' },
-                        { role: 'user', content: prompt }
-                    ]
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 20000
-                }
-            );
-
-            return response.data.choices[0].message.content;
+            return await this.ask({
+                systemPrompt: SystemPrompts.SHOPPING_ASSISTANT,
+                userPrompt: prompt,
+                model: 'sonar'
+            });
         } catch (error) {
             logger.error('AI Daily Summary failed:', error.message);
             return null;
         }
     }
+
     /**
      * Check product availability and price using AI (for robust fallback)
      * @param {string} url - Product URL
@@ -390,60 +282,17 @@ export class AiService {
 
         try {
             logger.info('🤖 Initiating AI-powered price check...');
-            const prompt = `
-                You are a price scaling assistant. Go to this Amazon URL: ${url}
-                
-                Extract the following strictly in JSON format. Do not output any markdown formatting or explanation, just the raw JSON object.
-                {
-                    "isAvailable": boolean, // true if currently in stock and can be bought (exclude "See All Buying Options" if no main seller).
-                    "price": number | null, // The current main price.
-                    "currency": string, // "EGP", "USD", etc.
-                    "reason": string // Short reason.
-                }
-            `;
 
-            const response = await axios.post(
-                this.apiUrl,
-                {
-                    model: 'sonar',
-                    messages: [
-                        { role: 'user', content: prompt }
-                    ],
-                    temperature: 0.1
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 30000
-                }
-            );
-
-            const content = response.data.choices[0]?.message?.content;
-            if (!content) return null;
-
-            // Robust JSON extraction
-            try {
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    const data = JSON.parse(jsonMatch[0]);
-                    logger.info(`🤖 AI Result: ${JSON.stringify(data)}`);
-                    return data;
-                } else {
-                    logger.warn(`⚠️ Could not find JSON in AI response: ${content}`);
-                    return null;
-                }
-            } catch (parseError) {
-                logger.error(`❌ Failed to parse AI JSON: ${parseError.message} | Content: ${content}`);
-                return null;
-            }
+            return await this.ask({
+                systemPrompt: SystemPrompts.AVAILABILITY_CHECK_JSON,
+                userPrompt: `Check availability for this URL: ${url}`,
+                model: 'sonar',
+                temperature: 0.1,
+                jsonMode: true
+            });
 
         } catch (error) {
             logger.error(`❌ AI Fetch Error: ${error.message}`);
-            if (error.response) {
-                logger.error(`Response Data: ${JSON.stringify(error.response.data)}`);
-            }
             return null;
         }
     }
