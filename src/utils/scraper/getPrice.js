@@ -191,6 +191,29 @@ function smartAvailabilityCheck($) {
   const buyBox = checkBuyBoxPresence($);
   logger.debug(`📦 Buy box present: ${buyBox.hasBox} (selector: ${buyBox.selector})`);
 
+  // NEW: Check for "unqualified" buy box (e.g. "See All Buying Options" but no Add to Cart)
+  // This usually means the item is out of stock from the main seller or only available via third parties
+  const unqualifiedSelectors = [
+    '#unqualifiedBuyBox',
+    '#buybox-see-all-buying-choices',
+    '#buybox-see-all-buying-choices-announce',
+    'a[title="See All Buying Options"]'
+  ];
+
+  const hasUnqualifiedBuyBox = unqualifiedSelectors.some(sel => $(sel).length > 0);
+  if (hasUnqualifiedBuyBox) {
+    logger.debug('❌ Unqualified Buy Box detected (See All Buying Options)');
+    // If we have an unqualified buy box, treat as unavailable essentially, 
+    // unless we want to track third party prices (which checkThirdPartySeller checks for).
+    // But since checkThirdPartySeller didn't trigger above (it's the first check), 
+    // we can assume we want to mark this as unavailable to avoid grabbing random prices.
+    return {
+      isAvailable: false,
+      reason: 'no-featured-offers',
+      details: 'Unqualified Buy Box present'
+    };
+  }
+
   // If no availability text but no buy box, might be unavailable
   if (!availText.text && !buyBox.hasBox) {
     logger.warn('⚠️ No availability text AND no buy box - treating as unavailable');
@@ -258,10 +281,11 @@ function extractPriceFromSelectors($) {
     '#price_inside_buybox',
     '#priceblock_ourprice',
     '#priceblock_dealprice',
-    '.a-price .a-offscreen',
+    // '.a-price .a-offscreen', // Too broad, picks up related items
     '#buybox .a-price .a-offscreen',
     '#apex_desktop .a-price .a-offscreen',
-    '.reinvent-PriceDisplay .a-offscreen'
+    '.reinvent-PriceDisplay .a-offscreen',
+    '#centerCol .a-price .a-offscreen' // Safer fallback than global
   ];
 
   for (const selector of selectors) {
