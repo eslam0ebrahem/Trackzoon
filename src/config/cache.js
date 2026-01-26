@@ -15,7 +15,7 @@ let isEnabled = false;
  */
 export const initCache = () => {
   const redisUrl = process.env.REDIS_URL;
-  
+
   if (!redisUrl) {
     console.log('⚠️  Redis URL not configured. Caching disabled.');
     console.log('   To enable: Set REDIS_URL environment variable');
@@ -160,6 +160,11 @@ export const closeCache = async () => {
 };
 
 /**
+ * Get raw Redis client
+ */
+export const getClient = () => redisClient;
+
+/**
  * Cache key generators for consistency
  */
 export const CacheKeys = {
@@ -188,6 +193,7 @@ export default {
   del,
   deletePattern,
   isEnabled: isCacheEnabled,
+  getClient: () => redisClient,
   close: closeCache,
   keys: CacheKeys,
   ttl: CacheTTL,

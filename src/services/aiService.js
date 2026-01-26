@@ -3,7 +3,7 @@ import { logger } from '../utils/logger.js';
 import { SystemPrompts } from '../utils/prompts.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { cleanHtml } from '../utils/htmlCleaner.js';
-
+import cache from '../config/cache.js';
 export class AiService {
     constructor() {
         this.perplexityKey = process.env.PERPLEXITY_API_KEY;
@@ -18,8 +18,8 @@ export class AiService {
             .filter(p => p);
 
         // RATE LIMITER: Gemini Free Tier (15 RPM -> 1 req / 4s)
-        this.geminiRequestQueue = Promise.resolve();
         this.minGeminiInterval = 4500; // 4.5s buffer (safe side)
+        this.geminiRequestQueue = Promise.resolve();
         this.lastGeminiRequestTime = 0;
     }
 
@@ -81,26 +81,55 @@ export class AiService {
     }
 
     /**
-     * Rate Limiter for Gemini
-     * Ensures requests are spaced out by minGeminiInterval
+     * Rate Limiter for Gemini (Distributed)
+     * Uses Redis to coordinate across processes
      */
     async throttleGemini() {
-        const nextRequest = this.geminiRequestQueue.then(async () => {
-            const now = Date.now();
-            const timeSinceLast = now - this.lastGeminiRequestTime;
+        const redis = cache.getClient();
 
-            if (timeSinceLast < this.minGeminiInterval) {
-                const waitTime = this.minGeminiInterval - timeSinceLast;
-                logger.debug(`⏳ Gemini throttling: waiting ${waitTime}ms...`);
-                await new Promise(r => setTimeout(r, waitTime));
+        // Fallback to local in-memory throttling if Redis is not available
+        if (!redis || !cache.isEnabled()) {
+            const nextRequest = this.geminiRequestQueue.then(async () => {
+                const now = Date.now();
+                const timeSinceLast = now - this.lastGeminiRequestTime;
+                if (timeSinceLast < this.minGeminiInterval) {
+                    const waitTime = this.minGeminiInterval - timeSinceLast;
+                    logger.debug(`⏳ Gemini Local Throttling: waiting ${waitTime}ms...`);
+                    await new Promise(r => setTimeout(r, waitTime));
+                }
+                this.lastGeminiRequestTime = Date.now();
+            });
+            this.geminiRequestQueue = nextRequest.catch(() => { });
+            return nextRequest;
+        }
+
+        const key = 'gemini:rate_limit_lock';
+
+        while (true) {
+            // Check current TTL to sleep efficiently
+            const ttl = await redis.pttl(key);
+
+            if (ttl > 0) {
+                logger.debug(`⏳ Gemini Global Rate Limit: Waiting ${ttl}ms...`);
+                // Wait the remaining time + 100ms buffer
+                await new Promise(r => setTimeout(r, ttl + 100));
+                continue;
             }
 
-            this.lastGeminiRequestTime = Date.now();
-        });
+            // Try to acquire the lock (SET key val PX 4500 NX)
+            // This sets the key only if it doesn't exist, with 4.5s expiry
+            const result = await redis.set(key, '1', 'PX', this.minGeminiInterval, 'NX');
 
-        // Update the queue tail, catching errors so one failure doesn't block the queue forever
-        this.geminiRequestQueue = nextRequest.catch(() => { });
-        return nextRequest;
+            if (result === 'OK') {
+                // Lock acquired! We are allowed to proceed.
+                // The lock serves as the "cooldown" itself.
+                return;
+            }
+
+            // If we failed to acquire (result null), it means someone else just grabbed it.
+            // Loop again to check TTL.
+            await new Promise(r => setTimeout(r, 200));
+        }
     }
 
     async askGemini({ systemPrompt, userPrompt, temperature, jsonMode }) {
