@@ -10,28 +10,38 @@ export class AiService {
         this.geminiKey = process.env.GEMINI_API_KEY;
         this.perplexityUrl = 'https://api.perplexity.ai/chat/completions';
         this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+
+        // Parse providers from env, default to PERPLEXITY then GEMINI
+        const envProviders = process.env.AI_PROVIDERS || 'PERPLEXITY,GEMINI';
+        this.providers = envProviders.split(/[,&]/) // Support comma or & as separator
+            .map(p => p.trim().toUpperCase())
+            .filter(p => p);
     }
 
     /**
-     * Generic method to call AI with Fallback
+     * Generic method to call AI with Dynamic Fallback
      * @param {Object} options - { systemPrompt, userPrompt, model, temperature, jsonMode }
      * @returns {Promise<any>} - Parsed JSON or string content
      */
     async ask({ systemPrompt, userPrompt, model = 'sonar', temperature = 0.2, jsonMode = false }) {
-        try {
-            // Priority 1: Perplexity
-            return await this.askPerplexity({ systemPrompt, userPrompt, model, temperature, jsonMode });
-        } catch (error) {
-            logger.warn(`⚠️ Perplexity failed: ${error.message}. Falling back to Gemini...`);
+        let lastError = null;
 
-            // Priority 2: Gemini
+        for (const provider of this.providers) {
             try {
-                return await this.askGemini({ systemPrompt, userPrompt, temperature, jsonMode });
-            } catch (geminiError) {
-                logger.error(`❌ Gemini also failed: ${geminiError.message}`);
-                throw new Error('All AI providers failed.');
+                if (provider === 'PERPLEXITY') {
+                    return await this.askPerplexity({ systemPrompt, userPrompt, model, temperature, jsonMode });
+                } else if (provider === 'GEMINI') {
+                    return await this.askGemini({ systemPrompt, userPrompt, temperature, jsonMode });
+                }
+            } catch (error) {
+                logger.warn(`⚠️ ${provider} failed: ${error.message}.`);
+                lastError = error;
+                // Continue to next provider
             }
         }
+
+        logger.error('❌ All configured AI providers failed.');
+        throw new Error(`All AI providers failed. Last error: ${lastError?.message}`);
     }
 
     async askPerplexity({ systemPrompt, userPrompt, model, temperature, jsonMode }) {
