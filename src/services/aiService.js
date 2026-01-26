@@ -16,6 +16,11 @@ export class AiService {
         this.providers = envProviders.split(/[,&]/) // Support comma or & as separator
             .map(p => p.trim().toUpperCase())
             .filter(p => p);
+
+        // RATE LIMITER: Gemini Free Tier (15 RPM -> 1 req / 4s)
+        this.geminiRequestQueue = Promise.resolve();
+        this.minGeminiInterval = 4500; // 4.5s buffer (safe side)
+        this.lastGeminiRequestTime = 0;
     }
 
     /**
@@ -75,11 +80,33 @@ export class AiService {
         return this.parseContent(content, jsonMode);
     }
 
+    /**
+     * Rate Limiter for Gemini
+     * Ensures requests are spaced out by minGeminiInterval
+     */
+    async throttleGemini() {
+        const nextRequest = this.geminiRequestQueue.then(async () => {
+            const now = Date.now();
+            const timeSinceLast = now - this.lastGeminiRequestTime;
+
+            if (timeSinceLast < this.minGeminiInterval) {
+                const waitTime = this.minGeminiInterval - timeSinceLast;
+                logger.debug(`⏳ Gemini throttling: waiting ${waitTime}ms...`);
+                await new Promise(r => setTimeout(r, waitTime));
+            }
+
+            this.lastGeminiRequestTime = Date.now();
+        });
+
+        // Update the queue tail, catching errors so one failure doesn't block the queue forever
+        this.geminiRequestQueue = nextRequest.catch(() => { });
+        return nextRequest;
+    }
+
     async askGemini({ systemPrompt, userPrompt, temperature, jsonMode }) {
         if (!this.geminiKey) throw new Error('GEMINI_API_KEY not configured');
 
-        // Context handling for Gemini (it doesn't have system role in the same way for v1beta in simple mode, but we can prepend)
-        // Gemini 1.5 supports system instructions, but for simplicity via REST, we'll prepend.
+        // Context handling for Gemini
         const combinedPrompt = `${systemPrompt || ''}\n\n${userPrompt}`;
 
         const maxRetries = 5;
@@ -87,6 +114,9 @@ export class AiService {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
+                // Apply Rate Limiting
+                await this.throttleGemini();
+
                 const response = await axios.post(
                     `${this.geminiUrl}?key=${this.geminiKey}`,
                     {
