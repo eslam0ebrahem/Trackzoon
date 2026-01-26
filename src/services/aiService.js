@@ -9,7 +9,7 @@ export class AiService {
         this.perplexityKey = process.env.PERPLEXITY_API_KEY;
         this.geminiKey = process.env.GEMINI_API_KEY;
         this.perplexityUrl = 'https://api.perplexity.ai/chat/completions';
-        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
     }
 
     /**
