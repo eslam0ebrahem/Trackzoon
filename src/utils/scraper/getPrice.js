@@ -439,7 +439,7 @@ function smartPriceExtraction($) {
   const strategies = [
     { name: 'Selector-based', fn: function () { return extractPriceFromSelectors($); } },
     { name: 'Buy box input', fn: function () { return extractPriceFromBuyBox($); } },
-    { name: 'More Buying Choices', fn: function () { return extractPriceFromMoreBuyingChoices($); } }, // NEW STRATEGY
+    // { name: 'More Buying Choices', fn: function () { return extractPriceFromMoreBuyingChoices($); } }, // DISABLED: User prefers AI for this
     { name: 'JSON-LD', fn: function () { return extractPriceFromJSONLD($); } }
   ];
 

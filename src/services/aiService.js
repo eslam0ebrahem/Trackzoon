@@ -148,6 +148,35 @@ export class AiService {
         }
     }
 
+    /**
+     * Rate Limiter for Groq (Simple 2s interval to spread TPM)
+     */
+    async throttleGroq() {
+        // Simple local sleep for now, as Groq is fast but TPM is the bottleneck.
+        // 2000ms ensures we don't burst more than 30 req/min, which combined with 1k tokens/req = 30k TPM (still high).
+        // The Free limit is 6000 TPM. So max 6 req/min if each is 1k tokens.
+        // Let's set interval to 8000ms (7.5 RPM) to be safe for 6000 TPM.
+        const minInterval = 8000;
+
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Fixed small delay for jitter
+
+        // Use Redis if available for global coordination
+        const redis = cache.getClient();
+        if (redis && cache.isEnabled()) {
+            const key = 'groq:rate_limit_lock';
+            while (true) {
+                const ttl = await redis.pttl(key);
+                if (ttl > 0) {
+                    await new Promise(r => setTimeout(r, ttl + 100));
+                    continue;
+                }
+                const result = await redis.set(key, '1', 'PX', minInterval, 'NX');
+                if (result === 'OK') return;
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
+    }
+
     async askGemini({ systemPrompt, userPrompt, temperature, jsonMode }) {
         if (!this.geminiKey) throw new Error('GEMINI_API_KEY not configured');
 
@@ -210,6 +239,8 @@ export class AiService {
         const model = 'llama-3.1-8b-instant';
 
         try {
+            await this.throttleGroq();
+
             const response = await axios.post(
                 this.groqUrl,
                 {
@@ -536,7 +567,7 @@ export class AiService {
                 promptContext = `
                 Analyze the following product page content (from ${url}):
                 
-                ${finalContent.substring(0, 15000)} // Truncate to avoid token limits
+                ${finalContent.substring(0, 4500)} // Truncated to ~1k tokens to respect Groq/Gemini TPM limits
                 `;
             }
 
