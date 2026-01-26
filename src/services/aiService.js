@@ -19,8 +19,9 @@ export class AiService {
             .filter(p => p);
 
         // RATE LIMITER: Gemini Free Tier (15 RPM -> 1 req / 4s)
-        // Allow override from env (defaults to 4500ms for safety)
-        this.minGeminiInterval = parseInt(process.env.GEMINI_RATE_LIMIT_MS) || 4500;
+        // UPDATE: Appears 2.0/2.5 Flash might have strict 5 RPM limit (1 req / 12s)
+        // Allow override from env (defaults to 12000ms for safety)
+        this.minGeminiInterval = parseInt(process.env.GEMINI_RATE_LIMIT_MS) || 12000;
         this.geminiRequestQueue = Promise.resolve();
         this.lastGeminiRequestTime = 0;
     }
