@@ -21,9 +21,9 @@ export class NotificationService {
             const savings = oldPrice - newPrice;
             const percentDrop = ((savings / oldPrice) * 100).toFixed(1);
 
-            let header = '📉 *Price Drop Alert!*';
-            if (isAllTimeLow) header = '🔥 *ALL TIME LOW!*';
-            else if (Number(percentDrop) > 20) header = '⚡ *HUGE DROP!*';
+            let header = '📉 *Price Drop Alert\\!*';
+            if (isAllTimeLow) header = '🔥 *ALL TIME LOW\\!*';
+            else if (Number(percentDrop) > 20) header = '⚡ *HUGE DROP\\!*';
 
             // AI Analysis (Responsive Fallback)
             let aiInsight = '';
@@ -40,6 +40,7 @@ export class NotificationService {
 
                     if (analysis && analysis.score) {
                         const scoreEmoji = analysis.score >= 80 ? '🟢' : analysis.score >= 50 ? '🟡' : '🔴';
+                        // Note: emoji doesn't need escape. Score needs, reason needs.
                         aiInsight = `\n🧠 *AI Score:* ${scoreEmoji} ${analysis.score}/100\n💡 _${escapeMarkdownV2(analysis.reason)}_\n`;
                     }
                 });
@@ -54,13 +55,13 @@ export class NotificationService {
                 '',
                 `💰 *Now:* EGP ${escapeMarkdownV2(newPrice.toFixed(2))}`,
                 `❌ *Was:* ~EGP ${escapeMarkdownV2(oldPrice.toFixed(2))}~`,
-                `📉 *Drop:* ${escapeMarkdownV2(percentDrop)}% (Save EGP ${escapeMarkdownV2(savings.toFixed(2))})`,
+                `📉 *Drop:* ${escapeMarkdownV2(percentDrop)}% \\(Save EGP ${escapeMarkdownV2(savings.toFixed(2))}\\)`,
                 '',
-                avgPrice > 0 ? `📊 *Ave:* EGP ${escapeMarkdownV2(avgPrice.toFixed(0))} | *Max:* EGP ${escapeMarkdownV2(maxPrice.toFixed(0))}` : '',
+                avgPrice > 0 ? `📊 *Ave:* EGP ${escapeMarkdownV2(avgPrice.toFixed(0))} \\| *Max:* EGP ${escapeMarkdownV2(maxPrice.toFixed(0))}` : '',
                 tracker.thresholdPrice ? `🎯 *Target:* EGP ${escapeMarkdownV2(tracker.thresholdPrice.toFixed(2))}` : '',
                 '',
                 aiInsight, // Insert AI insight here
-                '🛒 *Click link above to buy now!*'
+                '🛒 *Click link above to buy now\\!*'
             ].filter(Boolean).join('\n');
             let photoUrl = product.imageUrl;
 
