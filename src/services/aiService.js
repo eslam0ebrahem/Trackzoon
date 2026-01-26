@@ -82,29 +82,50 @@ export class AiService {
         // Gemini 1.5 supports system instructions, but for simplicity via REST, we'll prepend.
         const combinedPrompt = `${systemPrompt || ''}\n\n${userPrompt}`;
 
-        const response = await axios.post(
-            `${this.geminiUrl}?key=${this.geminiKey}`,
-            {
-                contents: [{
-                    parts: [{ text: combinedPrompt }]
-                }],
-                generationConfig: {
-                    temperature: temperature,
-                    // Force JSON for Gemini if requested (MIME type response is supported in newer versions, but keep simple)
-                    response_mime_type: jsonMode ? "application/json" : "text/plain"
+        const maxRetries = 3;
+        let lastError;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await axios.post(
+                    `${this.geminiUrl}?key=${this.geminiKey}`,
+                    {
+                        contents: [{
+                            parts: [{ text: combinedPrompt }]
+                        }],
+                        generationConfig: {
+                            temperature: temperature,
+                            // Force JSON for Gemini if requested
+                            response_mime_type: jsonMode ? "application/json" : "text/plain"
+                        }
+                    },
+                    {
+                        headers: { 'Content-Type': 'application/json' },
+                        timeout: 30000
+                    }
+                );
+
+                // Extract response
+                const content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!content) throw new Error('Empty response from Gemini');
+
+                return this.parseContent(content, jsonMode);
+
+            } catch (error) {
+                lastError = error;
+                const isRateLimit = error.response?.status === 429;
+
+                if (isRateLimit && attempt < maxRetries) {
+                    const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+                    logger.warn(`⚠️ Gemini Rate Limit (429). Retrying in ${delay / 1000}s (Attempt ${attempt}/${maxRetries})...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
                 }
-            },
-            {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
+
+                // If not 429 or max retries reached, throw
+                throw error;
             }
-        );
-
-        // Extract response
-        const content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!content) throw new Error('Empty response from Gemini');
-
-        return this.parseContent(content, jsonMode);
+        }
     }
 
     parseContent(content, jsonMode) {

@@ -161,12 +161,26 @@ function smartAvailabilityCheck($) {
     );
 
     if (isNoFeaturedOffers) {
-      logger.info('📦 No featured offers available detected (no buybox)');
-      return {
-        isAvailable: false,
-        reason: 'no-buybox',
-        details: 'No featured offers available'
-      };
+      // Check if we have "See All Buying Options" before giving up
+      const unqualifiedSelectors = [
+        '#unqualifiedBuyBox',
+        '#buybox-see-all-buying-choices',
+        '#buybox-see-all-buying-choices-announce',
+        'a[title="See All Buying Options"]'
+      ];
+      const hasUnqualifiedBuyBox = unqualifiedSelectors.some(sel => $(sel).length > 0);
+
+      if (hasUnqualifiedBuyBox) {
+        logger.info('📦 No featured offers, but "See All Buying Options" found. Proceeding...');
+        // Proceed to next checks
+      } else {
+        logger.info('📦 No featured offers available detected (no buybox)');
+        return {
+          isAvailable: false,
+          reason: 'no-buybox',
+          details: 'No featured offers available'
+        };
+      }
     } else {
       logger.debug(`ℹ️ Found #fod-cx-box but not a no-buybox scenario: "${messageText.substring(0, 50)}..."`);
     }
@@ -215,10 +229,12 @@ function smartAvailabilityCheck($) {
     // unless we want to track third party prices (which checkThirdPartySeller checks for).
     // But since checkThirdPartySeller didn't trigger above (it's the first check), 
     // we can assume we want to mark this as unavailable to avoid grabbing random prices.
+    logger.warn('⚠️ Unqualified Buy Box detected (See All Buying Options) - Attempting to find price anyway...');
+    // Allow proceeding to price extraction
     return {
-      isAvailable: false,
-      reason: 'no-featured-offers',
-      details: 'Unqualified Buy Box present'
+      isAvailable: true,
+      reason: 'unqualified-buybox',
+      details: 'Unqualified Buy Box present - checking for other offers'
     };
   }
 
