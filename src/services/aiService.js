@@ -10,7 +10,7 @@ export class AiService {
         this.geminiKey = process.env.GEMINI_API_KEY;
         this.perplexityUrl = 'https://api.perplexity.ai/chat/completions';
         // USE gemini-2.0-flash (Available for this key, unlike 1.5)
-        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
         // Parse providers from env, default to PERPLEXITY then GEMINI
         const envProviders = process.env.AI_PROVIDERS || 'PERPLEXITY,GEMINI';

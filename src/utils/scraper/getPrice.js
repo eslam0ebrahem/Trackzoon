@@ -390,6 +390,47 @@ function extractPriceFromJSONLD($) {
 }
 
 /**
+ * Strategy 4: Extract from "More Buying Choices" / "See All Buying Options"
+ * Critical for reducing AI usage on "Unqualified Buy Box" items.
+ */
+function extractPriceFromMoreBuyingChoices($) {
+  const selectors = [
+    '#buybox-see-all-buying-choices .a-price .a-offscreen',
+    '#moreBuyingChoices_feature_div .a-price .a-offscreen',
+    '#mbc .a-price .a-offscreen',
+    '#unqualifiedBuyBox .a-price .a-offscreen',
+    // Fallback: looking for text "from EGP ..." in the link or box
+    '#buybox-see-all-buying-choices-announce',
+    '.a-link-normal[href*="offer-listing"]'
+  ];
+
+  for (const selector of selectors) {
+    const element = $(selector).first();
+    if (element.length) {
+      let priceText = element.text().trim();
+
+      // If it's a link/text like "New & Used (2) from EGP 1,200", extract the price
+      if (priceText.toLowerCase().includes('from')) {
+        const match = priceText.match(/from\s+([A-Z]{3}|EGP|\$|€)?\s*([\d,.]+)/i);
+        if (match) {
+          priceText = match[2]; // refined price part
+        }
+      }
+
+      if (validatePrice(priceText).valid) {
+        return {
+          priceText: priceText,
+          strategy: 'more-buying-choices',
+          selector
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * MASTER: Multi-strategy price extraction
  */
 function smartPriceExtraction($) {
@@ -398,6 +439,7 @@ function smartPriceExtraction($) {
   const strategies = [
     { name: 'Selector-based', fn: function () { return extractPriceFromSelectors($); } },
     { name: 'Buy box input', fn: function () { return extractPriceFromBuyBox($); } },
+    { name: 'More Buying Choices', fn: function () { return extractPriceFromMoreBuyingChoices($); } }, // NEW STRATEGY
     { name: 'JSON-LD', fn: function () { return extractPriceFromJSONLD($); } }
   ];
 
