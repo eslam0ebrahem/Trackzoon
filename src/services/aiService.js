@@ -8,12 +8,17 @@ export class AiService {
     constructor() {
         this.perplexityKey = process.env.PERPLEXITY_API_KEY;
         this.geminiKey = process.env.GEMINI_API_KEY;
+        this.openaiKey = process.env.OPENAI_API_KEY;
+        this.groqKey = process.env.GROQ_API_KEY;
+
         this.perplexityUrl = 'https://api.perplexity.ai/chat/completions';
         // USE gemini-2.0-flash (Available for this key, unlike 1.5)
-        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+        this.openaiUrl = 'https://api.openai.com/v1/chat/completions';
+        this.groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
         // Parse providers from env, default to PERPLEXITY then GEMINI
-        const envProviders = process.env.AI_PROVIDERS || 'PERPLEXITY,GEMINI';
+        const envProviders = process.env.AI_PROVIDERS || 'PERPLEXITY,GEMINI,GROQ,OPENAI';
         this.providers = envProviders.split(/[,&]/) // Support comma or & as separator
             .map(p => p.trim().toUpperCase())
             .filter(p => p);
@@ -42,6 +47,14 @@ export class AiService {
                     return result;
                 } else if (provider === 'GEMINI') {
                     const result = await this.askGemini({ systemPrompt, userPrompt, temperature, jsonMode });
+                    logger.info(`✅ AI Response generated via ${provider}`);
+                    return result;
+                } else if (provider === 'OPENAI') {
+                    const result = await this.askOpenAI({ systemPrompt, userPrompt, temperature, jsonMode });
+                    logger.info(`✅ AI Response generated via ${provider}`);
+                    return result;
+                } else if (provider === 'GROQ') {
+                    const result = await this.askGroq({ systemPrompt, userPrompt, temperature, jsonMode });
                     logger.info(`✅ AI Response generated via ${provider}`);
                     return result;
                 }
@@ -187,6 +200,78 @@ export class AiService {
                 // If not 429 or max retries reached, throw
                 throw error;
             }
+        }
+    }
+
+    async askGroq({ systemPrompt, userPrompt, temperature, jsonMode }) {
+        if (!this.groqKey) throw new Error('GROQ_API_KEY not configured');
+
+        // Use llama-3.1-8b-instant (Fastest & suitable for JSON)
+        const model = 'llama-3.1-8b-instant';
+
+        try {
+            const response = await axios.post(
+                this.groqUrl,
+                {
+                    model: model,
+                    messages: [
+                        { role: 'system', content: systemPrompt || SystemPrompts.SHOPPING_ASSISTANT },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: temperature,
+                    response_format: jsonMode ? { type: "json_object" } : undefined
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.groqKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 20000 // Groq is fast, timeout can be shorter
+                }
+            );
+
+            const content = response.data.choices[0].message.content;
+            return this.parseContent(content, jsonMode);
+
+        } catch (error) {
+            logger.warn(`Groq Error: ${error.response?.data?.error?.message || error.message}`);
+            throw error;
+        }
+    }
+
+    async askOpenAI({ systemPrompt, userPrompt, temperature, jsonMode }) {
+        if (!this.openaiKey) throw new Error('OPENAI_API_KEY not configured');
+
+        // Use gpt-4o-mini for speed/cost, or gpt-3.5-turbo
+        const model = 'gpt-4o-mini';
+
+        try {
+            const response = await axios.post(
+                this.openaiUrl,
+                {
+                    model: model,
+                    messages: [
+                        { role: 'system', content: systemPrompt || SystemPrompts.SHOPPING_ASSISTANT },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: temperature,
+                    response_format: jsonMode ? { type: "json_object" } : undefined
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.openaiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 30000
+                }
+            );
+
+            const content = response.data.choices[0].message.content;
+            return this.parseContent(content, jsonMode);
+
+        } catch (error) {
+            logger.warn(`OpenAI Error: ${error.response?.data?.error?.message || error.message}`);
+            throw error;
         }
     }
 
