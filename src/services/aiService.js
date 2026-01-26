@@ -6,29 +6,9 @@ import { cleanHtml } from '../utils/htmlCleaner.js';
 import cache from '../config/cache.js';
 export class AiService {
     constructor() {
-        this.perplexityKey = process.env.PERPLEXITY_API_KEY;
-        this.geminiKey = process.env.GEMINI_API_KEY;
-        this.openaiKey = process.env.OPENAI_API_KEY;
         this.groqKey = process.env.GROQ_API_KEY;
-
-        this.perplexityUrl = 'https://api.perplexity.ai/chat/completions';
-        // USE gemini-2.0-flash (Available for this key, unlike 1.5)
-        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-        this.openaiUrl = 'https://api.openai.com/v1/chat/completions';
         this.groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
-
-        // Parse providers from env, default to PERPLEXITY then GEMINI
-        const envProviders = process.env.AI_PROVIDERS || 'PERPLEXITY,GEMINI,GROQ,OPENAI';
-        this.providers = envProviders.split(/[,&]/) // Support comma or & as separator
-            .map(p => p.trim().toUpperCase())
-            .filter(p => p);
-
-        // RATE LIMITER: Gemini Free Tier (15 RPM -> 1 req / 4s)
-        // UPDATE: Appears 2.0/2.5 Flash might have strict 5 RPM limit (1 req / 12s)
-        // Allow override from env (defaults to 12000ms for safety)
-        this.minGeminiInterval = parseInt(process.env.GEMINI_RATE_LIMIT_MS) || 12000;
-        this.geminiRequestQueue = Promise.resolve();
-        this.lastGeminiRequestTime = 0;
+        this.providers = ['GROQ'];
     }
 
     /**
@@ -36,115 +16,20 @@ export class AiService {
      * @param {Object} options - { systemPrompt, userPrompt, model, temperature, jsonMode }
      * @returns {Promise<any>} - Parsed JSON or string content
      */
-    async ask({ systemPrompt, userPrompt, model = 'sonar', temperature = 0.2, jsonMode = false }) {
-        let lastError = null;
-
-        for (const provider of this.providers) {
-            try {
-                if (provider === 'PERPLEXITY') {
-                    const result = await this.askPerplexity({ systemPrompt, userPrompt, model, temperature, jsonMode });
-                    logger.info(`✅ AI Response generated via ${provider}`);
-                    return result;
-                } else if (provider === 'GEMINI') {
-                    const result = await this.askGemini({ systemPrompt, userPrompt, temperature, jsonMode });
-                    logger.info(`✅ AI Response generated via ${provider}`);
-                    return result;
-                } else if (provider === 'OPENAI') {
-                    const result = await this.askOpenAI({ systemPrompt, userPrompt, temperature, jsonMode });
-                    logger.info(`✅ AI Response generated via ${provider}`);
-                    return result;
-                } else if (provider === 'GROQ') {
-                    const result = await this.askGroq({ systemPrompt, userPrompt, temperature, jsonMode });
-                    logger.info(`✅ AI Response generated via ${provider}`);
-                    return result;
-                }
-            } catch (error) {
-                logger.warn(`⚠️ ${provider} failed: ${error.message}.`);
-                lastError = error;
-                // Continue to next provider
-            }
-        }
-
-        logger.error('❌ All configured AI providers failed.');
-        throw new Error(`All AI providers failed. Last error: ${lastError?.message}`);
-    }
-
-    async askPerplexity({ systemPrompt, userPrompt, model, temperature, jsonMode }) {
-        if (!this.perplexityKey) throw new Error('PERPLEXITY_API_KEY not configured');
-
-        const response = await axios.post(
-            this.perplexityUrl,
-            {
-                model: model,
-                messages: [
-                    { role: 'system', content: systemPrompt || SystemPrompts.SHOPPING_ASSISTANT },
-                    { role: 'user', content: userPrompt }
-                ],
-                temperature: temperature
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${this.perplexityKey}`,
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                },
-                timeout: 30000
-            }
-        );
-
-        const content = response.data.choices[0].message.content;
-        return this.parseContent(content, jsonMode);
-    }
-
     /**
-     * Rate Limiter for Gemini (Distributed)
-     * Uses Redis to coordinate across processes
+     * Generic method to call AI (Groq Only)
+     * @param {Object} options - { systemPrompt, userPrompt, model, temperature, jsonMode }
+     * @returns {Promise<any>} - Parsed JSON or string content
      */
-    async throttleGemini() {
-        const redis = cache.getClient();
+    async ask({ systemPrompt, userPrompt, model = 'llama-3.1-8b-instant', temperature = 0.2, jsonMode = false }) {
+        // Enforce safe model selection if somehow 'sonar' or others slip in
+        if (model === 'sonar') model = 'llama-3.1-8b-instant';
 
-        // Fallback to local in-memory throttling if Redis is not available
-        if (!redis || !cache.isEnabled()) {
-            const nextRequest = this.geminiRequestQueue.then(async () => {
-                const now = Date.now();
-                const timeSinceLast = now - this.lastGeminiRequestTime;
-                if (timeSinceLast < this.minGeminiInterval) {
-                    const waitTime = this.minGeminiInterval - timeSinceLast;
-                    logger.debug(`⏳ Gemini Local Throttling: waiting ${waitTime}ms...`);
-                    await new Promise(r => setTimeout(r, waitTime));
-                }
-                this.lastGeminiRequestTime = Date.now();
-            });
-            this.geminiRequestQueue = nextRequest.catch(() => { });
-            return nextRequest;
-        }
-
-        const key = 'gemini:rate_limit_lock';
-
-        while (true) {
-            // Check current TTL to sleep efficiently
-            const ttl = await redis.pttl(key);
-
-            if (ttl > 0) {
-                logger.debug(`⏳ Gemini Global Rate Limit: Waiting ${ttl}ms...`);
-                // Wait the remaining time + 100ms buffer
-                await new Promise(r => setTimeout(r, ttl + 100));
-                continue;
-            }
-
-            // Try to acquire the lock (SET key val PX 4500 NX)
-            // This sets the key only if it doesn't exist, with 4.5s expiry
-            const result = await redis.set(key, '1', 'PX', this.minGeminiInterval, 'NX');
-
-            if (result === 'OK') {
-                // Lock acquired! We are allowed to proceed.
-                // The lock serves as the "cooldown" itself.
-                return;
-            }
-
-            // If we failed to acquire (result null), it means someone else just grabbed it.
-            // Loop again to check TTL.
-            await new Promise(r => setTimeout(r, 200));
+        try {
+            return await this.askGroq({ systemPrompt, userPrompt, temperature, jsonMode, model });
+        } catch (error) {
+            logger.error(`❌ Groq failed: ${error.message}`);
+            throw error;
         }
     }
 
@@ -177,66 +62,11 @@ export class AiService {
         }
     }
 
-    async askGemini({ systemPrompt, userPrompt, temperature, jsonMode }) {
-        if (!this.geminiKey) throw new Error('GEMINI_API_KEY not configured');
-
-        // Context handling for Gemini
-        const combinedPrompt = `${systemPrompt || ''}\n\n${userPrompt}`;
-
-        const maxRetries = 5;
-        let lastError;
-
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                // Apply Rate Limiting
-                await this.throttleGemini();
-
-                const response = await axios.post(
-                    `${this.geminiUrl}?key=${this.geminiKey}`,
-                    {
-                        contents: [{
-                            parts: [{ text: combinedPrompt }]
-                        }],
-                        generationConfig: {
-                            temperature: temperature,
-                            // Force JSON for Gemini if requested
-                            response_mime_type: jsonMode ? "application/json" : "text/plain"
-                        }
-                    },
-                    {
-                        headers: { 'Content-Type': 'application/json' },
-                        timeout: 30000
-                    }
-                );
-
-                // Extract response
-                const content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!content) throw new Error('Empty response from Gemini');
-
-                return this.parseContent(content, jsonMode);
-
-            } catch (error) {
-                lastError = error;
-                const isRateLimit = error.response?.status === 429;
-
-                if (isRateLimit && attempt < maxRetries) {
-                    const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-                    logger.warn(`⚠️ Gemini Rate Limit (429). Retrying in ${delay / 1000}s (Attempt ${attempt}/${maxRetries})...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    continue;
-                }
-
-                // If not 429 or max retries reached, throw
-                throw error;
-            }
-        }
-    }
-
-    async askGroq({ systemPrompt, userPrompt, temperature, jsonMode }) {
+    async askGroq({ systemPrompt, userPrompt, temperature, jsonMode, model }) {
         if (!this.groqKey) throw new Error('GROQ_API_KEY not configured');
 
-        // Use llama-3.1-8b-instant (Fastest & suitable for JSON)
-        const model = 'llama-3.1-8b-instant';
+        // Default to fast model if not specified, but usually passed by caller
+        const finalModel = model === 'sonar' ? 'llama-3.1-8b-instant' : (model || 'llama-3.1-8b-instant');
 
         try {
             await this.throttleGroq();
@@ -244,7 +74,7 @@ export class AiService {
             const response = await axios.post(
                 this.groqUrl,
                 {
-                    model: model,
+                    model: finalModel,
                     messages: [
                         { role: 'system', content: systemPrompt || SystemPrompts.SHOPPING_ASSISTANT },
                         { role: 'user', content: userPrompt }
@@ -270,41 +100,7 @@ export class AiService {
         }
     }
 
-    async askOpenAI({ systemPrompt, userPrompt, temperature, jsonMode }) {
-        if (!this.openaiKey) throw new Error('OPENAI_API_KEY not configured');
 
-        // Use gpt-4o-mini for speed/cost, or gpt-3.5-turbo
-        const model = 'gpt-4o-mini';
-
-        try {
-            const response = await axios.post(
-                this.openaiUrl,
-                {
-                    model: model,
-                    messages: [
-                        { role: 'system', content: systemPrompt || SystemPrompts.SHOPPING_ASSISTANT },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    temperature: temperature,
-                    response_format: jsonMode ? { type: "json_object" } : undefined
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.openaiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 30000
-                }
-            );
-
-            const content = response.data.choices[0].message.content;
-            return this.parseContent(content, jsonMode);
-
-        } catch (error) {
-            logger.warn(`OpenAI Error: ${error.response?.data?.error?.message || error.message}`);
-            throw error;
-        }
-    }
 
     parseContent(content, jsonMode) {
         if (jsonMode) {
@@ -329,7 +125,7 @@ export class AiService {
      * @returns {Promise<Object>} - { score: number, reason: string }
      */
     async analyzeDeal(product) {
-        if (!this.perplexityKey && !this.geminiKey) {
+        if (!this.groqKey) {
             logger.warn('Skipping AI analysis: No API keys configured');
             return null;
         }
@@ -352,7 +148,7 @@ export class AiService {
             const result = await this.ask({
                 systemPrompt: SystemPrompts.ANALYZE_DEAL_JSON,
                 userPrompt: userPrompt,
-                model: 'sonar',
+                model: 'llama-3.3-70b-versatile',
                 temperature: 0.1,
                 jsonMode: true
             });
@@ -376,7 +172,7 @@ export class AiService {
      * @returns {Promise<string>} - AI response
      */
     async answerQuestion(query, userProducts, globalDeals = []) {
-        if (!this.perplexityKey && !this.geminiKey) return "I'm sorry, my AI brain is not connected right now (API Key missing).";
+        if (!this.groqKey) return "I'm sorry, my AI brain is not connected right now (API Key missing).";
 
         try {
             // Summarize user product context
@@ -424,7 +220,7 @@ export class AiService {
      * @returns {Promise<{category: string, tags: string[]}>}
      */
     async categorizeProduct(name) {
-        if (!this.perplexityKey && !this.geminiKey) return { category: 'Uncategorized', tags: [] };
+        if (!this.groqKey) return { category: 'Uncategorized', tags: [] };
 
         try {
             const prompt = `
@@ -446,7 +242,7 @@ export class AiService {
                 // Let's rely on the ask method's jsonMode which we improved.
                 systemPrompt: "You are a categorization assistant. Return only a JSON object with 'category' and 'tags'.",
                 userPrompt: prompt,
-                model: 'sonar',
+                model: 'llama-3.1-8b-instant',
                 jsonMode: true
             });
 
@@ -462,7 +258,7 @@ export class AiService {
      * @returns {Promise<{trend: string, confidence: number, reason: string}>}
      */
     async predictTrend(product) {
-        if (!this.perplexityKey && !this.geminiKey) return null;
+        if (!this.groqKey) return null;
 
         try {
             const history = product.priceHistory.slice(-10).map(h => h.price).join(', ');
@@ -476,7 +272,7 @@ export class AiService {
             return await this.ask({
                 systemPrompt: SystemPrompts.TREND_PREDICTION_JSON,
                 userPrompt: prompt,
-                model: 'sonar',
+                model: 'llama-3.3-70b-versatile',
                 jsonMode: true
             });
 
@@ -492,7 +288,7 @@ export class AiService {
      * @returns {Promise<string>} - AI summary
      */
     async generateDailySummary(products) {
-        if ((!this.perplexityKey && !this.geminiKey) || products.length === 0) return null;
+        if (!this.groqKey || products.length === 0) return null;
 
         try {
             const totalProducts = products.length;
@@ -539,7 +335,7 @@ export class AiService {
      * @returns {Promise<{isAvailable: boolean, price: number | null, currency: string, reason: string}>}
      */
     async checkProductAvailability(url, pageContent = null) {
-        if (!this.perplexityKey && !this.geminiKey) {
+        if (!this.groqKey) {
             logger.warn('Skipping AI availability check: No API keys configured');
             return null;
         }
@@ -574,7 +370,7 @@ export class AiService {
             return await this.ask({
                 systemPrompt: SystemPrompts.AVAILABILITY_CHECK_JSON,
                 userPrompt: `${promptContext}\n\nExtract availability and price.`,
-                model: 'sonar',
+                model: 'llama-3.1-8b-instant',
                 temperature: 0.1,
                 jsonMode: true
             });
