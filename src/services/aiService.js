@@ -9,7 +9,8 @@ export class AiService {
         this.perplexityKey = process.env.PERPLEXITY_API_KEY;
         this.geminiKey = process.env.GEMINI_API_KEY;
         this.perplexityUrl = 'https://api.perplexity.ai/chat/completions';
-        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+        // USE gemini-1.5-flash for higher limits (1500 RPD vs 20 RPD for 2.5-flash)
+        this.geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
         // Parse providers from env, default to PERPLEXITY then GEMINI
         const envProviders = process.env.AI_PROVIDERS || 'PERPLEXITY,GEMINI';
@@ -18,7 +19,8 @@ export class AiService {
             .filter(p => p);
 
         // RATE LIMITER: Gemini Free Tier (15 RPM -> 1 req / 4s)
-        this.minGeminiInterval = 4500; // 4.5s buffer (safe side)
+        // Allow override from env (defaults to 4500ms for safety)
+        this.minGeminiInterval = parseInt(process.env.GEMINI_RATE_LIMIT_MS) || 4500;
         this.geminiRequestQueue = Promise.resolve();
         this.lastGeminiRequestTime = 0;
     }
