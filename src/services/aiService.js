@@ -155,8 +155,8 @@ export class AiService {
         // Simple local sleep for now, as Groq is fast but TPM is the bottleneck.
         // 2000ms ensures we don't burst more than 30 req/min, which combined with 1k tokens/req = 30k TPM (still high).
         // The Free limit is 6000 TPM. So max 6 req/min if each is 1k tokens.
-        // Let's set interval to 8000ms (7.5 RPM) to be safe for 6000 TPM.
-        const minInterval = 8000;
+        // Let's set interval to 10000ms (6 RPM) to be 100% safe for 6000 TPM.
+        const minInterval = 10000;
 
         await new Promise(resolve => setTimeout(resolve, 2000)); // Fixed small delay for jitter
 
