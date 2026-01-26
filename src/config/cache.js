@@ -14,13 +14,9 @@ let isEnabled = false;
  * @returns {boolean} True if connected, false otherwise
  */
 export const initCache = () => {
-  const redisUrl = process.env.REDIS_URL;
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
-  if (!redisUrl) {
-    console.log('⚠️  Redis URL not configured. Caching disabled.');
-    console.log('   To enable: Set REDIS_URL environment variable');
-    return false;
-  }
+  // if (!redisUrl) { ... } // Removed strict check to match priceQueue behavior
 
   try {
     redisClient = new Redis(redisUrl, {
