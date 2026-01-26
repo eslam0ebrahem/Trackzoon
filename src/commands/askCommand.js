@@ -11,6 +11,7 @@ export const askCommand = async (ctx) => {
             return ctx.reply('❓ Please ask a question after the command.\nExample: /ask Is now a good time to buy an iPhone?');
         }
 
+        // Send "Thinking..." action
         await ctx.sendChatAction('typing');
 
         // Get user's tracked products for context

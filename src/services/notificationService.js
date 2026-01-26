@@ -25,6 +25,28 @@ export class NotificationService {
             if (isAllTimeLow) header = '🔥 *ALL TIME LOW!*';
             else if (Number(percentDrop) > 20) header = '⚡ *HUGE DROP!*';
 
+            // AI Analysis (Responsive Fallback)
+            let aiInsight = '';
+            try {
+                // Determine context for AI
+                await import('./aiService.js').then(async ({ aiService }) => {
+                    const analysis = await aiService.analyzeDeal({
+                        name: product.name,
+                        currentPrice: newPrice,
+                        url: product.url,
+                        priceChange: percentDrop,
+                        stats: stats30d ? { min: stats30d.min, avg: stats30d.average, max: stats30d.max } : {}
+                    });
+
+                    if (analysis && analysis.score) {
+                        const scoreEmoji = analysis.score >= 80 ? '🟢' : analysis.score >= 50 ? '🟡' : '🔴';
+                        aiInsight = `\n🧠 *AI Score:* ${scoreEmoji} ${analysis.score}/100\n💡 _${escapeMarkdownV2(analysis.reason)}_\n`;
+                    }
+                });
+            } catch (ignore) {
+                // AI failure shouldn't stop notification
+            }
+
             const message = [
                 header,
                 '',
@@ -37,6 +59,7 @@ export class NotificationService {
                 avgPrice > 0 ? `📊 *Ave:* EGP ${escapeMarkdownV2(avgPrice.toFixed(0))} | *Max:* EGP ${escapeMarkdownV2(maxPrice.toFixed(0))}` : '',
                 tracker.thresholdPrice ? `🎯 *Target:* EGP ${escapeMarkdownV2(tracker.thresholdPrice.toFixed(2))}` : '',
                 '',
+                aiInsight, // Insert AI insight here
                 '🛒 *Click link above to buy now!*'
             ].filter(Boolean).join('\n');
             let photoUrl = product.imageUrl;
