@@ -13,7 +13,6 @@ class AnalyticsService {
         if (!product || !product.priceHistory || product.priceHistory.length < 2) {
             return { forecast: [], trend: 'STABLE', confidence: 0 };
         }
-
         const history = product.priceHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         // 1. Try AI Forecast first
