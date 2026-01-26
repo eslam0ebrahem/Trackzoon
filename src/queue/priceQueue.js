@@ -67,8 +67,8 @@ export const createWorker = (bot) => {
         },
         concurrency: 1, // Reduced to 1 to prevent OOM on Render free tier (Pupeteer is heavy)
         limiter: {
-            max: 10,      // Max 10 jobs
-            duration: 1000, // Per 1 second (Rate limiting)
+            max: 1,      // Strict serial processing
+            duration: 5000, // 1 job per 5 seconds (12 RPM) to stay under Gemini Free Tier limits (15 RPM)
         }
     });
 
