@@ -29,9 +29,13 @@ export class AiService {
         for (const provider of this.providers) {
             try {
                 if (provider === 'PERPLEXITY') {
-                    return await this.askPerplexity({ systemPrompt, userPrompt, model, temperature, jsonMode });
+                    const result = await this.askPerplexity({ systemPrompt, userPrompt, model, temperature, jsonMode });
+                    logger.info(`✅ AI Response generated via ${provider}`);
+                    return result;
                 } else if (provider === 'GEMINI') {
-                    return await this.askGemini({ systemPrompt, userPrompt, temperature, jsonMode });
+                    const result = await this.askGemini({ systemPrompt, userPrompt, temperature, jsonMode });
+                    logger.info(`✅ AI Response generated via ${provider}`);
+                    return result;
                 }
             } catch (error) {
                 logger.warn(`⚠️ ${provider} failed: ${error.message}.`);
