@@ -82,7 +82,7 @@ export class AiService {
         // Gemini 1.5 supports system instructions, but for simplicity via REST, we'll prepend.
         const combinedPrompt = `${systemPrompt || ''}\n\n${userPrompt}`;
 
-        const maxRetries = 3;
+        const maxRetries = 5;
         let lastError;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
