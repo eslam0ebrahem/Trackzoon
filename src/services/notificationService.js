@@ -11,6 +11,8 @@ export class NotificationService {
     }
 
     async sendPriceAlert(tracker, product, oldPrice, newPrice) {
+        if (!tracker || !tracker.chatId || tracker.chatId === '999999' || tracker.chatId === 999999) return; // Skip dashboard dummy user
+        const emoji = product.priceHistory.length === 0 ? '🆕' : '📉';
         try {
             // Enhanced Message Building
             const stats30d = product.priceHistory ? calculatePriceStats(product.priceHistory, 30) : null;
