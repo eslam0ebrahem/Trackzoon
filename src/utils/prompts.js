@@ -99,10 +99,11 @@ Return JSON format:
     Return JSON only: { "isAvailable": boolean, "price": number | null, "currency": "EGP", "reason": "string" }
 
     Strict Availability Rules:
-    1. If you see "Currently unavailable", return isAvailable: false.
+    1. If you see "Currently unavailable" or "No featured offers available", return isAvailable: false.
     2. If the ONLY buying option is a button saying "See All Buying Options" (with no main "Add to Cart"), return isAvailable: false. This is considered Out of Stock for our purposes.
     3. If the item is only available from "Third-party sellers" without a main Buy Box, return isAvailable: false.
-    4. Only return isAvailable: true if there is a clear, main "Add to Cart" or "Buy Now" option.
+    4. IGNORE "Add to Cart" text if it appears in an explanation or tooltip (e.g. "We feature offers with an Add to Cart button..."). Only looks for the actual BUTTON.
+    5. Only return isAvailable: true if there is a clear, main "Add to Cart" or "Buy Now" button.
 
     Price Rules:
     - Extract the main "New" price. Ignore "Used" or "Collectible" prices.
