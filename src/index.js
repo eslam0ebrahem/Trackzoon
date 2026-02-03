@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'crypto';
 import { initSentry, captureError } from './config/sentry.js';
 import { logger } from './utils/logger.js';
 import cache from './config/cache.js';
@@ -14,6 +15,63 @@ import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
 import { startServer } from './server.js';
 import { startKeepAlive } from './services/keepAliveService.js';
 import { createWorker } from './queue/priceQueue.js'; // Import Worker Factory
+
+const BOT_LOCK_KEY = process.env.BOT_LOCK_KEY || 'trackzoon:bot:polling-lock';
+const BOT_LOCK_TTL_MS = Number(process.env.BOT_LOCK_TTL_MS || 60000);
+const BOT_LOCK_RENEW_MS = Math.max(5000, Math.floor(BOT_LOCK_TTL_MS / 2));
+const BOT_INSTANCE_ID = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+let botLockRedis = null;
+let botLockRenewTimer = null;
+let botLaunchEnabled = true;
+
+const acquireBotLock = async () => {
+  const redis = cache.getClient();
+  if (!redis || !cache.isEnabled()) {
+    logger.warn('Redis not available; starting bot without distributed lock.');
+    return true;
+  }
+
+  botLockRedis = redis;
+  const result = await redis.set(BOT_LOCK_KEY, BOT_INSTANCE_ID, 'PX', BOT_LOCK_TTL_MS, 'NX');
+  if (result !== 'OK') {
+    return false;
+  }
+
+  botLockRenewTimer = setInterval(async () => {
+    try {
+      const owner = await redis.get(BOT_LOCK_KEY);
+      if (owner !== BOT_INSTANCE_ID) {
+        logger.warn('Lost bot lock ownership. Stopping polling to avoid conflicts.');
+        clearInterval(botLockRenewTimer);
+        botLockRenewTimer = null;
+        bot.stop('SIGTERM');
+        return;
+      }
+      await redis.set(BOT_LOCK_KEY, BOT_INSTANCE_ID, 'PX', BOT_LOCK_TTL_MS);
+    } catch (error) {
+      logger.warn(`Failed to renew bot lock: ${error.message}`);
+    }
+  }, BOT_LOCK_RENEW_MS);
+
+  return true;
+};
+
+const releaseBotLock = async () => {
+  if (botLockRenewTimer) {
+    clearInterval(botLockRenewTimer);
+    botLockRenewTimer = null;
+  }
+  if (!botLockRedis) return;
+  try {
+    const owner = await botLockRedis.get(BOT_LOCK_KEY);
+    if (owner === BOT_INSTANCE_ID) {
+      await botLockRedis.del(BOT_LOCK_KEY);
+    }
+  } catch (error) {
+    logger.warn(`Failed to release bot lock: ${error.message}`);
+  }
+};
 
 // Initialize Sentry error monitoring first
 initSentry();
@@ -90,29 +148,35 @@ if (!process.env.PROCESS_TYPE || process.env.PROCESS_TYPE === 'combined') {
 
 // Launch the bot
 logger.info('Launching Trackzoon bot...');
-bot.launch().then(() => {
-  logger.info('Bot successfully launched!');
+botLaunchEnabled = await acquireBotLock();
 
-}).catch(async error => {
-  logger.error('Failed to launch bot:', error);
-  captureError(error, { operation: 'bot_launch' });
+if (!botLaunchEnabled) {
+  logger.warn('Another instance is already polling Telegram. Skipping bot.launch() to avoid conflicts.');
+} else {
+  bot.launch().then(() => {
+    logger.info('Bot successfully launched!');
 
-  // If there's a conflict (409), it means another instance is running
-  if (error.response?.error_code === 409) {
-    logger.warn('Conflict detected (409). Another instance might be closing. Retrying with jitter...');
-    // Random delay between 2000ms and 7000ms to break sync loops
-    const jitter = Math.floor(Math.random() * 5000) + 2000;
-    await new Promise(resolve => setTimeout(resolve, jitter));
-    return bot.launch().then(() => {
-      logger.info('Bot successfully launched on retry!');
-    }).catch(err => {
-      logger.error('Retry failed:', err);
-      process.exit(1);
-    });
-  }
+  }).catch(async error => {
+    logger.error('Failed to launch bot:', error);
+    captureError(error, { operation: 'bot_launch' });
 
-  process.exit(1);
-});
+    // If there's a conflict (409), it means another instance is running
+    if (error.response?.error_code === 409) {
+      logger.warn('Conflict detected (409). Another instance might be closing. Retrying with jitter...');
+      // Random delay between 2000ms and 7000ms to break sync loops
+      const jitter = Math.floor(Math.random() * 5000) + 2000;
+      await new Promise(resolve => setTimeout(resolve, jitter));
+      return bot.launch().then(() => {
+        logger.info('Bot successfully launched on retry!');
+      }).catch(err => {
+        logger.error('Retry failed:', err);
+        process.exit(1);
+      });
+    }
+
+    process.exit(1);
+  });
+}
 
 // Enable graceful shutdown
 const shutdown = (signal) => {
@@ -128,6 +192,9 @@ const shutdown = (signal) => {
 
   // Stop bot
   bot.stop(signal);
+
+  // Release bot lock if held
+  releaseBotLock().catch(() => {});
 
   // Clear all states
   stateManager.clearAllStates?.();
