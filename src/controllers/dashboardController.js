@@ -1,23 +1,10 @@
-import Product from '../models/Product.js';
-import User from '../models/User.js';
-import Subscription from '../models/Subscription.js';
-import { ProductService } from '../services/productService.js';
-import { PriceTrackerService } from '../services/priceTrackerService.js';
-import { calculateDealScore } from '../utils/priceUtils.js';
+import { DashboardService } from '../services/dashboardService.js';
+import { SystemService } from '../services/systemService.js';
 
 export const getStats = async (req, res) => {
     try {
-        const totalProducts = await Product.countDocuments();
-        const totalUsers = await User.countDocuments();
-
-        // Calculate total tracked items (total subscriptions)
-        const totalTrackedItems = await Subscription.countDocuments();
-
-        res.json({
-            totalProducts,
-            totalUsers,
-            totalTrackedItems
-        });
+        const stats = await DashboardService.getStats();
+        res.json(stats);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -33,14 +20,10 @@ export const getDeals = async (req, res) => {
 
         const chatId = req.query.chatId || req.headers['x-chat-id']; // Support header or query
 
-        const scope = chatId ? 'user' : 'global';
-
-        // Use the unified service method
-        const result = await ProductService.getDealsUnified({
+        const result = await DashboardService.getDeals({
             page,
             limit,
             sort,
-            scope,
             chatId
         });
 
@@ -55,10 +38,7 @@ export const addProduct = async (req, res) => {
         const { url, threshold, chatId } = req.body;
         if (!url) return res.status(400).json({ error: 'URL is required' });
 
-        // Use provided chatId or default to dashboard ID
-        const userId = chatId || 999999;
-
-        const result = await ProductService.addProduct(url, userId, threshold || 0);
+        const result = await DashboardService.addProduct(url, chatId, threshold || 0);
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -72,7 +52,7 @@ export const previewProduct = async (req, res) => {
         const { url } = req.body;
         if (!url) return res.status(400).json({ error: 'URL is required' });
 
-        const result = await ProductService.previewProduct(url);
+        const result = await DashboardService.previewProduct(url);
         res.json(result);
     } catch (error) {
         if (error.code === 'INVALID_URL') {
@@ -85,27 +65,11 @@ export const previewProduct = async (req, res) => {
     }
 };
 
-import PricePoint from '../models/PricePoint.js';
-
 export const getProductHistory = async (req, res) => {
     try {
-        const product = await Product.findOne({ asin: req.params.asin });
-        if (!product) return res.status(404).json({ error: 'Product not found' });
-
-        // Fetch full history from PricePoint collection
-        const pricePoints = await PricePoint.find({ product: product._id }).sort({ date: 1 });
-
-        // Fallback to embedded history if PricePoints are empty (legacy data)
-        const history = pricePoints.length > 0
-            ? pricePoints.map(p => ({ price: p.price, date: p.date }))
-            : product.priceHistory;
-
-        res.json({
-            name: product.name,
-            currentPrice: product.currentPrice,
-            history: history,
-            image: product.imageUrl
-        });
+        const history = await DashboardService.getProductHistory(req.params.asin);
+        if (!history) return res.status(404).json({ error: 'Product not found' });
+        res.json(history);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -113,21 +77,8 @@ export const getProductHistory = async (req, res) => {
 
 export const getCategoryStats = async (req, res) => {
     try {
-        const stats = await Product.aggregate([
-            { $group: { _id: '$category', count: { $sum: 1 } } }
-        ]);
-
-        const labels = [];
-        const data = [];
-
-        stats.forEach(s => {
-            if (s._id) {
-                labels.push(s._id);
-                data.push(s.count);
-            }
-        });
-
-        res.json({ labels, data });
+        const stats = await DashboardService.getCategoryStats();
+        res.json(stats);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -136,12 +87,7 @@ export const getCategoryStats = async (req, res) => {
 export const searchProducts = async (req, res) => {
     try {
         const query = req.query.q;
-        if (!query || query.length < 2) return res.json([]);
-
-        const products = await Product.find({
-            name: { $regex: query, $options: 'i' }
-        }).limit(10).select('name asin currentPrice imageUrl isOutOfStock');
-
+        const products = await DashboardService.searchProducts(query);
         res.json(products);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -150,10 +96,7 @@ export const searchProducts = async (req, res) => {
 
 export const getRecentActivity = async (req, res) => {
     try {
-        const products = await Product.find({})
-            .sort({ lastChecked: -1 })
-            .limit(10)
-            .select('name asin currentPrice lastChecked imageUrl isOutOfStock');
+        const products = await DashboardService.getRecentActivity();
         res.json(products);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -162,83 +105,29 @@ export const getRecentActivity = async (req, res) => {
 
 export const getTopTracked = async (req, res) => {
     try {
-        const topProducts = await Subscription.aggregate([
-            { $group: { _id: '$product', count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 5 },
-            { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
-            { $unwind: '$product' },
-            {
-                $project: {
-                    name: '$product.name',
-                    asin: '$product.asin',
-                    currentPrice: '$product.currentPrice',
-                    imageUrl: '$product.imageUrl',
-                    trackerCount: '$count'
-                }
-            }
-        ]);
-
+        const topProducts = await DashboardService.getTopTracked();
         res.json(topProducts);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
 
-export const getHealth = (req, res) => {
-    const uptime = process.uptime();
-    const memory = process.memoryUsage();
-
-    res.json({
-        status: 'ok',
-        uptime: uptime,
-        timestamp: new Date(),
-        memory: {
-            heapUsed: Math.round(memory.heapUsed / 1024 / 1024) + 'MB',
-            rss: Math.round(memory.rss / 1024 / 1024) + 'MB'
-        }
-    });
+export const getHealth = async (req, res) => {
+    try {
+        const health = await SystemService.getHealth();
+        const memory = {
+            heapUsed: `${health.memory.heapUsed}MB`,
+            rss: `${health.memory.rss}MB`
+        };
+        res.json({ ...health, memory });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
 
 export const exportData = async (req, res) => {
     try {
-        // Aggregate products with subscription counts
-        const products = await Product.aggregate([
-            {
-                $lookup: {
-                    from: 'subscriptions',
-                    localField: '_id',
-                    foreignField: 'product',
-                    as: 'subscriptions'
-                }
-            },
-            {
-                $addFields: {
-                    trackerCount: { $size: '$subscriptions' }
-                }
-            }
-        ]);
-
-        // Simple CSV format
-        const headers = ['ASIN', 'Name', 'URL', 'Current Price', 'Highest Price', 'Lowest Price', 'Trackers'];
-        const rows = products.map(p => {
-            const prices = p.priceHistory ? p.priceHistory.map(h => h.price) : [];
-            const max = prices.length > 0 ? Math.max(...prices) : p.currentPrice;
-            const min = prices.length > 0 ? Math.min(...prices) : p.currentPrice;
-
-            return [
-                p.asin,
-                `"${p.name.replace(/"/g, '""')}"`, // Escape quotes
-                p.url,
-                p.currentPrice,
-                max,
-                min,
-                p.trackerCount
-            ].join(',');
-        });
-
-        const csv = [headers.join(','), ...rows].join('\n');
-
+        const csv = await DashboardService.exportCsv();
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=trackzoon_export.csv');
         res.send(csv);
@@ -252,31 +141,8 @@ export const getLogs = (req, res) => {
     // Here we'll return simulated recent logs or capture console output if we hooked it.
 
     const { level, search } = req.query;
-
-    let events = [
-        { level: 'info', message: 'Server started successfully', time: new Date(Date.now() - 1000000).toISOString() },
-        { level: 'info', message: 'Connected to MongoDB', time: new Date(Date.now() - 990000).toISOString() },
-        { level: 'info', message: 'Scheduler initialized', time: new Date(Date.now() - 980000).toISOString() },
-        { level: 'info', message: 'Price check cycle started', time: new Date(Date.now() - 500000).toISOString() },
-        { level: 'info', message: 'Checked 150 products', time: new Date(Date.now() - 400000).toISOString() },
-        { level: 'warn', message: 'Rate limit warning from Amazon (simulated)', time: new Date(Date.now() - 300000).toISOString() },
-        { level: 'error', message: 'Failed to scrape product B08XYZ123', time: new Date(Date.now() - 250000).toISOString() },
-        { level: 'info', message: 'Price check cycle completed', time: new Date(Date.now() - 200000).toISOString() },
-        { level: 'info', message: 'New deal found: Samsung Monitor', time: new Date(Date.now() - 100000).toISOString() }
-    ];
-
-    // Filter by level
-    if (level && level !== 'all') {
-        events = events.filter(e => e.level === level);
-    }
-
-    // Filter by search query
-    if (search) {
-        const q = search.toLowerCase();
-        events = events.filter(e => e.message.toLowerCase().includes(q));
-    }
-
-    res.json(events.reverse());
+    const events = DashboardService.getLogs(level, search);
+    res.json(events);
 };
 
 // Feature 5: Bulk Import
@@ -286,24 +152,7 @@ export const bulkImportProducts = async (req, res) => {
         if (!urls || !Array.isArray(urls)) {
             return res.status(400).json({ error: 'Invalid input. Expected array of "urls".' });
         }
-
-        const results = {
-            success: 0,
-            failed: 0,
-            errors: []
-        };
-
-        // Process in chunks to avoid overwhelming
-        for (const url of urls) {
-            try {
-                await ProductService.addProduct(url, '999999'); // Dashboard User ID
-                results.success++;
-            } catch (e) {
-                results.failed++;
-                results.errors.push({ url, error: e.message });
-            }
-        }
-
+        const results = await DashboardService.bulkImportProducts(urls);
         res.json(results);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -315,13 +164,7 @@ export const updateTags = async (req, res) => {
     try {
         const { asin } = req.params;
         const { tags } = req.body; // Array of strings
-
-        const product = await Product.findOneAndUpdate(
-            { asin },
-            { $set: { tags } },
-            { new: true }
-        );
-
+        const product = await DashboardService.updateTags(asin, tags);
         res.json(product);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -333,14 +176,7 @@ export const updateTargetPrice = async (req, res) => {
     try {
         const { asin } = req.params;
         const { targetPrice } = req.body;
-
-        // Update global threshold
-        const product = await Product.findOneAndUpdate(
-            { asin },
-            { $set: { thresholdPrice: targetPrice } },
-            { new: true }
-        );
-
+        const product = await DashboardService.updateTargetPrice(asin, targetPrice);
         res.json(product);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -352,13 +188,7 @@ export const archiveProduct = async (req, res) => {
     try {
         const { asin } = req.params;
         const { isArchived } = req.body;
-
-        const product = await Product.findOneAndUpdate(
-            { asin },
-            { $set: { isArchived } },
-            { new: true }
-        );
-
+        const product = await DashboardService.archiveProduct(asin, isArchived);
         res.json(product);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -370,8 +200,7 @@ export const getUserProducts = async (req, res) => {
     try {
         const chatId = req.query.chatId || req.headers['x-chat-id'] || req.headers['x-telegram-id'];
         if (!chatId) return res.status(400).json({ error: 'Chat ID is required' });
-
-        const products = await ProductService.getUserProducts(chatId);
+        const products = await DashboardService.getUserProducts(chatId);
         res.json(products);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -379,4 +208,3 @@ export const getUserProducts = async (req, res) => {
 };
 
 // Feature 10: Broadcast Message
-

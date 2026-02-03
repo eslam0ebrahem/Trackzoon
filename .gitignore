@@ -55,3 +55,4 @@ logs/error.log
 .DS_Store
 /CyberScraper-2077
 .puppeteer_profile
+.DS_Store

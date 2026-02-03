@@ -229,7 +229,9 @@ export class PriceTrackerService {
       // Price Changed
       const newHistory = [...product.priceHistory, { price: currentPrice, date: new Date() }];
       const { score: volatilityScore, interval: checkInterval } = calculateVolatility(newHistory);
-      const priceChangePercent = ((currentPrice - previousPrice) / previousPrice) * 100;
+      const priceChangePercent = previousPrice > 0
+        ? ((currentPrice - previousPrice) / previousPrice) * 100
+        : 0;
       const isDrop = priceChangePercent < 0;
       const stats30d = calculatePriceStats(product.priceHistory, 30);
       const trend = predictPriceTrend(product.priceHistory);
@@ -412,7 +414,7 @@ export class PriceTrackerService {
   }
 
   async shouldNotifyUser(tracker, product, oldPrice, newPrice) {
-    const priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
+    const priceChange = oldPrice > 0 ? ((newPrice - oldPrice) / oldPrice) * 100 : 0;
     const isDecrease = newPrice < oldPrice;
 
     if (tracker.lastAlertedAt) {

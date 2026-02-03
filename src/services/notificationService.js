@@ -1,9 +1,10 @@
 import { logger } from '../utils/logger.js';
-import { buildPriceAlertMessage, escapeMarkdownV2 } from '../utils/messageHelper.js';
+import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
 import { sendWebhook } from './webhookService.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 import { calculatePriceStats } from '../utils/priceUtils.js';
+import { DASHBOARD_USER_ID } from '../config/constants.js';
 
 export class NotificationService {
     constructor(bot) {
@@ -11,7 +12,7 @@ export class NotificationService {
     }
 
     async sendPriceAlert(tracker, product, oldPrice, newPrice) {
-        if (!tracker || !tracker.chatId || tracker.chatId === '999999' || tracker.chatId === 999999) return; // Skip dashboard dummy user
+        if (!tracker || !tracker.chatId || String(tracker.chatId) === DASHBOARD_USER_ID) return; // Skip dashboard dummy user
         const emoji = product.priceHistory.length === 0 ? '🆕' : '📉';
         try {
             // Enhanced Message Building
@@ -21,7 +22,7 @@ export class NotificationService {
             const isAllTimeLow = stats30d && newPrice <= stats30d.min;
 
             const savings = oldPrice - newPrice;
-            const percentDrop = ((savings / oldPrice) * 100).toFixed(1);
+            const percentDrop = oldPrice > 0 ? ((savings / oldPrice) * 100).toFixed(1) : '0.0';
 
             let header = '📉 *Price Drop Alert\\!*';
             if (isAllTimeLow) header = '🔥 *ALL TIME LOW\\!*';

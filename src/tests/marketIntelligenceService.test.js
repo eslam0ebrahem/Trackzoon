@@ -7,12 +7,13 @@ jest.unstable_mockModule('axios', () => ({
 }));
 
 const { marketIntelligenceService } = await import('../services/marketIntelligenceService.js');
+const { aiService } = await import('../services/aiService.js');
 const axios = (await import('axios')).default;
 
 describe('MarketIntelligenceService', () => {
     beforeEach(() => {
-        process.env.PERPLEXITY_API_KEY = 'test-key';
-        marketIntelligenceService.apiKey = 'test-key';
+        process.env.GROQ_API_KEY = 'test-key';
+        aiService.groqKey = 'test-key';
     });
 
     afterEach(() => {

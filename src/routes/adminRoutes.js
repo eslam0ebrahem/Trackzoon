@@ -4,7 +4,6 @@ import Product from '../models/Product.js';
 import SystemMetric from '../models/SystemMetric.js';
 import Subscription from '../models/Subscription.js';
 import { PriceTrackerService } from '../services/priceTrackerService.js';
-import { sendMessage } from '../utils/messageHelper.js';
 
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
@@ -18,15 +17,21 @@ const checkAdmin = (req, res, next) => {
     next();
 };
 
+const createBotMock = () => ({
+    telegram: {
+        sendMessage: () => Promise.resolve(),
+        sendPhoto: () => Promise.resolve()
+    }
+});
+
 router.use(authMiddleware);
 router.use(checkAdmin);
 
 // GET /stats - System Overview
 router.get('/stats', async (req, res) => {
     try {
-        const [userCount, productCount, activeAlerts] = await Promise.all([
+        const [userCount, productCount, subscriptionCount] = await Promise.all([
             User.countDocuments(),
-            Product.countDocuments(),
             Product.countDocuments(),
             Subscription.countDocuments() // Exact count of active subscriptions
         ]);
@@ -38,7 +43,7 @@ router.get('/stats', async (req, res) => {
         res.json({
             users: userCount,
             products: productCount,
-            activeAlerts,
+            activeAlerts: subscriptionCount,
             system: {
                 uptime: process.uptime(),
                 memory: process.memoryUsage(),
@@ -65,15 +70,7 @@ router.post('/scrape-all', async (req, res) => {
         // Let's try to import the bot from index.js? No, circular dependency.
 
         // Solution: We will just trigger the scraping logic. Notifications might be skipped or fail gracefully.
-        const service = new PriceTrackerService(null); // Pass null as bot
-
-        // We need to mock the bot for notifyUser to not crash
-        service.bot = {
-            telegram: {
-                sendMessage: () => Promise.resolve(),
-                sendPhoto: () => Promise.resolve()
-            }
-        };
+        const service = new PriceTrackerService(createBotMock());
 
         const result = await service.checkAllPrices(true); // Force check
         res.json({ message: 'Scrape started', result });
@@ -85,8 +82,7 @@ router.post('/scrape-all', async (req, res) => {
 // Alias for check-prices (used by System Dashboard)
 router.post('/check-prices', async (req, res) => {
     try {
-        const service = new PriceTrackerService(null);
-        service.bot = { telegram: { sendMessage: () => Promise.resolve(), sendPhoto: () => Promise.resolve() } };
+        const service = new PriceTrackerService(createBotMock());
         const result = await service.checkAllPrices(true);
         res.json({ message: 'Price check started', result });
     } catch (error) {
@@ -112,7 +108,7 @@ router.post('/broadcast', async (req, res) => {
         // Actually, let's just use the helper `sendMessage` but it needs `bot` instance.
         // Alternative: Use `axios` to hit Telegram API directly using env var.
 
-        const token = process.env.TELEGRAM_BOT_TOKEN;
+        const token = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
         if (!token) return res.status(500).json({ error: 'Bot token missing' });
 
         const { default: axios } = await import('axios'); // Dynamic import
