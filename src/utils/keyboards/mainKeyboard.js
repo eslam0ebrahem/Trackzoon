@@ -30,6 +30,9 @@ export const productActionsKeyboard = (asin) => {
           { text: '🎯 Set Threshold', callback_data: `action_threshold_${asin}` }
         ],
         [
+          { text: '📉 Set % Drop', callback_data: `action_percentage_${asin}` }
+        ],
+        [
           { text: '❌ Stop Tracking', callback_data: `action_remove_${asin}` }
         ],
         [{ text: '🔙 Back to Products', callback_data: 'action_list_products' }]
@@ -53,6 +56,24 @@ export const thresholdKeyboard = (asin, currentPrice) => {
       inline_keyboard: [
         buttons,
         [{ text: '💭 Custom Threshold', callback_data: `action_custom_threshold_${asin}` }],
+        [{ text: '🔙 Back', callback_data: `action_view_${asin}` }]
+      ]
+    }
+  };
+};
+
+export const percentageKeyboard = (asin) => {
+  const suggestedPercentages = [5, 10, 20];
+  const buttons = suggestedPercentages.map(percent => ({
+    text: `${percent}%`,
+    callback_data: `action_set_percentage_${asin}_${percent}`
+  }));
+
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        buttons,
+        [{ text: '💭 Custom Percentage', callback_data: `action_custom_percentage_${asin}` }],
         [{ text: '🔙 Back', callback_data: `action_view_${asin}` }]
       ]
     }

@@ -51,6 +51,15 @@ export class NotificationService {
                 // AI failure shouldn't stop notification
             }
 
+            const percentLine = tracker.alertType === 'percentage' && tracker.percentageThreshold
+                ? (() => {
+                    const baseline = tracker.baselinePrice || oldPrice;
+                    const target = baseline > 0 ? (baseline * (1 - tracker.percentageThreshold / 100)) : null;
+                    const targetText = target ? ` (~EGP ${escapeMarkdownV2(target.toFixed(2))})` : '';
+                    return `📉 *Drop Alert:* ${escapeMarkdownV2(String(tracker.percentageThreshold))}%${targetText}`;
+                })()
+                : '';
+
             const message = [
                 header,
                 '',
@@ -62,6 +71,7 @@ export class NotificationService {
                 '',
                 avgPrice > 0 ? `📊 *Ave:* EGP ${escapeMarkdownV2(avgPrice.toFixed(0))} \\| *Max:* EGP ${escapeMarkdownV2(maxPrice.toFixed(0))}` : '',
                 tracker.thresholdPrice ? `🎯 *Target:* EGP ${escapeMarkdownV2(tracker.thresholdPrice.toFixed(2))}` : '',
+                percentLine,
                 '',
                 aiInsight, // Insert AI insight here
                 '🛒 *Click link above to buy now\\!*'

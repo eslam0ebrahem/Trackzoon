@@ -14,6 +14,7 @@ export class BotError extends Error {
 export const ErrorCodes = {
   INVALID_URL: 'INVALID_URL',
   INVALID_THRESHOLD: 'INVALID_THRESHOLD',
+  INVALID_INPUT: 'INVALID_INPUT',
   PRODUCT_NOT_FOUND: 'PRODUCT_NOT_FOUND',
   PRODUCT_ALREADY_TRACKED: 'PRODUCT_ALREADY_TRACKED',
   SCRAPING_ERROR: 'SCRAPING_ERROR',
@@ -22,12 +23,14 @@ export const ErrorCodes = {
   STATE_ERROR: 'STATE_ERROR',
   PERMISSION_ERROR: 'PERMISSION_ERROR',
   RATE_LIMIT: 'RATE_LIMIT',
-  NETWORK_ERROR: 'NETWORK_ERROR'
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  GENERAL_ERROR: 'GENERAL_ERROR'
 };
 
 const errorMessages = {
   INVALID_URL: 'Please provide a valid Amazon product URL.',
   INVALID_THRESHOLD: 'Please provide a valid price threshold (a positive number).',
+  INVALID_INPUT: 'Please provide valid input for this operation.',
   PRODUCT_NOT_FOUND: 'Product not found. Please check the URL and try again.',
   PRODUCT_ALREADY_TRACKED: 'You are already tracking this product.',
   SCRAPING_ERROR: 'Unable to fetch product information. Please try again later.',
@@ -36,7 +39,8 @@ const errorMessages = {
   STATE_ERROR: 'Invalid operation for current state. Please start over.',
   PERMISSION_ERROR: 'You don\'t have permission to perform this action.',
   RATE_LIMIT: 'Too many requests. Please wait a moment and try again.',
-  NETWORK_ERROR: 'Network error. Please check your connection and try again.'
+  NETWORK_ERROR: 'Network error. Please check your connection and try again.',
+  GENERAL_ERROR: 'Something went wrong. Please try again.'
 };
 
 export const handleError = async (ctx, error, defaultMessage = 'An unexpected error occurred. Please try again.') => {

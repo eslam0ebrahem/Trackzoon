@@ -60,6 +60,7 @@ bot.telegram.setMyCommands([
   { command: 'start', description: 'Start the bot' },
   { command: 'help', description: 'Show help and commands' },
   { command: 'add', description: 'Track a new product' },
+  { command: 'add_percentage', description: 'Track by % drop' },
   { command: 'list', description: 'View your tracked products' },
   { command: 'deals', description: 'See top 5 price drops (24h)' },
   { command: 'report', description: 'Get your daily price report' },

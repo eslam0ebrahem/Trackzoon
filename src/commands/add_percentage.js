@@ -1,8 +1,6 @@
 import { resolveAmazonUrl } from '../utils/url.js';
-import { getProductName } from '../utils/scraper/getProductName.js';
-import { getPrice } from '../utils/scraper/getPrice.js';
-import { addPriceTracker, validatePercentage } from '../utils/productTracker.js';
-
+import { ProductService } from '../services/productService.js';
+import { validatePercentage } from '../utils/productTracker.js';
 import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 
 export default (bot) => {
@@ -28,39 +26,34 @@ export default (bot) => {
       await ctx.reply('Processing your request...');
 
       try {
-        // Resolve and validate URL
         const { resolvedUrl, asin } = await resolveAmazonUrl(url);
         if (!asin) {
           return await ctx.reply('Please provide a valid Amazon product URL.');
         }
-        const name = await getProductName(resolvedUrl).catch(() => `ASIN:${asin}`);
-        const scrapeResult = await getPrice(resolvedUrl).catch(() => ({ price: 0 }));
-        const currentPrice = scrapeResult.price;
 
-        if (currentPrice <= 0) {
-          return await ctx.reply('Unable to fetch the current price. Please try again later.');
-        }
+        const { product, isNew, isAlreadyTracked } = await ProductService.addProduct(
+          resolvedUrl,
+          ctx.chat.id,
+          0,
+          { alertType: 'percentage', percentageThreshold: percentage }
+        );
 
-        // Add or update tracker
-        const { product, isNew } = await addPriceTracker({
-          asin,
-          url: resolvedUrl,
-          chatId: ctx.chat.id,
-          threshold: percentage,
-          currentPrice,
-          name,
-          isPercentage: true
-        });
+        const updatedProduct = isAlreadyTracked
+          ? await ProductService.updatePercentageThreshold(asin, ctx.chat.id, percentage)
+          : product;
 
-        const thresholdPrice = currentPrice * (1 - percentage / 100);
+        const baseline = updatedProduct.currentUserSubscription?.baselinePrice || updatedProduct.currentPrice || 0;
+        const targetPrice = baseline > 0
+          ? (baseline * (1 - percentage / 100))
+          : null;
 
-        const message = isNew
-          ? `✅ Added price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
-          `Current Price: EGP${currentPrice.toFixed(2)}\n` +
-          `Alert at: ${percentage}% drop (EGP${thresholdPrice.toFixed(2)})`
-          : `✅ Updated price tracker for ${escapeMarkdownV2(product.name)}\n\n` +
-          `Current Price: EGP${currentPrice.toFixed(2)}\n` +
-          `New alert: ${percentage}% drop (EGP${thresholdPrice.toFixed(2)})`;
+        const message = isAlreadyTracked || !isNew
+          ? `✅ Updated price tracker for ${escapeMarkdownV2(updatedProduct.name)}\n\n` +
+            `Current Price: EGP${baseline.toFixed(2)}\n` +
+            `New alert: ${percentage}% drop${targetPrice ? ` (EGP${targetPrice.toFixed(2)})` : ''}`
+          : `✅ Added price tracker for ${escapeMarkdownV2(updatedProduct.name)}\n\n` +
+            `Current Price: EGP${baseline.toFixed(2)}\n` +
+            `Alert at: ${percentage}% drop${targetPrice ? ` (EGP${targetPrice.toFixed(2)})` : ''}`;
 
         await ctx.reply(message, { parse_mode: 'MarkdownV2' });
       } catch (error) {

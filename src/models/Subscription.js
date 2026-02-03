@@ -8,6 +8,7 @@ const SubscriptionSchema = new mongoose.Schema({
     targetPrice: { type: Number }, // Renamed from thresholdPrice for clarity
     alertType: { type: String, enum: ['drop', 'percentage'], default: 'drop' },
     percentageThreshold: { type: Number }, // For percentage based alerts
+    baselinePrice: { type: Number }, // Reference price for percentage alerts
     snoozeUntil: { type: Date },
 
     // Metadata

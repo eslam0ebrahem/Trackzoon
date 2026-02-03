@@ -14,6 +14,7 @@ import reportCommand from './commands/reportCommand.js';
 import dealsCommand from './commands/dealsCommand.js';
 import settingsCommand from './commands/settingsCommand.js';
 import { askCommand } from './commands/askCommand.js';
+import addPercentageCommand from './commands/add_percentage.js';
 
 // Text Handler
 import textHandler from './handlers/textHandler.js';
@@ -34,6 +35,7 @@ const registerHandlers = (bot) => {
   reportCommand(bot);
   dealsCommand(bot);
   settingsCommand(bot);
+  addPercentageCommand(bot);
   bot.command('ask', askCommand);
 
   chartCommand(bot);

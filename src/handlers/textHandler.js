@@ -166,7 +166,7 @@ async function handleUrlAndPrice(ctx) {
 
         try {
             const scrapeResult = await getPrice(resolvedUrl);
-            currentPrice = scrapeResult.price;
+            currentPrice = scrapeResult.currentPrice;
             // You might want to pass imageUrl to the next step if needed, 
             // but for now just getting price is enough for this flow
             // or save it to session if you create product here
@@ -474,6 +474,60 @@ async function handleThresholdUpdate(ctx) {
     });
 }
 
+async function handlePercentageUpdate(ctx) {
+    const percentageStr = ctx.message.text.trim();
+    const percentage = parseFloat(percentageStr);
+
+    if (isNaN(percentage) || percentage <= 0 || percentage >= 100) {
+        throw new BotError(
+            'Invalid percentage format',
+            ErrorCodes.INVALID_THRESHOLD,
+            [
+                '❌ *Invalid Percentage*',
+                '',
+                '💡 *Please enter a valid percentage:*',
+                '• Example: 10',
+                '• Must be between 1 and 99',
+                '',
+                'Try again:'
+            ].join('\n')
+        );
+    }
+
+    const state = stateManager.getState(ctx.chat.id);
+    const { asin } = state.data;
+
+    const processingMsg = await ctx.reply(
+        '🔄 *Updating percentage alert\\.\\.\\.*',
+        { parse_mode: 'MarkdownV2' }
+    );
+
+    const product = await ProductService.updatePercentageThreshold(asin, ctx.chat.id, percentage);
+    stateManager.clearState(ctx.chat.id);
+
+    await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
+
+    const baseline = product.currentUserSubscription?.baselinePrice || product.currentPrice || 0;
+    const targetPrice = baseline > 0 ? (baseline * (1 - percentage / 100)) : null;
+    const productName = escapeMarkdownV2(product.name);
+    const productUrl = product.url;
+
+    const message = [
+        '✅ *Percentage Alert Updated\\!*',
+        '',
+        `📦 [${productName}](${escapeMarkdownV2(productUrl)})`,
+        '',
+        `💰 *Current Price:* EGP${escapeMarkdownV2(baseline.toFixed(2))}`,
+        `📉 *Alert:* ${escapeMarkdownV2(`${percentage}% drop${targetPrice ? ` (EGP${targetPrice.toFixed(2)})` : ''}`)}`
+    ].join('\n');
+
+    await ctx.reply(message, {
+        parse_mode: 'MarkdownV2',
+        ...mainKeyboard(),
+        disable_web_page_preview: true
+    });
+}
+
 export default (bot) => {
     bot.on('text', async (ctx) => {
         try {
@@ -571,6 +625,9 @@ export default (bot) => {
 
                 case BotStates.SETTING_THRESHOLD:
                     await handleThresholdUpdate(ctx);
+                    break;
+                case BotStates.SETTING_PERCENTAGE:
+                    await handlePercentageUpdate(ctx);
                     break;
 
                 default:

@@ -12,6 +12,10 @@ export default [
     description: 'Add a product to track'
   },
   {
+    command: 'add_percentage',
+    description: 'Track a product by % drop'
+  },
+  {
     command: 'list',
     description: 'List all tracked products'
   },

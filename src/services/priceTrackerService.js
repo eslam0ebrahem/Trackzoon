@@ -119,9 +119,10 @@ export class PriceTrackerService {
                   const trackerMock = {
                     chatId: sub.user.telegramId,
                     thresholdPrice: sub.targetPrice,
-                    webhookUrl: sub.user.settings?.webhookUrl // Assuming webhookUrl might be in user settings? Or was it in trackedBy?
-                    // trackedBy didn't have webhookUrl in the schema I saw, but NotificationService checks it.
-                    // Let's assume it's on the user or subscription.
+                    alertType: sub.alertType,
+                    percentageThreshold: sub.percentageThreshold,
+                    baselinePrice: sub.baselinePrice,
+                    webhookUrl: sub.user.settings?.webhookUrl
                   };
 
                   await this.notificationService.sendBackInStockAlert(trackerMock.chatId, updatedProduct, currentPrice, sub.targetPrice);
@@ -379,6 +380,9 @@ export class PriceTrackerService {
         const trackerMock = {
           chatId: sub.user.telegramId,
           thresholdPrice: sub.targetPrice,
+          alertType: sub.alertType,
+          percentageThreshold: sub.percentageThreshold,
+          baselinePrice: sub.baselinePrice,
           lastAlertedAt: sub.lastAlertedAt,
           snoozeUntil: sub.snoozeUntil,
           webhookUrl: sub.user.settings?.webhookUrl,
@@ -391,9 +395,15 @@ export class PriceTrackerService {
           // Use NotificationService
           await this.notificationService.sendPriceAlert(trackerMock, updatedProduct, previousPrice, currentPrice);
 
+          const updatePayload = { lastAlertedAt: new Date() };
+          if (trackerMock.alertType === 'percentage' && trackerMock.percentageThreshold) {
+            updatePayload.baselinePrice = currentPrice;
+            updatePayload.targetPrice = Number((currentPrice * (1 - trackerMock.percentageThreshold / 100)).toFixed(2));
+          }
+
           await Subscription.updateOne(
             { _id: sub._id },
-            { $set: { lastAlertedAt: new Date() } }
+            { $set: updatePayload }
           );
         }
       }
@@ -454,9 +464,19 @@ export class PriceTrackerService {
       logger.error(`Error checking user settings for ${tracker.chatId}:`, err);
     }
 
-    // 2. Threshold Check (Priority)
-    // If user set a target, ALWAYS alert if met/crossed
-    if (tracker.thresholdPrice && oldPrice > tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
+    // 2. Alert Type Checks (Priority)
+    if (tracker.alertType === 'percentage' && tracker.percentageThreshold) {
+      const baseline = tracker.baselinePrice || oldPrice;
+      if (baseline > 0) {
+        const targetPrice = baseline * (1 - tracker.percentageThreshold / 100);
+        if (newPrice <= targetPrice && isDecrease) {
+          return true;
+        }
+      }
+      // Percentage alerts should not fall through to smart filtering
+      return false;
+    } else if (tracker.thresholdPrice && oldPrice > tracker.thresholdPrice && newPrice <= tracker.thresholdPrice) {
+      // If user set a target, ALWAYS alert if met/crossed
       return true;
     }
 
@@ -494,11 +514,19 @@ export class PriceTrackerService {
   }
 
   async checkAllPrices(force = false) {
+    const summary = {
+      succeeded: 0,
+      unchanged: 0,
+      failed: 0,
+      queued: 0,
+      skipped: false
+    };
+
     // Circuit Breaker Check via ScraperService state
     if (scraperService.coolDownUntil && Date.now() < scraperService.coolDownUntil) {
       const minutesLeft = Math.ceil((scraperService.coolDownUntil - Date.now()) / 60000);
       logger.warn(`❄️ Scraper is cooling down. Resuming in ${minutesLeft} minutes.`);
-      return { succeeded: 0, unchanged: 0, failed: 0, skipped: true };
+      return { ...summary, skipped: true };
     }
 
     const now = new Date();
@@ -512,7 +540,7 @@ export class PriceTrackerService {
     const dueProducts = await Product.find(query).limit(100); // Process in batches of 100 max per run to prevent OOM
 
     if (dueProducts.length === 0) {
-      return { succeeded: 0, unchanged: 0, failed: 0 };
+      return summary;
     }
 
     logger.info(`Smart Scheduling: Checking ${dueProducts.length} due products (Force: ${force})`);
@@ -538,7 +566,7 @@ export class PriceTrackerService {
       await Promise.all(jobPromises);
 
       logger.info(`Queued ${jobPromises.length} products for checking.`);
-      return { queued: jobPromises.length };
+      return { ...summary, queued: jobPromises.length };
 
     } catch (queueError) {
       logger.warn(`⚠️ Queue usage failed (Redis down?), falling back to IN-MEMORY processing. Error: ${queueError.message}`);
@@ -566,7 +594,7 @@ export class PriceTrackerService {
         logger.error('Failed to save system metrics:', e);
       }
 
-      return { succeeded, unchanged, failed };
+      return { ...summary, succeeded, unchanged, failed };
     }
   }
 

@@ -55,11 +55,14 @@ export class ProductService {
     }
   }
 
-  static async addProduct(productUrl, chatId, threshold) {
+  static async addProduct(productUrl, chatId, threshold = 0, options = {}) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
+      const alertType = options.alertType || 'drop';
+      const isPercentageAlert = alertType === 'percentage';
+      const percentageThreshold = options.percentageThreshold ?? (isPercentageAlert ? threshold : null);
       const { resolvedUrl, asin } = await resolveAmazonUrl(productUrl);
 
       if (!asin) {
@@ -91,6 +94,14 @@ export class ProductService {
           // For now, let's attach a temporary property or mock trackedBy for backward compatibility if needed.
           // But better to return the subscription info separately or attach it.
           product.currentUserSubscription = existingSubscription;
+          product.trackedBy = [{
+            chatId: chatId,
+            thresholdPrice: existingSubscription.targetPrice,
+            snoozeUntil: existingSubscription.snoozeUntil,
+            alertType: existingSubscription.alertType,
+            percentageThreshold: existingSubscription.percentageThreshold,
+            baselinePrice: existingSubscription.baselinePrice
+          }];
           return { product, isNew, isAlreadyTracked };
         }
       }
@@ -113,8 +124,13 @@ export class ProductService {
             priceError.message.includes('no-buybox') ||
             priceError.message.includes('Captcha')) {
             logger.info(`Product ${asin} scraping issue (${priceError.message}), tracking with threshold as placeholder`);
-            currentPrice = threshold;
-            isOutOfStock = true;
+            if (isPercentageAlert) {
+              currentPrice = 0;
+              isOutOfStock = true;
+            } else {
+              currentPrice = threshold;
+              isOutOfStock = true;
+            }
           } else {
             throw priceError;
           }
@@ -149,11 +165,26 @@ export class ProductService {
       }
 
       // Create Subscription
+      let targetPrice = threshold;
+      let baselinePrice = null;
+
+      if (isPercentageAlert) {
+        if (typeof percentageThreshold === 'number' && percentageThreshold > 0) {
+          baselinePrice = options.baselinePrice ?? (product.currentPrice > 0 ? product.currentPrice : null);
+          if (baselinePrice) {
+            targetPrice = Number((baselinePrice * (1 - percentageThreshold / 100)).toFixed(2));
+          } else {
+            targetPrice = null;
+          }
+        }
+      }
+
       const subscription = new Subscription({
         user: user._id,
         product: product._id,
-        targetPrice: threshold,
-        alertType: 'drop'
+        targetPrice,
+        alertType: isPercentageAlert ? 'percentage' : 'drop',
+        ...(isPercentageAlert && { percentageThreshold, baselinePrice })
       });
 
       await subscription.save({ session });
@@ -263,7 +294,14 @@ export class ProductService {
 
       const subscription = await Subscription.findOneAndUpdate(
         { user: user._id, product: product._id },
-        { $set: { targetPrice: newThreshold } },
+        {
+          $set: {
+            targetPrice: newThreshold,
+            alertType: 'drop',
+            percentageThreshold: null,
+            baselinePrice: null
+          }
+        },
         { new: true }
       );
 
@@ -287,6 +325,68 @@ export class ProductService {
         'Failed to update threshold',
         ErrorCodes.DATABASE_ERROR,
         'Failed to update the threshold. Please try again later.'
+      );
+    }
+  }
+
+  static async updatePercentageThreshold(asin, chatId, percentageThreshold) {
+    try {
+      if (typeof percentageThreshold !== 'number' || Number.isNaN(percentageThreshold) || percentageThreshold <= 0 || percentageThreshold >= 100) {
+        throw new BotError('Invalid percentage threshold', ErrorCodes.INVALID_THRESHOLD, 'Percentage must be between 1 and 99.');
+      }
+
+      const user = await User.findOne({ telegramId: chatId });
+      if (!user) throw new BotError('User not found', ErrorCodes.USER_NOT_FOUND);
+
+      const product = await Product.findOne({ asin });
+      if (!product) throw new BotError('Product not found', ErrorCodes.PRODUCT_NOT_FOUND);
+
+      const baselinePrice = product.currentPrice > 0 ? product.currentPrice : null;
+      const targetPrice = baselinePrice
+        ? Number((baselinePrice * (1 - percentageThreshold / 100)).toFixed(2))
+        : null;
+
+      const subscription = await Subscription.findOneAndUpdate(
+        { user: user._id, product: product._id },
+        {
+          $set: {
+            alertType: 'percentage',
+            percentageThreshold,
+            baselinePrice,
+            targetPrice
+          }
+        },
+        { new: true }
+      );
+
+      if (!subscription) {
+        throw new BotError(
+          'Product not found',
+          ErrorCodes.PRODUCT_NOT_FOUND,
+          'Product not found or not tracked by you'
+        );
+      }
+
+      product.currentUserSubscription = subscription;
+      // Backward compatibility mock
+      product.trackedBy = [{
+        chatId: chatId,
+        thresholdPrice: subscription.targetPrice,
+        snoozeUntil: subscription.snoozeUntil,
+        alertType: subscription.alertType,
+        percentageThreshold: subscription.percentageThreshold,
+        baselinePrice: subscription.baselinePrice
+      }];
+
+      return product;
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+
+      logger.error('Error updating percentage threshold:', error);
+      throw new BotError(
+        'Failed to update percentage threshold',
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to update the percentage threshold. Please try again later.'
       );
     }
   }
@@ -336,7 +436,10 @@ export class ProductService {
           product.trackedBy = [{
             chatId: chatId,
             thresholdPrice: sub.targetPrice,
-            snoozeUntil: sub.snoozeUntil
+            snoozeUntil: sub.snoozeUntil,
+            alertType: sub.alertType,
+            percentageThreshold: sub.percentageThreshold,
+            baselinePrice: sub.baselinePrice
           }];
         }
         return product;
@@ -377,7 +480,10 @@ export class ProductService {
       product.trackedBy = [{
         chatId: chatId,
         thresholdPrice: subscription.targetPrice,
-        snoozeUntil: subscription.snoozeUntil
+        snoozeUntil: subscription.snoozeUntil,
+        alertType: subscription.alertType,
+        percentageThreshold: subscription.percentageThreshold,
+        baselinePrice: subscription.baselinePrice
       }];
 
       return product;
@@ -479,7 +585,10 @@ export class ProductService {
             item.tracker = {
               chatId: chatId,
               thresholdPrice: sub.targetPrice,
-              snoozeUntil: sub.snoozeUntil
+              snoozeUntil: sub.snoozeUntil,
+              alertType: sub.alertType,
+              percentageThreshold: sub.percentageThreshold,
+              baselinePrice: sub.baselinePrice
             };
             // Also attach to product for consistency if needed
             item.product.currentUserSubscription = sub;

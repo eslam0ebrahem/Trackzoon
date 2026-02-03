@@ -27,6 +27,7 @@ const formatPrice = (price, currency = 'EGP', showTrend = false, oldPrice = null
 };
 
 const formatPercentage = (oldPrice, newPrice) => {
+    if (!oldPrice || oldPrice <= 0) return 'N/A';
     const percentage = ((newPrice - oldPrice) / oldPrice) * 100;
     const sign = percentage > 0 ? '+' : '';
     const emoji = percentage > 0 ? '📈' : percentage < 0 ? '📉' : '➡️';
@@ -36,7 +37,14 @@ const formatPercentage = (oldPrice, newPrice) => {
 const formatProductLine = (index, product, tracker, showCurrentPrice = true) => {
     const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
     const url = product.url || '';
-    const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');
+    const threshold = tracker ? tracker.thresholdPrice : product.thresholdPrice;
+    const thresholdValue = typeof threshold === 'number' && !Number.isNaN(threshold) ? threshold : null;
+    const isPercentageAlert = tracker?.alertType === 'percentage' && tracker?.percentageThreshold;
+    const percentValue = isPercentageAlert ? tracker.percentageThreshold : null;
+    const percentBaseline = isPercentageAlert ? (tracker.baselinePrice || product.currentPrice || null) : null;
+    const percentTarget = percentBaseline && percentValue
+        ? Number((percentBaseline * (1 - percentValue / 100)).toFixed(2))
+        : null;
     // Get the previous price for trend
     const previousPrice = product.priceHistory && product.priceHistory.length > 1
         ? product.priceHistory[product.priceHistory.length - 2].price
@@ -46,7 +54,12 @@ const formatProductLine = (index, product, tracker, showCurrentPrice = true) => 
 
     if (showCurrentPrice && product.currentPrice) {
         message += `\n   💰 Price: *${escapeMarkdownV2(formatPrice(product.currentPrice, 'EGP', true, previousPrice))}*`;
-        message += `\n   🎯 Alert: ${escapeMarkdownV2(formatPrice(threshold))}`;
+        if (isPercentageAlert && percentValue) {
+            const targetSuffix = percentTarget ? ` (EGP${percentTarget.toFixed(2)})` : '';
+            message += `\n   🎯 Alert: ${escapeMarkdownV2(`${percentValue}% drop${targetSuffix}`)}`;
+        } else if (thresholdValue !== null) {
+            message += `\n   🎯 Alert: ${escapeMarkdownV2(formatPrice(thresholdValue))}`;
+        }
 
         // Add rating if available
         if (product.rating && product.rating.stars > 0) {
@@ -55,11 +68,13 @@ const formatProductLine = (index, product, tracker, showCurrentPrice = true) => 
         }
 
         // Add price difference from threshold
-        const diffFromThreshold = ((product.currentPrice - threshold) / threshold) * 100;
-        if (diffFromThreshold > 0) {
-            message += `\n   ⚠️ *${escapeMarkdownV2(diffFromThreshold.toFixed(1))}% above target*`;
-        } else if (diffFromThreshold < 0) {
-            message += `\n   ✨ *${escapeMarkdownV2(Math.abs(diffFromThreshold).toFixed(1))}% below target\\!*`;
+        if (thresholdValue !== null) {
+            const diffFromThreshold = ((product.currentPrice - thresholdValue) / thresholdValue) * 100;
+            if (diffFromThreshold > 0) {
+                message += `\n   ⚠️ *${escapeMarkdownV2(diffFromThreshold.toFixed(1))}% above target*`;
+            } else if (diffFromThreshold < 0) {
+                message += `\n   ✨ *${escapeMarkdownV2(Math.abs(diffFromThreshold).toFixed(1))}% below target\\!*`;
+            }
         }
     }
 
@@ -70,7 +85,14 @@ const formatProductDetails = (product, tracker) => {
     const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
     const url = product.url || ''; // URL should not be escaped for Markdown links
     const currentPrice = product.currentPrice;
-    const threshold = tracker ? tracker.thresholdPrice : (product.thresholdPrice || '—');
+    const threshold = tracker ? tracker.thresholdPrice : product.thresholdPrice;
+    const thresholdValue = typeof threshold === 'number' && !Number.isNaN(threshold) ? threshold : null;
+    const isPercentageAlert = tracker?.alertType === 'percentage' && tracker?.percentageThreshold;
+    const percentValue = isPercentageAlert ? tracker.percentageThreshold : null;
+    const percentBaseline = isPercentageAlert ? (tracker.baselinePrice || product.currentPrice || null) : null;
+    const percentTarget = percentBaseline && percentValue
+        ? Number((percentBaseline * (1 - percentValue / 100)).toFixed(2))
+        : null;
 
     // Calculate price statistics
     let lowestPrice = currentPrice;
@@ -116,7 +138,14 @@ const formatProductDetails = (product, tracker) => {
     const usdPrice = (currentPrice / usdRate).toFixed(2);
 
     message += `💰 *Current Price:* ${escapeMarkdownV2(formatPrice(currentPrice))} \\(~\\$${usdPrice} USD\\)\n`;
-    message += `🎯 *Alert Price:* ${escapeMarkdownV2(formatPrice(threshold))}\n\n`;
+    if (isPercentageAlert && percentValue) {
+        const targetSuffix = percentTarget ? ` (EGP${percentTarget.toFixed(2)})` : '';
+        message += `🎯 *Alert:* ${escapeMarkdownV2(`${percentValue}% drop${targetSuffix}`)}\n\n`;
+    } else if (thresholdValue !== null) {
+        message += `🎯 *Alert Price:* ${escapeMarkdownV2(formatPrice(thresholdValue))}\n\n`;
+    } else {
+        message += `🎯 *Alert:* ${escapeMarkdownV2('—')}\n\n`;
+    }
 
     // Feature 9: Drop Probability
     if (product.priceHistory && product.priceHistory.length > 5) {

@@ -2,6 +2,7 @@ import { ProductService } from '../services/productService.js';
 import {
   productActionsKeyboard,
   thresholdKeyboard,
+  percentageKeyboard,
   confirmationKeyboard,
   backToMainKeyboard
 } from '../utils/keyboards/mainKeyboard.js';
@@ -236,6 +237,71 @@ Choose a threshold or set a custom one:`,
     } catch (error) {
       console.error('Error in threshold action:', error);
       await ctx.answerCbQuery('⚠️ Error setting threshold. Please try again.');
+    }
+  });
+
+  // Percentage alert flow
+  bot.action(/action_percentage_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
+
+      const currentPrice = product.currentPrice ||
+        (product.priceHistory.length > 0
+          ? product.priceHistory[product.priceHistory.length - 1].price
+          : null);
+
+      const message = currentPrice
+        ? `Current price: EGP${currentPrice.toFixed(2)}\nChoose a percentage drop alert:`
+        : 'Choose a percentage drop alert:';
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        ...percentageKeyboard(asin)
+      });
+    } catch (error) {
+      console.error('Error in percentage alert action:', error);
+      await ctx.answerCbQuery('⚠️ Error setting percentage alert. Please try again.');
+    }
+  });
+
+  // Set percentage from suggestion
+  bot.action(/action_set_percentage_(\w+)_([\d\.]+)/, async (ctx) => {
+    try {
+      const [asin, percentStr] = ctx.match.slice(1);
+      const percentage = parseFloat(percentStr);
+
+      const product = await ProductService.updatePercentageThreshold(asin, ctx.chat.id, percentage);
+      const baseline = product.currentUserSubscription?.baselinePrice || product.currentPrice || 0;
+      const targetPrice = baseline > 0 ? (baseline * (1 - percentage / 100)) : null;
+
+      const message = escapeMarkdownV2(
+        `✅ Alert updated to ${percentage}% drop${targetPrice ? ` (EGP${targetPrice.toFixed(2)})` : ''}`
+      );
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+    } catch (error) {
+      console.error('Error in set percentage action:', error);
+      await ctx.answerCbQuery('⚠️ Error setting percentage alert. Please try again.');
+    }
+  });
+
+  // Custom percentage input
+  bot.action(/action_custom_percentage_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      stateManager.setState(ctx.chat.id, BotStates.SETTING_PERCENTAGE, { asin });
+
+      const message = escapeMarkdownV2('Enter your desired percentage drop (1-99):');
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+    } catch (error) {
+      console.error('Error in custom percentage action:', error);
+      await ctx.answerCbQuery('⚠️ Error setting percentage alert. Please try again.');
     }
   });
 

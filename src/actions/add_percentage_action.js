@@ -103,8 +103,8 @@ export default (bot) => {
       try {
         const url = await resolveAmazonUrl(asin);
         const name = await getProductName(url).catch(() => `ASIN:${asin}`);
-        const scrapeResult = await getPrice(url).catch(() => ({ price: 0 }));
-        const currentPrice = scrapeResult.price;
+        const scrapeResult = await getPrice(url).catch(() => ({ currentPrice: 0 }));
+        const currentPrice = scrapeResult.currentPrice;
 
         if (currentPrice <= 0) {
           return await ctx.reply('Unable to fetch the current price. Please try again later.');
@@ -164,8 +164,8 @@ export default (bot) => {
       try {
         const url = await resolveAmazonUrl(asin);
         const name = await getProductName(url).catch(() => `ASIN:${asin}`);
-        const scrapeResult = await getPrice(url).catch(() => ({ price: 0 }));
-        const currentPrice = scrapeResult.price;
+        const scrapeResult = await getPrice(url).catch(() => ({ currentPrice: 0 }));
+        const currentPrice = scrapeResult.currentPrice;
 
         if (currentPrice <= 0) {
           return await ctx.reply('Unable to fetch the current price. Please try again later.');

@@ -85,6 +85,7 @@ bot/
 - `/help` - Show help and available commands
 - `/list` - View all your tracked products
 - `/add <URL> <price>` - Add a product to track
+- `/add_percentage <URL> <percent>` - Track a product by % drop
 - `/removeone <ASIN>` - Stop tracking a product
 - `/report` - Get your daily price report
 - `/settings` - Manage bot preferences
