@@ -102,6 +102,21 @@ export const API = {
         return res.json();
     },
 
+    async getBestDrops(limit = 5, hours = 24) {
+        const res = await fetch(`/api/analytics/best-drops?limit=${limit}&hours=${hours}`, { headers: this.getHeaders() });
+        return res.json();
+    },
+
+    async getTrendOverview(days = 7) {
+        const res = await fetch(`/api/analytics/trend-overview?days=${days}`, { headers: this.getHeaders() });
+        return res.json();
+    },
+
+    async getTopCategories(limit = 5, sort = 'count') {
+        const res = await fetch(`/api/analytics/top-categories?limit=${limit}&sort=${encodeURIComponent(sort)}`, { headers: this.getHeaders() });
+        return res.json();
+    },
+
     async bulkImport(urls) {
         const res = await fetch('/api/products/bulk', {
             method: 'POST',

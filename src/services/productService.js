@@ -499,7 +499,7 @@ export class ProductService {
     }
   }
 
-  static async getDealsUnified({ chatId, limit = 20, page = 1, sort = 'smart', scope = 'global' }) {
+  static async getDealsUnified({ chatId, limit = 20, page = 1, sort = 'smart', scope = 'global', minDiscount = 0 }) {
     const skip = (page - 1) * limit;
     let query = { isOutOfStock: false };
 
@@ -520,6 +520,10 @@ export class ProductService {
       query.dealLabel = { $ne: 'price_hike' };
       // Also ensure we only show items with a positive score
       query.smartScore = { $gt: 0 };
+    }
+
+    if (minDiscount && minDiscount > 0) {
+      query.discountPercentage = { $lte: -Math.abs(minDiscount) };
     }
 
     let sortOptions = {};

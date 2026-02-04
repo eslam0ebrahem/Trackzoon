@@ -7,5 +7,8 @@ router.get('/forecast/:asin', analyticsController.getForecast);
 router.get('/volatility/:asin', analyticsController.getVolatility);
 router.get('/best-day/:asin', analyticsController.getBestDay);
 router.get('/stock-history/:asin', analyticsController.getStockHistory);
+router.get('/best-drops', analyticsController.getBestDrops);
+router.get('/trend-overview', analyticsController.getTrendOverview);
+router.get('/top-categories', analyticsController.getTopCategories);
 
 export default router;

@@ -6,12 +6,14 @@ import Subscription from '../models/Subscription.js';
 import { buildDailyReportMessage } from '../utils/messageHelper.js';
 import { sendMessageWithRetry } from '../utils/retry.js';
 import { captureError, captureMessage } from '../config/sentry.js';
+import AlertDigestService from '../services/alertDigestService.js';
 
 // Store active cron tasks for cleanup
 let activeTasks = [];
 
 const startScheduler = (bot) => {
   const priceTracker = new PriceTrackerService(bot);
+  const digestService = new AlertDigestService(bot);
   let isChecking = false;
 
   const runPriceCheck = async () => {
@@ -143,12 +145,22 @@ const startScheduler = (bot) => {
     }
   };
 
+  const flushAlertDigests = async () => {
+    try {
+      await digestService.flushDueDigests();
+    } catch (error) {
+      console.error('Error flushing alert digests:', error);
+      captureError(error, { operation: 'alert_digest_flush' });
+    }
+  };
+
   // Create and store cron tasks
   const priceCheckTask = cron.schedule('0 * * * *', runPriceCheck);
   const dailyReportTask = cron.schedule('0 8 * * *', sendDailyReports);
+  const digestTask = cron.schedule('*/5 * * * *', flushAlertDigests);
 
   // Store tasks for cleanup
-  activeTasks.push(priceCheckTask, dailyReportTask);
+  activeTasks.push(priceCheckTask, dailyReportTask, digestTask);
 
   // Run initial check after 1 minute
   setTimeout(runPriceCheck, 60 * 1000);
@@ -156,6 +168,7 @@ const startScheduler = (bot) => {
   console.log('Scheduler started:');
   console.log('- Price checks: Every hour');
   console.log('- Daily reports: Every day at 8:00 AM');
+  console.log('- Alert digests: Every 5 minutes');
 
   // Return cleanup function
   return () => {

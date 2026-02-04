@@ -21,8 +21,10 @@ export const UI = {
 
             // Label Badge Logic
             let labelBadge = '';
-            if (deal.dealLabel === 'hot_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">🔥 HOT</span>';
-            else if (deal.dealLabel === 'good_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">✅ Good</span>';
+            if (deal.dealLabel === 'hot_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">🔥 Hot Deal</span>';
+            else if (deal.dealLabel === 'good_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">✅ Good Deal</span>';
+            else if (deal.dealLabel === 'fair_price') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">🙂 Fair</span>';
+            else if (deal.dealLabel === 'stable') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">➡️ Stable</span>';
             else if (deal.dealLabel === 'price_hike') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">⚠️ Hike</span>';
 
             // Score Badge Logic
@@ -143,6 +145,79 @@ export const UI = {
                         <p class="text-xs text-blue-500">${p.trackerCount} trackers</p>
                     </div>
                 </div>
+            </div>
+        `).join('');
+    },
+
+    renderBestDrops(items) {
+        const container = document.getElementById('bestDropsList');
+        if (!container) return;
+        if (!items || items.length === 0) {
+            container.innerHTML = `
+                <div class="p-4 text-center">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">No major drops recently</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = items.map((p, i) => `
+            <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer flex items-center justify-between" onclick="window.loadHistory('${p.asin}')">
+                <div class="flex items-center min-w-0">
+                    <span class="text-xs font-bold text-gray-400 mr-3 w-4">#${i + 1}</span>
+                    <div class="min-w-0">
+                        <p class="text-xs font-medium text-gray-900 dark:text-white truncate w-32">${p.name}</p>
+                        <p class="text-xs text-green-600 dark:text-green-400">↓ ${p.discountPercent.toFixed(1)}%</p>
+                    </div>
+                </div>
+                <span class="text-xs font-bold text-gray-700 dark:text-gray-300">${formatPrice(p.currentPrice)}</span>
+            </div>
+        `).join('');
+    },
+
+    renderTrendOverview(data) {
+        const container = document.getElementById('trendOverview');
+        if (!container) return;
+        if (!data || !data.counts) {
+            container.innerHTML = '<div class="text-xs text-gray-500">No trend data</div>';
+            return;
+        }
+
+        const total = data.total || 0;
+        const rows = [
+            { key: 'DROP', label: 'Falling', emoji: '📉', color: 'bg-green-500' },
+            { key: 'RISE', label: 'Rising', emoji: '📈', color: 'bg-red-500' },
+            { key: 'STABLE', label: 'Stable', emoji: '➡️', color: 'bg-gray-500' }
+        ];
+
+        container.innerHTML = rows.map(row => {
+            const count = data.counts[row.key] || 0;
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            return `
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <span>${row.emoji} ${row.label}</span>
+                        <span>${count} (${pct}%)</span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                        <div class="${row.color} h-1.5 rounded-full" style="width: ${pct}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    renderTopCategories(categories) {
+        const container = document.getElementById('topCategoriesList');
+        if (!container) return;
+        if (!categories || categories.length === 0) {
+            container.innerHTML = '<div class="text-xs text-gray-500 dark:text-gray-400">No category data</div>';
+            return;
+        }
+
+        container.innerHTML = categories.map(c => `
+            <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
+                <span class="truncate">${c.category}</span>
+                <span class="text-gray-500 dark:text-gray-400">${c.count} • ${c.avgDiscount.toFixed(1)}% avg</span>
             </div>
         `).join('');
     },

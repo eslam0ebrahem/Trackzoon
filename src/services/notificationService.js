@@ -5,10 +5,27 @@ import { sendWebhook } from './webhookService.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 import { calculatePriceStats } from '../utils/priceUtils.js';
 import { DASHBOARD_USER_ID } from '../config/constants.js';
+import AlertDigestService from './alertDigestService.js';
+
+const getDealQuality = (product = {}) => {
+    const label = product.dealLabel;
+    if (label === 'hot_deal') return { label: 'Hot Deal', emoji: '🔥' };
+    if (label === 'good_deal') return { label: 'Good Deal', emoji: '✅' };
+    if (label === 'price_hike') return { label: 'Price Hike', emoji: '⚠️' };
+    if (label === 'stable') return { label: 'Stable Price', emoji: '➡️' };
+    if (label === 'fair_price') return { label: 'Fair Price', emoji: '🙂' };
+
+    const score = product.smartScore || 0;
+    if (score >= 80) return { label: 'Hot Deal', emoji: '🔥' };
+    if (score >= 60) return { label: 'Good Deal', emoji: '✅' };
+    if (score >= 40) return { label: 'Fair Price', emoji: '🙂' };
+    return { label: 'Stable Price', emoji: '➡️' };
+};
 
 export class NotificationService {
     constructor(bot) {
         this.bot = bot;
+        this.digestService = new AlertDigestService(bot);
     }
 
     async sendPriceAlert(tracker, product, oldPrice, newPrice) {
@@ -23,6 +40,24 @@ export class NotificationService {
 
             const savings = oldPrice - newPrice;
             const percentDrop = oldPrice > 0 ? ((savings / oldPrice) * 100).toFixed(1) : '0.0';
+            const dealQuality = getDealQuality(product);
+
+            const alertItem = {
+                asin: product.asin,
+                name: product.name,
+                url: product.url,
+                newPrice: newPrice,
+                oldPrice: oldPrice,
+                percentDrop: Number(percentDrop),
+                qualityLabel: dealQuality.label,
+                qualityEmoji: dealQuality.emoji
+            };
+
+            const shouldBundle = await this.digestService.shouldBundle(tracker.chatId);
+            if (shouldBundle) {
+                await this.digestService.enqueue(tracker.chatId, alertItem);
+                return;
+            }
 
             let header = '📉 *Price Drop Alert\\!*';
             if (isAllTimeLow) header = '🔥 *ALL TIME LOW\\!*';
@@ -72,6 +107,7 @@ export class NotificationService {
                 avgPrice > 0 ? `📊 *Ave:* EGP ${escapeMarkdownV2(avgPrice.toFixed(0))} \\| *Max:* EGP ${escapeMarkdownV2(maxPrice.toFixed(0))}` : '',
                 tracker.thresholdPrice ? `🎯 *Target:* EGP ${escapeMarkdownV2(tracker.thresholdPrice.toFixed(2))}` : '',
                 percentLine,
+                `🏷️ *Deal Quality:* ${dealQuality.emoji} ${escapeMarkdownV2(dealQuality.label)}`,
                 '',
                 aiInsight, // Insert AI insight here
                 '🛒 *Click link above to buy now\\!*'
@@ -109,6 +145,8 @@ export class NotificationService {
                     disable_web_page_preview: false
                 });
             }
+
+            await this.digestService.openWindow(tracker.chatId);
 
             // Webhook
             if (tracker.webhookUrl) {

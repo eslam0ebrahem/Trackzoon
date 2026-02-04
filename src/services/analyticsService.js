@@ -149,6 +149,129 @@ class AnalyticsService {
         if (!product || !product.stockHistory) return [];
         return product.stockHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
     }
+
+    /**
+     * Get best recent drops across all products
+     * @param {Object} options
+     * @param {number} options.limit
+     * @param {number} options.hours
+     */
+    static async getBestDrops({ limit = 5, hours = 24 } = {}) {
+        const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+        const products = await Product.find({
+            isOutOfStock: false,
+            lastDropDate: { $gte: since },
+            discountPercentage: { $lt: 0 }
+        })
+            .sort({ discountPercentage: 1 })
+            .limit(limit)
+            .select('name asin url currentPrice discountPercentage dealLabel smartScore lastDropDate imageUrl');
+
+        return products.map(p => ({
+            asin: p.asin,
+            name: p.name,
+            url: p.url,
+            currentPrice: p.currentPrice,
+            discountPercent: Math.abs(p.discountPercentage || 0),
+            dealLabel: p.dealLabel,
+            smartScore: p.smartScore,
+            lastDropDate: p.lastDropDate,
+            imageUrl: p.imageUrl
+        }));
+    }
+
+    /**
+     * Get trend overview (drop/rise/stable) across products
+     * Uses recent AI prediction if available, otherwise falls back to last price change.
+     */
+    static async getTrendOverview({ days = 7 } = {}) {
+        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+        const results = await Product.aggregate([
+            {
+                $project: {
+                    aiTrend: '$aiPrediction.trend',
+                    aiUpdated: '$aiPrediction.lastUpdated',
+                    lastChange: '$lastPriceChange.percent'
+                }
+            },
+            {
+                $addFields: {
+                    trend: {
+                        $cond: [
+                            { $and: [{ $ne: ['$aiTrend', null] }, { $gte: ['$aiUpdated', cutoff] }] },
+                            '$aiTrend',
+                            {
+                                $cond: [
+                                    { $lt: ['$lastChange', 0] }, 'DROP',
+                                    { $cond: [{ $gt: ['$lastChange', 0] }, 'RISE', 'STABLE'] }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: '$trend',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const summary = {
+            DROP: 0,
+            RISE: 0,
+            STABLE: 0,
+            UNKNOWN: 0
+        };
+
+        results.forEach(r => {
+            summary[r._id || 'UNKNOWN'] = r.count;
+        });
+
+        const total = Object.values(summary).reduce((acc, v) => acc + v, 0);
+        const percentages = Object.fromEntries(
+            Object.entries(summary).map(([key, value]) => [
+                key,
+                total > 0 ? Math.round((value / total) * 100) : 0
+            ])
+        );
+
+        return { total, counts: summary, percentages };
+    }
+
+    /**
+     * Get top categories with counts and averages
+     */
+    static async getTopCategories({ limit = 5, sort = 'count' } = {}) {
+        const pipeline = [
+            { $match: { category: { $ne: null } } },
+            {
+                $group: {
+                    _id: '$category',
+                    count: { $sum: 1 },
+                    avgScore: { $avg: '$smartScore' },
+                    avgDiscount: { $avg: { $abs: '$discountPercentage' } }
+                }
+            }
+        ];
+
+        let sortStage = { $sort: { count: -1 } };
+        if (sort === 'score') sortStage = { $sort: { avgScore: -1 } };
+        if (sort === 'discount') sortStage = { $sort: { avgDiscount: -1 } };
+
+        pipeline.push(sortStage, { $limit: limit });
+
+        const results = await Product.aggregate(pipeline);
+        return results.map(r => ({
+            category: r._id,
+            count: r.count,
+            avgScore: Math.round(r.avgScore || 0),
+            avgDiscount: Number((r.avgDiscount || 0).toFixed(1))
+        }));
+    }
 }
 
 export default AnalyticsService;

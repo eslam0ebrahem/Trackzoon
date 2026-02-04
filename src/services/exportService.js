@@ -13,8 +13,12 @@ export class ExportService {
 
     products.forEach((product, index) => {
       const name = product.name ? product.name.substring(0, 50) : 'Unknown Product';
+      const discount = typeof product.discountPercentage === 'number' ? `${product.discountPercentage.toFixed(1)}%` : 'N/A';
+      const dealLabel = product.dealLabel ? product.dealLabel.replace('_', ' ') : 'N/A';
+      const smartScore = product.smartScore ? `${Math.round(product.smartScore)}/100` : 'N/A';
       doc.fontSize(14).text(`${index + 1}. ${name}${product.name && product.name.length > 50 ? '...' : ''}`);
       doc.fontSize(10).text(`ASIN: ${product.asin} | Price: EGP ${product.currentPrice}`);
+      doc.text(`Deal: ${dealLabel} | Score: ${smartScore} | Discount: ${discount}`);
       doc.text(`URL: ${product.url}`);
       doc.moveDown();
     });
@@ -36,7 +40,9 @@ export class ExportService {
       xml += '<item>';
       xml += `<title>${String(product.name || '').replace(/&/g, '&amp;')}</title>`;
       xml += `<link>${product.url}</link>`;
-      xml += `<description>Price: EGP ${product.currentPrice}</description>`;
+      const discount = typeof product.discountPercentage === 'number' ? product.discountPercentage.toFixed(1) : '0.0';
+      const label = product.dealLabel ? product.dealLabel.replace('_', ' ') : 'deal';
+      xml += `<description>Price: EGP ${product.currentPrice} | ${label} | ${discount}%</description>`;
       xml += `<pubDate>${new Date(product.lastUpdated).toUTCString()}</pubDate>`;
       xml += `<guid>${product.asin}</guid>`;
       xml += '</item>';

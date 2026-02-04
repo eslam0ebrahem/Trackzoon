@@ -17,6 +17,7 @@ export const getDeals = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const sort = req.query.sort || 'smart';
+        const minDiscount = parseFloat(req.query.minDiscount) || 0;
 
         const chatId = req.query.chatId || req.headers['x-chat-id']; // Support header or query
 
@@ -24,7 +25,8 @@ export const getDeals = async (req, res) => {
             page,
             limit,
             sort,
-            chatId
+            chatId,
+            minDiscount
         });
 
         res.json(result);

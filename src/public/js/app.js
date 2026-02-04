@@ -236,6 +236,9 @@ export async function init() {
         fetchRecent(),
         fetchTopTracked(),
         fetchCategoryStats(),
+        fetchTopCategories(),
+        fetchBestDrops(),
+        fetchTrendOverview(),
         fetchLogs(), // Initial logs fetch
         fetchStats() // Fetch dashboard stats
     ]);
@@ -298,7 +301,9 @@ async function refreshData() {
     await Promise.all([
         fetchRecent(),
         fetchLogs(),
-        fetchStats()
+        fetchStats(),
+        fetchBestDrops(),
+        fetchTrendOverview()
     ]);
     if (STATE.currentPage === 1) {
         fetchDeals(1);
@@ -317,6 +322,27 @@ async function fetchCategoryStats() {
         const data = await API.getCategoryStats();
         updateCategoryChart(data.labels, data.data);
     } catch (e) { console.error('Error fetching category stats:', e); }
+}
+
+async function fetchTopCategories() {
+    try {
+        const data = await API.getTopCategories(5, 'count');
+        UI.renderTopCategories(data);
+    } catch (e) { console.error('Error fetching top categories:', e); }
+}
+
+async function fetchBestDrops() {
+    try {
+        const data = await API.getBestDrops(5, 24);
+        UI.renderBestDrops(data);
+    } catch (e) { console.error('Error fetching best drops:', e); }
+}
+
+async function fetchTrendOverview() {
+    try {
+        const data = await API.getTrendOverview(7);
+        UI.renderTrendOverview(data);
+    } catch (e) { console.error('Error fetching trend overview:', e); }
 }
 
 async function fetchMerchantStats() {

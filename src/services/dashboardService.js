@@ -16,9 +16,9 @@ export class DashboardService {
     return { totalProducts, totalUsers, totalTrackedItems };
   }
 
-  static async getDeals({ page = 1, limit = 20, sort = 'smart', chatId = null }) {
+  static async getDeals({ page = 1, limit = 20, sort = 'smart', chatId = null, minDiscount = 0 }) {
     const scope = chatId ? 'user' : 'global';
-    return ProductService.getDealsUnified({ page, limit, sort, scope, chatId });
+    return ProductService.getDealsUnified({ page, limit, sort, scope, chatId, minDiscount });
   }
 
   static async addProduct(url, chatId = DASHBOARD_USER_ID, threshold = 0) {
@@ -120,19 +120,56 @@ export class DashboardService {
       }
     ]);
 
-    const headers = ['ASIN', 'Name', 'URL', 'Current Price', 'Highest Price', 'Lowest Price', 'Trackers'];
+    const headers = [
+      'ASIN',
+      'Name',
+      'URL',
+      'Current Price',
+      '30d Avg',
+      '30d Min',
+      '30d Max',
+      'Smart Score',
+      'Deal Label',
+      'Discount %',
+      'Last Drop Date',
+      'Category',
+      'Tags',
+      'Merchant',
+      'Prime',
+      'Rating',
+      'Reviews',
+      'Out Of Stock',
+      'Trackers'
+    ];
     const rows = products.map(p => {
       const prices = Array.isArray(p.priceHistory) ? p.priceHistory.map(h => h.price) : [];
-      const max = prices.length > 0 ? Math.max(...prices) : p.currentPrice;
-      const min = prices.length > 0 ? Math.min(...prices) : p.currentPrice;
+      const max = p.stats?.max || (prices.length > 0 ? Math.max(...prices) : p.currentPrice);
+      const min = p.stats?.min || (prices.length > 0 ? Math.min(...prices) : p.currentPrice);
+      const avg = p.stats?.avg || (prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length) : p.currentPrice);
+      const tags = Array.isArray(p.tags) ? p.tags.join('|') : '';
+      const discount = typeof p.discountPercentage === 'number' ? p.discountPercentage.toFixed(1) : '0.0';
+      const rating = p.rating?.stars ? p.rating.stars.toFixed(1) : '';
+      const reviewCount = p.rating?.count ?? '';
 
       return [
         p.asin,
         `"${p.name.replace(/"/g, '""')}"`,
         p.url,
         p.currentPrice,
-        max,
+        avg,
         min,
+        max,
+        p.smartScore || 0,
+        p.dealLabel || '',
+        discount,
+        p.lastDropDate ? new Date(p.lastDropDate).toISOString() : '',
+        p.category || '',
+        `"${String(tags).replace(/"/g, '""')}"`,
+        p.merchant || '',
+        p.prime ? 'Yes' : 'No',
+        rating,
+        reviewCount,
+        p.isOutOfStock ? 'Yes' : 'No',
         p.trackerCount
       ].join(',');
     });

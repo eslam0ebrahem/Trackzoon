@@ -610,6 +610,12 @@
                         <div class="relative h-40 w-full">
                             <canvas id="categoryChart"></canvas>
                         </div>
+                        <div class="mt-3">
+                            <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Top Categories</h4>
+                            <div id="topCategoriesList" class="space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                                <div class="text-xs text-gray-400">Loading...</div>
+                            </div>
+                        </div>
                         <!-- Forecast Widget -->
                         <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mt-4">
                             <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">7-Day Forecast
@@ -639,6 +645,15 @@
                         </div>
                     </div>
 
+                    <!-- Trend Overview -->
+                    <div
+                        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📈 Trend Overview</h3>
+                        <div id="trendOverview" class="space-y-3">
+                            <div class="text-xs text-gray-400">Loading...</div>
+                        </div>
+                    </div>
+
                     <!-- Top Tracked -->
                     <div
                         class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
@@ -648,6 +663,19 @@
                         </div>
                         <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-40 overflow-y-auto"
                             id="topTracked">
+                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- Best Drops -->
+                    <div
+                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div
+                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">💥 Biggest Drops (24h)</h3>
+                        </div>
+                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto"
+                            id="bestDropsList">
                             <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
                         </div>
                     </div>

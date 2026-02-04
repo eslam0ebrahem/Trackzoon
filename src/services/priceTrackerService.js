@@ -401,6 +401,14 @@ export class PriceTrackerService {
             updatePayload.targetPrice = Number((currentPrice * (1 - trackerMock.percentageThreshold / 100)).toFixed(2));
           }
 
+          const autoSnoozeHours = Number(process.env.ALERT_AUTO_SNOOZE_HOURS || 6);
+          if (autoSnoozeHours > 0) {
+            const snoozeUntil = new Date(Date.now() + autoSnoozeHours * 60 * 60 * 1000);
+            if (!sub.snoozeUntil || new Date(sub.snoozeUntil) < snoozeUntil) {
+              updatePayload.snoozeUntil = snoozeUntil;
+            }
+          }
+
           await Subscription.updateOne(
             { _id: sub._id },
             { $set: updatePayload }
@@ -492,11 +500,23 @@ export class PriceTrackerService {
     // If no history, default to simple rule: Alert if drop > 10%
     if (!stats30d) return Math.abs(priceChange) >= 10;
 
+    const isSpikeDrop = stats30d.max > 0 && oldPrice > stats30d.max * 1.05;
+    if (isSpikeDrop && newPrice > stats30d.average) {
+      // Price dropped from an abnormal spike but still above average.
+      // Require a very large drop to avoid "fake deals".
+      if (Math.abs(priceChange) < 25) return false;
+    }
+
+    if (stats30d.stdDev && stats30d.stdDev > 0) {
+      const zScore = (stats30d.average - newPrice) / stats30d.stdDev;
+      if (zScore < 0.35 && Math.abs(priceChange) < 12) return false;
+    }
+
     // "Fake Deal" Detector:
     // If price is still above the 30-day average, only alert if it's a huge drop (>15%)
     // This prevents alerting when a price spiked to 200% yesterday and returned to 110% today.
     if (newPrice > stats30d.average) {
-      return Math.abs(priceChange) >= 15;
+      return Math.abs(priceChange) >= 18;
     }
 
     // "All Time Low" Detector
