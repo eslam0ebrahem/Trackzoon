@@ -238,9 +238,9 @@ export const calculateDropProbability = (currentPrice, stats30d, trend) => {
     let probability = positionInRange * 80; // Max 80% from position
 
     // 2. Trend Influence
-    if (trend && trend.trend === 'DOWN') {
+    if (trend && (trend.trend === 'DOWN' || trend.trend === 'DROP')) {
         probability += 20; // Trend is down, higher chance
-    } else if (trend && trend.trend === 'UP') {
+    } else if (trend && (trend.trend === 'UP' || trend.trend === 'RISE')) {
         probability -= 20; // Trend is up, lower chance
     }
 

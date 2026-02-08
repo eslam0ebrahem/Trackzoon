@@ -29,6 +29,11 @@ const userSettingsSchema = new mongoose.Schema({
   minDiscount: {
     type: Number,
     default: 0 // Notify on any drop
+  },
+  alertSensitivity: {
+    type: String,
+    enum: ['aggressive', 'balanced', 'strict'],
+    default: 'balanced'
   }
 });
 

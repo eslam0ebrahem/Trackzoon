@@ -181,6 +181,18 @@ const formatProductDetails = (product, tracker) => {
         message += `\n\n🤖 *AI Analysis:*\n_${escapeMarkdownV2(product.aiAnalysis)}_`;
     }
 
+    if (product.aiBuyingAdvice && product.aiBuyingAdvice.advice) {
+        const adviceLabel = product.aiBuyingAdvice.advice === 'buy_now'
+            ? 'Buy Now'
+            : product.aiBuyingAdvice.advice === 'wait'
+                ? 'Wait'
+                : 'Neutral';
+        message += `\n\n🧠 *AI Buying Advice:* ${escapeMarkdownV2(adviceLabel)}`;
+        if (product.aiBuyingAdvice.reasoning) {
+            message += `\n_${escapeMarkdownV2(product.aiBuyingAdvice.reasoning)}_`;
+        }
+    }
+
     return message;
 };
 

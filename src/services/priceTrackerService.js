@@ -6,7 +6,7 @@ import PricePoint from '../models/PricePoint.js';
 import pLimit from 'p-limit';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { logger } from '../utils/logger.js';
-import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend, applyJitter } from '../utils/priceUtils.js';
+import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend, applyJitter, calculateDropProbability } from '../utils/priceUtils.js';
 import { scraperService } from './scraperService.js';
 import { NotificationService } from './notificationService.js';
 import { priceCheckQueue } from '../queue/priceQueue.js';
@@ -434,6 +434,7 @@ export class PriceTrackerService {
   async shouldNotifyUser(tracker, product, oldPrice, newPrice) {
     const priceChange = oldPrice > 0 ? ((newPrice - oldPrice) / oldPrice) * 100 : 0;
     const isDecrease = newPrice < oldPrice;
+    let user = tracker.user;
 
     if (tracker.lastAlertedAt) {
       const hoursSinceLastAlert = (Date.now() - tracker.lastAlertedAt.getTime()) / (1000 * 60 * 60);
@@ -442,7 +443,6 @@ export class PriceTrackerService {
 
     // 1. Check User Settings (Quiet Mode, Min Discount)
     try {
-      let user = tracker.user;
       if (!user) user = await User.findOne({ telegramId: tracker.chatId });
 
       if (tracker.snoozeUntil && new Date() < new Date(tracker.snoozeUntil)) return false;
@@ -490,15 +490,39 @@ export class PriceTrackerService {
 
     // 3. Smart Filtering
     if (!isDecrease) return false; // No alert for price increase/stable
+    if (!user) user = await User.findOne({ telegramId: tracker.chatId });
+    const sensitivity = user?.settings?.alertSensitivity || 'balanced';
 
     // Always alert for massive drops (>20%)
     if (Math.abs(priceChange) >= 20) return true;
 
     // Calculate context stats
     const stats30d = calculatePriceStats(product.priceHistory, 30);
+    const trend = product.aiPrediction ? { trend: product.aiPrediction.trend } : predictPriceTrend(product.priceHistory);
+    const dropProbability = stats30d ? calculateDropProbability(newPrice, stats30d, trend) : null;
+    const smartScore = typeof product.smartScore === 'number' && product.smartScore > 0
+      ? product.smartScore
+      : (stats30d ? calculateDealScore(newPrice, stats30d, product.volatilityScore || 0, product.isOutOfStock, trend) : 0);
 
     // If no history, default to simple rule: Alert if drop > 10%
     if (!stats30d) return Math.abs(priceChange) >= 10;
+
+    if (sensitivity === 'aggressive') {
+      const minDrop = Math.max(user?.settings?.minDiscount || 0, 2);
+      if (Math.abs(priceChange) >= minDrop) return true;
+    }
+
+    if (sensitivity === 'strict') {
+      const strongSignal = smartScore >= 60 || (dropProbability !== null && dropProbability >= 60);
+      const atLow = newPrice <= stats30d.min;
+      if (!strongSignal && !atLow && Math.abs(priceChange) < 15) return false;
+    }
+
+    if (sensitivity === 'balanced') {
+      if (dropProbability !== null && dropProbability < 25 && smartScore < 45 && Math.abs(priceChange) < 12) {
+        return false;
+      }
+    }
 
     const isSpikeDrop = stats30d.max > 0 && oldPrice > stats30d.max * 1.05;
     if (isSpikeDrop && newPrice > stats30d.average) {

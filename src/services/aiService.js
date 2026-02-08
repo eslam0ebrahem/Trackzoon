@@ -22,8 +22,9 @@ export class AiService {
      * @returns {Promise<any>} - Parsed JSON or string content
      */
     async ask({ systemPrompt, userPrompt, model = 'llama-3.1-8b-instant', temperature = 0.2, jsonMode = false }) {
-        // Enforce safe model selection if somehow 'sonar' or others slip in
-        if (model === 'sonar') model = 'llama-3.1-8b-instant';
+        // Enforce safe model selection if unsupported aliases slip in
+        if (model === 'sonar' || model === 'sonar-mini') model = 'llama-3.1-8b-instant';
+        if (model === 'sonar-pro') model = 'llama-3.3-70b-versatile';
 
         try {
             return await this.askGroq({ systemPrompt, userPrompt, temperature, jsonMode, model });
@@ -66,7 +67,11 @@ export class AiService {
         if (!this.groqKey) throw new Error('GROQ_API_KEY not configured');
 
         // Default to fast model if not specified, but usually passed by caller
-        const finalModel = model === 'sonar' ? 'llama-3.1-8b-instant' : (model || 'llama-3.1-8b-instant');
+        const finalModel = model === 'sonar' || model === 'sonar-mini'
+            ? 'llama-3.1-8b-instant'
+            : model === 'sonar-pro'
+                ? 'llama-3.3-70b-versatile'
+                : (model || 'llama-3.1-8b-instant');
 
         try {
             await this.throttleGroq();

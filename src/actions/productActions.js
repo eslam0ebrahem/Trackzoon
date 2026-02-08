@@ -13,6 +13,9 @@ import { stateManager, BotStates } from '../utils/stateManager.js';
 import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 import { handleError } from '../utils/errorHandler.js';
 import { renderDealsList } from '../utils/dealsRenderer.js';
+import { buildSmartTargetSuggestions } from '../utils/smartTarget.js';
+import { marketIntelligenceService } from '../services/marketIntelligenceService.js';
+import Product from '../models/Product.js';
 
 export default (bot) => {
   // Price history action
@@ -207,6 +210,161 @@ export default (bot) => {
     } catch (error) {
       console.error('Error in view product action:', error);
       await ctx.answerCbQuery('⚠️ Error fetching product details. Please try again.');
+    }
+  });
+
+  // Smart target suggestions
+  bot.action(/action_smart_target_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
+      const { suggestions, stats30d, dropProbability } = buildSmartTargetSuggestions(product);
+
+      if (!suggestions || suggestions.length === 0) {
+        return await ctx.answerCbQuery('Not enough data to suggest a target yet.');
+      }
+
+      const name = escapeMarkdownV2(product.name || product.asin || 'Product');
+      const current = product.currentPrice ? `EGP${escapeMarkdownV2(product.currentPrice.toFixed(2))}` : 'N/A';
+      const statsLine = stats30d
+        ? `📊 30d Low: EGP${escapeMarkdownV2(stats30d.min.toFixed(2))}  Avg: EGP${escapeMarkdownV2(stats30d.average.toFixed(2))}`
+        : '📊 Not enough history yet';
+      const probLine = dropProbability !== null ? `🎲 Drop Chance: ${escapeMarkdownV2(String(dropProbability))}%` : '';
+
+      const lines = [
+        '🧠 *Smart Target Suggestions*',
+        '',
+        `📦 ${name}`,
+        `💰 Current: ${current}`,
+        statsLine,
+        probLine,
+        '',
+        'Choose a target:'
+      ].filter(Boolean);
+
+      suggestions.forEach(s => {
+        lines.push(`*${escapeMarkdownV2(s.label)}* target: EGP${escapeMarkdownV2(s.targetPrice.toFixed(2))}`);
+        lines.push(`_${escapeMarkdownV2(s.reason)}_`);
+        lines.push('');
+      });
+
+      const keyboard = suggestions.map(s => ([
+        {
+          text: `${s.label} (EGP${s.targetPrice.toFixed(2)})`,
+          callback_data: `action_apply_smart_target_${asin}_${s.targetPrice.toFixed(2)}`
+        }
+      ]));
+
+      keyboard.push([{ text: '🔙 Back', callback_data: `action_view_${asin}` }]);
+
+      await safeEditMessageText(ctx, lines.join('\n'), {
+        parse_mode: 'MarkdownV2',
+        reply_markup: { inline_keyboard: keyboard }
+      });
+    } catch (error) {
+      console.error('Error generating smart target:', error);
+      await ctx.answerCbQuery('⚠️ Error generating smart target. Please try again.');
+    }
+  });
+
+  // Apply smart target
+  bot.action(/action_apply_smart_target_(\w+)_([\d\.]+)/, async (ctx) => {
+    try {
+      const [asin, priceStr] = ctx.match.slice(1);
+      const price = parseFloat(priceStr);
+
+      if (isNaN(price) || price <= 0) {
+        return await ctx.answerCbQuery('Invalid target price.');
+      }
+
+      await ProductService.updateThreshold(asin, ctx.chat.id, price);
+
+      const message = escapeMarkdownV2(`✅ Smart target applied: EGP${price.toFixed(2)}`);
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+      await ctx.answerCbQuery('Target updated');
+    } catch (error) {
+      console.error('Error applying smart target:', error);
+      await ctx.answerCbQuery('⚠️ Error applying target. Please try again.');
+    }
+  });
+
+  // AI buying advice
+  bot.action(/action_ai_advice_(\w+)/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const product = await ProductService.getProduct(asin, ctx.chat.id);
+
+      if (!process.env.GROQ_API_KEY) {
+        return await ctx.answerCbQuery('AI is not configured yet.');
+      }
+
+      const lastUpdated = product.aiBuyingAdvice?.lastUpdated
+        ? new Date(product.aiBuyingAdvice.lastUpdated).getTime()
+        : 0;
+      const ageHours = (Date.now() - lastUpdated) / (1000 * 60 * 60);
+
+      let advice = product.aiBuyingAdvice;
+      if (!advice || ageHours > 72) {
+        advice = await marketIntelligenceService.analyzeDeal(product.name, product.currentPrice || 0);
+        if (advice && advice.advice) {
+          await Product.findOneAndUpdate(
+            { asin },
+            {
+              $set: {
+                aiBuyingAdvice: {
+                  ...advice,
+                  lastUpdated: new Date()
+                }
+              }
+            }
+          );
+        }
+      }
+
+      if (!advice || !advice.advice) {
+        return await ctx.answerCbQuery('AI advice unavailable right now.');
+      }
+
+      const adviceLabel = advice.advice === 'buy_now'
+        ? 'Buy Now'
+        : advice.advice === 'wait'
+          ? 'Wait'
+          : 'Neutral';
+      const adviceEmoji = advice.advice === 'buy_now'
+        ? '🟢'
+        : advice.advice === 'wait'
+          ? '🟡'
+          : '🔵';
+
+      const messageLines = [
+        '🤖 *AI Buying Advice*',
+        '',
+        `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
+        `💰 Current: EGP${escapeMarkdownV2((product.currentPrice || 0).toFixed(2))}`,
+        '',
+        `${adviceEmoji} *Advice:* ${escapeMarkdownV2(adviceLabel)}`,
+        advice.reasoning ? `💡 _${escapeMarkdownV2(advice.reasoning)}_` : '',
+        advice.newsSummary ? `📰 ${escapeMarkdownV2(advice.newsSummary)}` : '',
+        '',
+        'Tap back to return to the product'
+      ].filter(Boolean);
+
+      await safeEditMessageText(ctx, messageLines.join('\n'), {
+        parse_mode: 'MarkdownV2',
+        disable_web_page_preview: true,
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔄 Refresh Advice', callback_data: `action_ai_advice_${asin}` }],
+            [{ text: '🔙 Back to Product', callback_data: `action_view_${asin}` }]
+          ]
+        }
+      });
+    } catch (error) {
+      console.error('Error generating AI advice:', error);
+      await ctx.answerCbQuery('⚠️ Error generating AI advice. Please try again.');
     }
   });
 

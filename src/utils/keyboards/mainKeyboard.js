@@ -30,7 +30,11 @@ export const productActionsKeyboard = (asin) => {
           { text: '🎯 Set Threshold', callback_data: `action_threshold_${asin}` }
         ],
         [
-          { text: '📉 Set % Drop', callback_data: `action_percentage_${asin}` }
+          { text: '📉 Set % Drop', callback_data: `action_percentage_${asin}` },
+          { text: '🧠 Smart Target', callback_data: `action_smart_target_${asin}` }
+        ],
+        [
+          { text: '🤖 AI Advice', callback_data: `action_ai_advice_${asin}` }
         ],
         [
           { text: '❌ Stop Tracking', callback_data: `action_remove_${asin}` }

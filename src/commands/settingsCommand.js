@@ -13,6 +13,7 @@ export default (bot) => {
                 '*Notification Settings*',
                 `🔔 Price Alerts: ${user.settings.notifications ? 'Enabled' : 'Disabled'}`,
                 `📊 Daily Reports: ${user.settings.dailyReport ? 'Enabled' : 'Disabled'}`,
+                `🧠 Alert Sensitivity: ${user.settings.alertSensitivity || 'balanced'}`,
                 '',
                 '*Advanced Preferences*',
                 `🌙 Quiet Mode: ${user.settings.quietMode?.enabled ? `On (${user.settings.quietMode.startHour}:00 - ${user.settings.quietMode.endHour}:00)` : 'Off'}`,
@@ -45,8 +46,20 @@ export default (bot) => {
                         ],
                         [
                             {
+                                text: '🕒 Set Quiet Hours',
+                                callback_data: 'action_set_quiet_hours'
+                            }
+                        ],
+                        [
+                            {
                                 text: '📉 Set Min Discount',
                                 callback_data: 'action_set_min_discount'
+                            }
+                        ],
+                        [
+                            {
+                                text: '🧠 Alert Sensitivity',
+                                callback_data: 'action_set_alert_sensitivity'
                             }
                         ]
                     ]

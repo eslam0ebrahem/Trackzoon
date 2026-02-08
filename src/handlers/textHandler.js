@@ -8,6 +8,7 @@ import { escapeMarkdownV2 } from '../utils/messageHelper.js';
 import { Markup } from 'telegraf';
 import { ProductService } from '../services/productService.js';
 import { marketIntelligenceService } from '../services/marketIntelligenceService.js';
+import { UserService } from '../services/userService.js';
 
 async function handleProductUrl(ctx) {
     try {
@@ -528,6 +529,96 @@ async function handlePercentageUpdate(ctx) {
     });
 }
 
+async function handleMinDiscountInput(ctx) {
+    const input = ctx.message.text.trim();
+    const value = parseFloat(input);
+
+    if (isNaN(value) || value < 0 || value >= 100) {
+        throw new BotError(
+            'Invalid discount',
+            ErrorCodes.INVALID_THRESHOLD,
+            [
+                '❌ *Invalid Discount*',
+                '',
+                '💡 *Please enter a valid percentage:*',
+                '• Must be between 0 and 99',
+                '• Example: 10',
+                '',
+                'Try again:'
+            ].join('\n')
+        );
+    }
+
+    const user = await UserService.getUserSettings(ctx.chat.id);
+    user.settings.minDiscount = value;
+    await user.save();
+    stateManager.clearState(ctx.chat.id);
+
+    const message = value === 0
+        ? '✅ Minimum discount cleared. I will alert on any drop.'
+        : `✅ Minimum discount set to ${value.toFixed(0)}%`;
+
+    await ctx.reply(escapeMarkdownV2(message), {
+        parse_mode: 'MarkdownV2',
+        ...mainKeyboard()
+    });
+}
+
+async function handleQuietHoursInput(ctx) {
+    const input = ctx.message.text.trim();
+
+    const match = input.match(/(\d{1,2})(?::\d{2})?\s*[-\s]\s*(\d{1,2})(?::\d{2})?/);
+    if (!match) {
+        throw new BotError(
+            'Invalid quiet hours',
+            ErrorCodes.INVALID_INPUT,
+            [
+                '❌ *Invalid Format*',
+                '',
+                '💡 *Use this format:*',
+                '`22-8` or `22 8`',
+                '',
+                'Try again:'
+            ].join('\n')
+        );
+    }
+
+    const startHour = parseInt(match[1], 10);
+    const endHour = parseInt(match[2], 10);
+
+    if (isNaN(startHour) || isNaN(endHour) || startHour < 0 || startHour > 23 || endHour < 0 || endHour > 23) {
+        throw new BotError(
+            'Invalid quiet hours',
+            ErrorCodes.INVALID_INPUT,
+            [
+                '❌ *Invalid Hours*',
+                '',
+                '💡 *Hours must be between 0 and 23.*',
+                '',
+                'Try again:'
+            ].join('\n')
+        );
+    }
+
+    const user = await UserService.getUserSettings(ctx.chat.id);
+    user.settings.quietMode = user.settings.quietMode || {};
+    user.settings.quietMode.startHour = startHour;
+    user.settings.quietMode.endHour = endHour;
+    user.settings.quietMode.enabled = true;
+    await user.save();
+    stateManager.clearState(ctx.chat.id);
+
+    const message = [
+        '✅ Quiet hours updated.',
+        `🌙 Quiet Mode: ${startHour}:00 - ${endHour}:00`
+    ].join('\n');
+
+    await ctx.reply(escapeMarkdownV2(message), {
+        parse_mode: 'MarkdownV2',
+        ...mainKeyboard()
+    });
+}
+
 export default (bot) => {
     bot.on('text', async (ctx) => {
         try {
@@ -628,6 +719,12 @@ export default (bot) => {
                     break;
                 case BotStates.SETTING_PERCENTAGE:
                     await handlePercentageUpdate(ctx);
+                    break;
+                case BotStates.SETTING_MIN_DISCOUNT:
+                    await handleMinDiscountInput(ctx);
+                    break;
+                case BotStates.SETTING_QUIET_HOURS:
+                    await handleQuietHoursInput(ctx);
                     break;
 
                 default:

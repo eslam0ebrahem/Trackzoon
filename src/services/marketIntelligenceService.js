@@ -2,8 +2,8 @@ import { logger } from '../utils/logger.js';
 import { aiService } from './aiService.js';
 import { SystemPrompts } from '../utils/prompts.js';
 
-const MODEL_RESEARCH = 'sonar-pro'; // Deep research
-const MODEL_FAST = 'sonar'; // Fast queries
+const MODEL_RESEARCH = 'llama-3.3-70b-versatile'; // Deep reasoning
+const MODEL_FAST = 'llama-3.1-8b-instant'; // Fast queries
 
 class MarketIntelligenceService {
   /**
@@ -72,4 +72,3 @@ class MarketIntelligenceService {
 }
 
 export const marketIntelligenceService = new MarketIntelligenceService();
-

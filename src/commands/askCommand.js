@@ -1,6 +1,5 @@
 import { aiService } from '../services/aiService.js';
 import { ProductService } from '../services/productService.js';
-import Product from '../models/Product.js';
 import { logger } from '../utils/logger.js';
 
 export const askCommand = async (ctx) => {
@@ -17,13 +16,14 @@ export const askCommand = async (ctx) => {
         // Get user's tracked products for context
         const chatId = ctx.chat.id;
         const [userProducts, globalDealsResult] = await Promise.all([
-            Product.find({ 'trackedBy.chatId': chatId }),
+            ProductService.getUserProducts(chatId),
             ProductService.getDealsUnified({ limit: 10, sort: 'smart', scope: 'global' })
         ]);
 
         const globalDeals = globalDealsResult.items.map(i => i.product);
+        const userProductData = userProducts.map(p => (p.toObject ? p.toObject() : p));
 
-        const answer = await aiService.answerQuestion(query, userProducts, globalDeals);
+        const answer = await aiService.answerQuestion(query, userProductData, globalDeals);
 
         await ctx.reply(`🤖 *AI Assistant:*\n${answer}`, { parse_mode: 'Markdown' });
 
