@@ -168,6 +168,7 @@ export default (bot) => {
   bot.action('action_add_product', async (ctx) => {
     try {
       stateManager.setState(ctx.chat.id, BotStates.WAITING_FOR_URL_AND_PRICE);
+      const autoTargetHint = 'Tip: Enable Auto Target in Settings to send URL only.';
       const message = [
         '🛍️ *Track a New Product*',
         '',
@@ -179,6 +180,8 @@ export default (bot) => {
         '📌 *Examples:*',
         '`https://amzn\\.to/xxx 99\\.99`',
         '`https://www\\.amazon\\.com/dp/B08N5XSG8Z 149`',
+        '',
+        escapeMarkdownV2(autoTargetHint),
         '',
         '⚡ *Quick \\& Easy:* Just paste the link, add a space, then type your target price\\!'
       ].join('\n');

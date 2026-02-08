@@ -95,51 +95,63 @@ async function handleUrlAndPrice(ctx) {
         // Split the input to extract URL and price
         const parts = text.split(/\s+/);
 
-        // Need at least 2 parts: URL and price
+        let threshold = 0;
+        let productUrl = '';
+        let useAutoTarget = false;
+
         if (parts.length < 2) {
-            throw new BotError(
-                'Invalid format',
-                ErrorCodes.INVALID_INPUT,
-                [
-                    '❌ *Invalid Format*',
-                    '',
-                    '💡 *Please send in this format:*',
-                    '`<Amazon URL> <price>`',
-                    '',
-                    '*Examples:*',
-                    '• `https://amzn\\.to/xxx 99\\.99`',
-                    '• `https://amazon\\.co\\.uk/dp/B085P5NY9H 68`',
-                    '',
-                    'Try again:'
-                ].join('\n')
-            );
+            // Allow URL-only if Auto Target is enabled
+            const user = await UserService.getUserSettings(ctx.chat.id);
+            if (user.settings.autoTarget?.enabled && parts.length === 1 && isValidAmazonUrl(parts[0])) {
+                productUrl = parts[0];
+                useAutoTarget = true;
+            } else {
+                throw new BotError(
+                    'Invalid format',
+                    ErrorCodes.INVALID_INPUT,
+                    [
+                        '❌ *Invalid Format*',
+                        '',
+                        '💡 *Please send in this format:*',
+                        '`<Amazon URL> <price>`',
+                        '',
+                        '*Examples:*',
+                        '• `https://amzn\\.to/xxx 99\\.99`',
+                        '• `https://amazon\\.co\\.uk/dp/B085P5NY9H 68`',
+                        '',
+                        'Tip: Enable Auto Target in Settings to send URL only.',
+                        '',
+                        'Try again:'
+                    ].join('\n')
+                );
+            }
+        } else {
+            // Last part should be the price
+            const priceStr = parts[parts.length - 1];
+            threshold = parseFloat(priceStr);
+
+            if (isNaN(threshold) || threshold <= 0) {
+                throw new BotError(
+                    'Invalid price',
+                    ErrorCodes.INVALID_THRESHOLD,
+                    [
+                        '❌ *Invalid Price*',
+                        '',
+                        '💡 *Please provide a valid price:*',
+                        '• Must be a number greater than 0',
+                        '• Example: 99\\.99',
+                        '',
+                        '*Format:*',
+                        '`<Amazon URL> <price>`',
+                        '',
+                        'Try again:'
+                    ].join('\n')
+                );
+            }
+
+            // Everything except the last part is the URL
+            productUrl = parts.slice(0, -1).join(' ');
         }
-
-        // Last part should be the price
-        const priceStr = parts[parts.length - 1];
-        const threshold = parseFloat(priceStr);
-
-        if (isNaN(threshold) || threshold <= 0) {
-            throw new BotError(
-                'Invalid price',
-                ErrorCodes.INVALID_THRESHOLD,
-                [
-                    '❌ *Invalid Price*',
-                    '',
-                    '💡 *Please provide a valid price:*',
-                    '• Must be a number greater than 0',
-                    '• Example: 99\\.99',
-                    '',
-                    '*Format:*',
-                    '`<Amazon URL> <price>`',
-                    '',
-                    'Try again:'
-                ].join('\n')
-            );
-        }
-
-        // Everything except the last part is the URL
-        const productUrl = parts.slice(0, -1).join(' ');
 
         // Basic URL validation
         if (!isValidAmazonUrl(productUrl)) {
@@ -194,7 +206,16 @@ async function handleUrlAndPrice(ctx) {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => { });
 
         // Add or update tracker
-        const { product, isNew, isAlreadyTracked } = await ProductService.addProduct(resolvedUrl, ctx.chat.id, threshold);
+        const user = await UserService.getUserSettings(ctx.chat.id);
+        const { product, isNew, isAlreadyTracked, autoTargetApplied, autoTargetPrice } = await ProductService.addProduct(
+            resolvedUrl,
+            ctx.chat.id,
+            threshold,
+            {
+                autoTarget: useAutoTarget,
+                autoTargetStyle: user.settings.alertSensitivity || 'balanced'
+            }
+        );
         stateManager.clearState(ctx.chat.id);
 
         // Use product's isOutOfStock flag (more reliable than local variable)
@@ -239,7 +260,10 @@ async function handleUrlAndPrice(ctx) {
         }
 
         // Calculate price difference
-        const difference = ((product.currentPrice - threshold) / threshold) * 100;
+        const effectiveTarget = autoTargetApplied ? autoTargetPrice : threshold;
+        const difference = effectiveTarget && effectiveTarget > 0
+            ? ((product.currentPrice - effectiveTarget) / effectiveTarget) * 100
+            : 0;
         const percentDiff = difference.toFixed(1);
         const productName = escapeMarkdownV2(product.name);
 
@@ -271,9 +295,12 @@ async function handleUrlAndPrice(ctx) {
             `📦 [${productName}](${escapeMarkdownV2(product.url)})`,
             '',
             `💰 *Current Price:* EGP${escapeMarkdownV2(product.currentPrice.toFixed(2))}`,
-            `🎯 *Alert Price:* EGP${escapeMarkdownV2(threshold.toFixed(2))}`,
+            effectiveTarget
+                ? `🎯 *Alert Price:* EGP${escapeMarkdownV2(effectiveTarget.toFixed(2))}`
+                : `🎯 *Alert Price:* ${escapeMarkdownV2('Not set')}`,
             '',
             priceStatus,
+            autoTargetApplied ? escapeMarkdownV2('\n🧠 Smart Target was applied automatically.') : '',
             priceWarning,
             '',
             '✨ You can view all your tracked products anytime with /list'
@@ -380,16 +407,18 @@ async function handleThresholdInput(ctx) {
     const percentDiff = difference.toFixed(1);
 
     // Build success message
-    const priceStatus = product.currentPrice <= threshold
-        ? [
-            `🎉 *Great News\\!*`,
-            `The current price is already below your target\\!`,
-            `This is a good time to buy\\!`
-        ].join('\n')
-        : [
-            `📊 Current price is *${escapeMarkdownV2(percentDiff)}%* above your target\\.`,
-            `🔔 Don't worry\\! I'll notify you immediately when the price drops\\.`
-        ].join('\n');
+        const priceStatus = effectiveTarget && product.currentPrice <= effectiveTarget
+            ? [
+                `🎉 *Great News\\!*`,
+                `The current price is already below your target\\!`,
+                `This is a good time to buy\\!`
+            ].join('\n')
+            : [
+                effectiveTarget
+                    ? `📊 Current price is *${escapeMarkdownV2(percentDiff)}%* above your target\\.`
+                    : `📊 Target not set yet\\.`,
+                `🔔 Don't worry\\! I'll notify you immediately when the price drops\\.`
+            ].join('\n');
 
     const message = [
         '✅ *Tracking Started\\!*',
@@ -619,6 +648,39 @@ async function handleQuietHoursInput(ctx) {
     });
 }
 
+async function handleDropProbabilityThresholdInput(ctx) {
+    const input = ctx.message.text.trim();
+    const value = parseFloat(input);
+
+    if (isNaN(value) || value < 10 || value > 95) {
+        throw new BotError(
+            'Invalid probability threshold',
+            ErrorCodes.INVALID_THRESHOLD,
+            [
+                '❌ *Invalid Threshold*',
+                '',
+                '💡 *Please enter a number between 10 and 95.*',
+                'Example: `70`',
+                '',
+                'Try again:'
+            ].join('\n')
+        );
+    }
+
+    const user = await UserService.getUserSettings(ctx.chat.id);
+    user.settings.dropProbabilityAlerts = user.settings.dropProbabilityAlerts || {};
+    user.settings.dropProbabilityAlerts.threshold = value;
+    user.settings.dropProbabilityAlerts.enabled = true;
+    await user.save();
+    stateManager.clearState(ctx.chat.id);
+
+    const message = `✅ Drop probability threshold set to ${value.toFixed(0)}%`;
+    await ctx.reply(escapeMarkdownV2(message), {
+        parse_mode: 'MarkdownV2',
+        ...mainKeyboard()
+    });
+}
+
 export default (bot) => {
     bot.on('text', async (ctx) => {
         try {
@@ -725,6 +787,9 @@ export default (bot) => {
                     break;
                 case BotStates.SETTING_QUIET_HOURS:
                     await handleQuietHoursInput(ctx);
+                    break;
+                case BotStates.SETTING_DROP_PROBABILITY_THRESHOLD:
+                    await handleDropProbabilityThresholdInput(ctx);
                     break;
 
                 default:

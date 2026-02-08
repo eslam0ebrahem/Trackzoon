@@ -69,3 +69,14 @@ export const buildSmartTargetSuggestions = (product = {}) => {
 
   return { suggestions, stats30d, dropProbability, trend };
 };
+
+export const pickSuggestionForSensitivity = (suggestions = [], sensitivity = 'balanced') => {
+  if (!suggestions || suggestions.length === 0) return null;
+  const mapping = {
+    aggressive: 'quick',
+    balanced: 'balanced',
+    strict: 'aggressive'
+  };
+  const targetId = mapping[sensitivity] || 'balanced';
+  return suggestions.find(s => s.id === targetId) || suggestions[0];
+};

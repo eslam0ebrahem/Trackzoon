@@ -1,7 +1,7 @@
 // Helper utilities for composing and formatting messages for the Telegram bot
 // Uses MarkdownV2 escaping and provides rich message formatting with emojis
 
-import { calculatePriceStats, calculateDropProbability } from './priceUtils.js';
+import { calculatePriceStats, calculateDropProbability, calculateSeasonalityHint } from './priceUtils.js';
 
 const escapeMarkdownV2 = (text = '') => {
     // First, handle any pre-escaped characters (those with a single backslash)
@@ -165,6 +165,17 @@ const formatProductDetails = (product, tracker) => {
 
     if (priceChange) {
         message += `   • Overall Change: ${escapeMarkdownV2(priceChange)}\n`;
+    }
+
+    const seasonality = calculateSeasonalityHint(product.priceHistory);
+    if (seasonality) {
+        const monthName = escapeMarkdownV2(seasonality.monthName);
+        message += `\n🗓️ *Seasonality:* Cheapest month tends to be ${monthName} \\(avg ${escapeMarkdownV2(formatPrice(seasonality.avgPrice))}\\)`;
+        if (seasonality.nextLowInMonths === 0) {
+            message += `\n   🔵 This month is historically one of the cheapest\\.`;
+        } else if (seasonality.nextLowInMonths <= 3) {
+            message += `\n   ⏳ Next low season in ${escapeMarkdownV2(String(seasonality.nextLowInMonths))} month\\(s\\)\\.`;
+        }
     }
 
     // Add recommendation

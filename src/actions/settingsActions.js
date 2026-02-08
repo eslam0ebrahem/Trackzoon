@@ -16,6 +16,9 @@ export default (bot) => {
         `🔔 Price Alerts: ${user.settings.notifications ? 'Enabled' : 'Disabled'}`,
         `📊 Daily Reports: ${user.settings.dailyReport ? 'Enabled' : 'Disabled'}`,
         `🧠 Alert Sensitivity: ${user.settings.alertSensitivity || 'balanced'}`,
+        `🎯 Auto Target: ${user.settings.autoTarget?.enabled ? 'Enabled' : 'Disabled'}`,
+        `🔁 Watch Again: ${user.settings.watchAgain?.enabled ? 'Enabled' : 'Disabled'}`,
+        `🎲 Drop Probability Alerts: ${user.settings.dropProbabilityAlerts?.enabled ? `On (${user.settings.dropProbabilityAlerts.threshold || 65}%)` : 'Off'}`,
         '',
         '*Advanced Preferences*',
         `🌙 Quiet Mode: ${user.settings.quietMode?.enabled ? `On (${user.settings.quietMode.startHour}:00 - ${user.settings.quietMode.endHour}:00)` : 'Off'}`,
@@ -62,6 +65,30 @@ export default (bot) => {
               {
                 text: '🧠 Alert Sensitivity',
                 callback_data: 'action_set_alert_sensitivity'
+              }
+            ],
+            [
+              {
+                text: `${user.settings.autoTarget?.enabled ? '✅' : '➕'} Auto Target`,
+                callback_data: 'action_toggle_auto_target'
+              }
+            ],
+            [
+              {
+                text: `${user.settings.watchAgain?.enabled ? '✅' : '➕'} Watch Again`,
+                callback_data: 'action_toggle_watch_again'
+              }
+            ],
+            [
+              {
+                text: `${user.settings.dropProbabilityAlerts?.enabled ? '✅' : '➕'} Drop Probability Alerts`,
+                callback_data: 'action_toggle_drop_probability'
+              }
+            ],
+            [
+              {
+                text: '🎲 Set Drop Probability',
+                callback_data: 'action_set_drop_probability_threshold'
               }
             ],
             [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
@@ -224,6 +251,90 @@ export default (bot) => {
     } catch (error) {
       console.error('Error setting alert sensitivity:', error);
       await ctx.answerCbQuery('⚠️ Error updating sensitivity. Please try again.');
+    }
+  });
+
+  // Toggle auto target
+  bot.action('action_toggle_auto_target', async (ctx) => {
+    try {
+      const user = await UserService.getUserSettings(ctx.chat.id);
+      const current = user.settings.autoTarget?.enabled || false;
+      user.settings.autoTarget = user.settings.autoTarget || {};
+      user.settings.autoTarget.enabled = !current;
+      await user.save();
+
+      await ctx.answerCbQuery(
+        `🎯 Auto target ${user.settings.autoTarget.enabled ? 'enabled' : 'disabled'}`
+      );
+
+      ctx.update.callback_query.data = 'action_settings';
+      return bot.handleUpdate(ctx.update);
+    } catch (error) {
+      console.error('Error toggling auto target:', error);
+      await ctx.answerCbQuery('⚠️ Error updating auto target. Please try again.');
+    }
+  });
+
+  // Toggle watch again
+  bot.action('action_toggle_watch_again', async (ctx) => {
+    try {
+      const user = await UserService.getUserSettings(ctx.chat.id);
+      const current = user.settings.watchAgain?.enabled || false;
+      user.settings.watchAgain = user.settings.watchAgain || {};
+      user.settings.watchAgain.enabled = !current;
+      await user.save();
+
+      await ctx.answerCbQuery(
+        `🔁 Watch again ${user.settings.watchAgain.enabled ? 'enabled' : 'disabled'}`
+      );
+
+      ctx.update.callback_query.data = 'action_settings';
+      return bot.handleUpdate(ctx.update);
+    } catch (error) {
+      console.error('Error toggling watch again:', error);
+      await ctx.answerCbQuery('⚠️ Error updating watch again. Please try again.');
+    }
+  });
+
+  // Toggle drop probability alerts
+  bot.action('action_toggle_drop_probability', async (ctx) => {
+    try {
+      const user = await UserService.getUserSettings(ctx.chat.id);
+      const current = user.settings.dropProbabilityAlerts?.enabled || false;
+      user.settings.dropProbabilityAlerts = user.settings.dropProbabilityAlerts || {};
+      user.settings.dropProbabilityAlerts.enabled = !current;
+      await user.save();
+
+      await ctx.answerCbQuery(
+        `🎲 Drop probability alerts ${user.settings.dropProbabilityAlerts.enabled ? 'enabled' : 'disabled'}`
+      );
+
+      ctx.update.callback_query.data = 'action_settings';
+      return bot.handleUpdate(ctx.update);
+    } catch (error) {
+      console.error('Error toggling drop probability alerts:', error);
+      await ctx.answerCbQuery('⚠️ Error updating drop alerts. Please try again.');
+    }
+  });
+
+  // Set drop probability threshold
+  bot.action('action_set_drop_probability_threshold', async (ctx) => {
+    try {
+      stateManager.setState(ctx.chat.id, BotStates.SETTING_DROP_PROBABILITY_THRESHOLD);
+      const message = escapeMarkdownV2([
+        '🎲 *Set Drop Probability Threshold*',
+        '',
+        'Send a number between 10 and 95.',
+        'Example: `70` will alert when drop chance is 70%+.'
+      ].join('\n'));
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+    } catch (error) {
+      console.error('Error setting drop probability threshold:', error);
+      await ctx.answerCbQuery('⚠️ Error updating threshold. Please try again.');
     }
   });
 };

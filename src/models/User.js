@@ -34,6 +34,16 @@ const userSettingsSchema = new mongoose.Schema({
     type: String,
     enum: ['aggressive', 'balanced', 'strict'],
     default: 'balanced'
+  },
+  autoTarget: {
+    enabled: { type: Boolean, default: false }
+  },
+  watchAgain: {
+    enabled: { type: Boolean, default: false }
+  },
+  dropProbabilityAlerts: {
+    enabled: { type: Boolean, default: false },
+    threshold: { type: Number, default: 65 }
   }
 });
 

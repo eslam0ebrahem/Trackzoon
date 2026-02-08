@@ -205,7 +205,7 @@ export class PriceTrackerService {
         else if (smartScore >= 60) dealLabel = 'good_deal';
         else if (volatilityScore < 3) dealLabel = 'stable';
 
-        await Product.findOneAndUpdate(
+        const updatedProduct = await Product.findOneAndUpdate(
           { asin: asin },
           {
             $set: {
@@ -222,8 +222,10 @@ export class PriceTrackerService {
               ...(scrapeResult.dealProgress && { dealProgress: scrapeResult.dealProgress }),
               ...(scrapeResult.otherSellers && { otherSellers: scrapeResult.otherSellers })
             }
-          }
+          },
+          { new: true }
         );
+        await this.maybeSendDropProbabilityAlerts(updatedProduct);
         return false;
       }
 
@@ -409,11 +411,32 @@ export class PriceTrackerService {
             }
           }
 
+          // Smart watch again: auto-adjust target after alert if enabled
+          if (trackerMock.alertType === 'drop' && trackerMock.user?.settings?.watchAgain?.enabled) {
+            try {
+              const { buildSmartTargetSuggestions, pickSuggestionForSensitivity } = await import('../utils/smartTarget.js');
+              const { suggestions } = buildSmartTargetSuggestions(updatedProduct);
+              const picked = pickSuggestionForSensitivity(
+                suggestions,
+                trackerMock.user?.settings?.alertSensitivity || 'balanced'
+              );
+              if (picked?.targetPrice && picked.targetPrice < (trackerMock.thresholdPrice || Number.POSITIVE_INFINITY)) {
+                updatePayload.targetPrice = picked.targetPrice;
+              }
+            } catch (err) {
+              logger.warn(`Watch again auto-target failed for ${updatedProduct.asin}: ${err.message}`);
+            }
+          }
+
           await Subscription.updateOne(
             { _id: sub._id },
             { $set: updatePayload }
           );
         }
+      }
+
+      if (!isDrop) {
+        await this.maybeSendDropProbabilityAlerts(updatedProduct);
       }
 
       return {
@@ -666,6 +689,63 @@ export class PriceTrackerService {
       }
     } catch (error) {
       logger.error('Error updating ratings:', error);
+    }
+  }
+
+  async maybeSendDropProbabilityAlerts(product) {
+    if (!product || product.isOutOfStock) return;
+    if (!product.currentPrice || product.currentPrice <= 0) return;
+    if (!product.priceHistory || product.priceHistory.length < 5) return;
+
+    const stats30d = calculatePriceStats(product.priceHistory, 30);
+    if (!stats30d) return;
+
+    const trend = product.aiPrediction ? { trend: product.aiPrediction.trend } : predictPriceTrend(product.priceHistory);
+    const probability = calculateDropProbability(product.currentPrice, stats30d, trend);
+
+    const subscriptions = await Subscription.find({ product: product._id }).populate('user');
+    if (!subscriptions || subscriptions.length === 0) return;
+
+    for (const sub of subscriptions) {
+      const user = sub.user;
+      if (!user) continue;
+
+      if (sub.snoozeUntil && new Date() < new Date(sub.snoozeUntil)) continue;
+      if (user.settings?.notifications === false) continue;
+
+      // Quiet mode check
+      if (user.settings?.quietMode?.enabled) {
+        const currentHour = new Date().getHours();
+        const { startHour, endHour } = user.settings.quietMode;
+        const isQuietTime = startHour > endHour
+          ? (currentHour >= startHour || currentHour < endHour)
+          : (currentHour >= startHour && currentHour < endHour);
+        if (isQuietTime) continue;
+      }
+
+      const dropAlerts = user.settings?.dropProbabilityAlerts;
+      if (!dropAlerts?.enabled) continue;
+
+      const threshold = dropAlerts.threshold || 65;
+      if (probability < threshold) continue;
+
+      if (sub.lastProbabilityAlertAt) {
+        const hoursSince = (Date.now() - new Date(sub.lastProbabilityAlertAt).getTime()) / (1000 * 60 * 60);
+        if (hoursSince < 24) continue;
+      }
+
+      await this.notificationService.sendDropProbabilityAlert(
+        { chatId: user.telegramId },
+        product,
+        probability,
+        stats30d,
+        trend
+      );
+
+      await Subscription.updateOne(
+        { _id: sub._id },
+        { $set: { lastProbabilityAlertAt: new Date() } }
+      );
     }
   }
 }

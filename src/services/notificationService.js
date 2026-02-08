@@ -198,4 +198,42 @@ export class NotificationService {
             logger.error(`Error notifying user ${chatId} about back-in-stock for ${product.asin}:`, error);
         }
     }
+
+    async sendDropProbabilityAlert(tracker, product, probability, stats30d, trend) {
+        if (!tracker || !tracker.chatId || String(tracker.chatId) === DASHBOARD_USER_ID) return;
+        if (!product || !product.url) return;
+
+        try {
+            const trendLabel = trend?.trend || 'STABLE';
+            const header = '🎲 *Drop Likelihood Alert*';
+            const statsLine = stats30d
+                ? `📊 *30d Low:* EGP ${escapeMarkdownV2(stats30d.min.toFixed(0))} | *Avg:* EGP ${escapeMarkdownV2(stats30d.average.toFixed(0))}`
+                : '';
+
+            const message = [
+                header,
+                '',
+                `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
+                '',
+                `🎯 *Drop Chance:* ${escapeMarkdownV2(String(probability))}%`,
+                `📈 *Trend:* ${escapeMarkdownV2(trendLabel)}`,
+                statsLine,
+                '',
+                '💡 Consider setting a Smart Target to catch the next drop.'
+            ].filter(Boolean).join('\n');
+
+            await sendMessageWithRetry(this.bot, tracker.chatId, message, {
+                parse_mode: 'MarkdownV2',
+                disable_web_page_preview: true,
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🧠 Smart Target', callback_data: `action_smart_target_${product.asin}` }],
+                        [{ text: '🛒 View on Amazon', url: product.url }]
+                    ]
+                }
+            });
+        } catch (error) {
+            logger.error(`Error sending drop probability alert to ${tracker.chatId}:`, error);
+        }
+    }
 }

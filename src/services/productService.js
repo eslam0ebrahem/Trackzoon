@@ -165,8 +165,10 @@ export class ProductService {
       }
 
       // Create Subscription
-      let targetPrice = threshold;
+      let targetPrice = threshold > 0 ? threshold : null;
       let baselinePrice = null;
+      let autoTargetApplied = false;
+      let autoTargetPrice = null;
 
       if (isPercentageAlert) {
         if (typeof percentageThreshold === 'number' && percentageThreshold > 0) {
@@ -176,6 +178,19 @@ export class ProductService {
           } else {
             targetPrice = null;
           }
+        }
+      } else if ((!threshold || threshold <= 0) && options.autoTarget) {
+        try {
+          const { buildSmartTargetSuggestions, pickSuggestionForSensitivity } = await import('../utils/smartTarget.js');
+          const { suggestions } = buildSmartTargetSuggestions(product);
+          const picked = pickSuggestionForSensitivity(suggestions, options.autoTargetStyle || 'balanced');
+          if (picked && picked.targetPrice) {
+            targetPrice = picked.targetPrice;
+            autoTargetApplied = true;
+            autoTargetPrice = picked.targetPrice;
+          }
+        } catch (err) {
+          logger.warn('Auto target suggestion failed:', err.message);
         }
       }
 
@@ -201,7 +216,7 @@ export class ProductService {
       // Attach subscription for caller convenience
       product.currentUserSubscription = subscription;
 
-      return { product, isNew, isAlreadyTracked };
+      return { product, isNew, isAlreadyTracked, autoTargetApplied, autoTargetPrice };
 
     } catch (error) {
       await session.abortTransaction();

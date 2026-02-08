@@ -246,3 +246,56 @@ export const calculateDropProbability = (currentPrice, stats30d, trend) => {
 
     return Math.max(0, Math.min(Math.round(probability), 100));
 };
+
+const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+/**
+ * Calculate seasonality hints from historical prices.
+ * @param {Array} priceHistory - Array of price history objects
+ * @returns {Object|null} - { monthIndex, monthName, avgPrice, count, monthsWithData, nextLowInMonths }
+ */
+export const calculateSeasonalityHint = (priceHistory) => {
+    if (!priceHistory || priceHistory.length < 12) return null;
+
+    const buckets = new Map();
+    let totalCount = 0;
+
+    for (const entry of priceHistory) {
+        if (!entry || typeof entry.price !== 'number') continue;
+        const date = new Date(entry.date);
+        if (Number.isNaN(date.getTime())) continue;
+        const month = date.getMonth();
+        const existing = buckets.get(month) || { sum: 0, count: 0 };
+        existing.sum += entry.price;
+        existing.count += 1;
+        buckets.set(month, existing);
+        totalCount += 1;
+    }
+
+    if (buckets.size < 3 || totalCount < 12) return null;
+
+    const monthStats = Array.from(buckets.entries()).map(([month, data]) => ({
+        month,
+        avg: data.sum / data.count,
+        count: data.count
+    }));
+
+    monthStats.sort((a, b) => a.avg - b.avg);
+    const best = monthStats[0];
+    if (!best) return null;
+
+    const nowMonth = new Date().getMonth();
+    const nextLowInMonths = (best.month - nowMonth + 12) % 12;
+
+    return {
+        monthIndex: best.month,
+        monthName: MONTH_NAMES[best.month],
+        avgPrice: Number(best.avg.toFixed(2)),
+        count: best.count,
+        monthsWithData: buckets.size,
+        nextLowInMonths
+    };
+};

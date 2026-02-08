@@ -14,7 +14,8 @@ const SubscriptionSchema = new mongoose.Schema({
     // Metadata
     createdAt: { type: Date, default: Date.now },
     lastAlertedAt: { type: Date },
-    lastFlashDealAlert: { type: Date }
+    lastFlashDealAlert: { type: Date },
+    lastProbabilityAlertAt: { type: Date }
 });
 
 // Compound index: A user can track a product only once

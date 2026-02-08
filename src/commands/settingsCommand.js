@@ -14,6 +14,9 @@ export default (bot) => {
                 `🔔 Price Alerts: ${user.settings.notifications ? 'Enabled' : 'Disabled'}`,
                 `📊 Daily Reports: ${user.settings.dailyReport ? 'Enabled' : 'Disabled'}`,
                 `🧠 Alert Sensitivity: ${user.settings.alertSensitivity || 'balanced'}`,
+                `🎯 Auto Target: ${user.settings.autoTarget?.enabled ? 'Enabled' : 'Disabled'}`,
+                `🔁 Watch Again: ${user.settings.watchAgain?.enabled ? 'Enabled' : 'Disabled'}`,
+                `🎲 Drop Probability Alerts: ${user.settings.dropProbabilityAlerts?.enabled ? `On (${user.settings.dropProbabilityAlerts.threshold || 65}%)` : 'Off'}`,
                 '',
                 '*Advanced Preferences*',
                 `🌙 Quiet Mode: ${user.settings.quietMode?.enabled ? `On (${user.settings.quietMode.startHour}:00 - ${user.settings.quietMode.endHour}:00)` : 'Off'}`,
@@ -60,6 +63,30 @@ export default (bot) => {
                             {
                                 text: '🧠 Alert Sensitivity',
                                 callback_data: 'action_set_alert_sensitivity'
+                            }
+                        ],
+                        [
+                            {
+                                text: `${user.settings.autoTarget?.enabled ? '✅' : '➕'} Auto Target`,
+                                callback_data: 'action_toggle_auto_target'
+                            }
+                        ],
+                        [
+                            {
+                                text: `${user.settings.watchAgain?.enabled ? '✅' : '➕'} Watch Again`,
+                                callback_data: 'action_toggle_watch_again'
+                            }
+                        ],
+                        [
+                            {
+                                text: `${user.settings.dropProbabilityAlerts?.enabled ? '✅' : '➕'} Drop Probability Alerts`,
+                                callback_data: 'action_toggle_drop_probability'
+                            }
+                        ],
+                        [
+                            {
+                                text: '🎲 Set Drop Probability',
+                                callback_data: 'action_set_drop_probability_threshold'
                             }
                         ]
                     ]

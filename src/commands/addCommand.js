@@ -6,6 +6,7 @@ import { resolveAmazonUrl } from '../utils/url.js';
 import { getProductName } from '../utils/scraper/getProductName.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { BotError, ErrorCodes, handleError } from '../utils/errorHandler.js';
+import { UserService } from '../services/userService.js';
 
 /**
  * /add command handler
@@ -15,6 +16,9 @@ export default (bot) => {
   bot.command('add', async (ctx) => {
     try {
       const input = ctx.message.text.replace('/add', '').trim();
+      const user = await UserService.getUserSettings(ctx.chat.id);
+      const autoTargetEnabled = user.settings.autoTarget?.enabled;
+      const autoTargetStyle = user.settings.alertSensitivity || 'balanced';
 
       if (!input) {
         // Prompt for URL and price
@@ -24,6 +28,7 @@ export default (bot) => {
           '',
           '📝 *Send me one or more links:*',
           '`<Amazon URL> <alert price>`',
+          autoTargetEnabled ? '🧠 *Auto Target is enabled:* You can send URL only.' : '',
           '',
           '💡 *Bulk Add Example:*',
           '`https://amzn.to/item1 100`',
@@ -54,6 +59,11 @@ export default (bot) => {
           const thresholdStr = parts[1];
           const threshold = thresholdStr ? parseFloat(thresholdStr) : 0; // Default to 0 if not provided
 
+          if (!thresholdStr && !autoTargetEnabled) {
+            results.push(`❌ Missing price for: ${url.substring(0, 30)}...`);
+            continue;
+          }
+
           // Clean and validate URL
           const { resolvedUrl, asin } = await resolveAmazonUrl(url);
           if (!asin) {
@@ -80,16 +90,24 @@ export default (bot) => {
           }
 
           // Add product
-          const { isNew, isAlreadyTracked } = await ProductService.addProduct(
+          const useAutoTarget = (!thresholdStr || threshold <= 0) && autoTargetEnabled;
+          const { isNew, isAlreadyTracked, autoTargetApplied, autoTargetPrice } = await ProductService.addProduct(
             resolvedUrl,
             ctx.chat.id,
-            threshold
+            threshold,
+            {
+              autoTarget: useAutoTarget,
+              autoTargetStyle
+            }
           );
 
           if (isAlreadyTracked) {
             results.push(`⚠️ Already tracking: [${name.substring(0, 20)}...]`);
           } else {
-            results.push(`✅ Added: [${name.substring(0, 20)}...] (EGP ${currentPrice})`);
+            const autoNote = autoTargetApplied && autoTargetPrice
+              ? ` (Auto target: EGP ${autoTargetPrice.toFixed(2)})`
+              : '';
+            results.push(`✅ Added: [${name.substring(0, 20)}...] (EGP ${currentPrice})${autoNote}`);
           }
 
         } catch (err) {
