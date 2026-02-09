@@ -2,11 +2,11 @@ import {
   calculatePriceStats,
   calculateVolatility,
   calculateDropProbability,
-  predictPriceTrend,
   calculateSeasonalityHint
 } from './priceUtils.js';
 import { buildSmartTargetSuggestions } from './smartTarget.js';
 import { escapeMarkdownV2 } from './messageHelper.js';
+import { getReliableTrend } from './trendUtils.js';
 
 const formatMoney = (value) => {
   if (typeof value !== 'number' || Number.isNaN(value)) return 'N/A';
@@ -63,12 +63,7 @@ export const buildSmartInsightsMessage = (product = {}) => {
   const history = Array.isArray(product.priceHistory) ? product.priceHistory : [];
   const stats30d = calculatePriceStats(history, 30);
 
-  const aiPredictionFresh = product.aiPrediction?.lastUpdated
-    ? (Date.now() - new Date(product.aiPrediction.lastUpdated).getTime()) < 7 * 24 * 60 * 60 * 1000
-    : false;
-  const trendSource = aiPredictionFresh && product.aiPrediction?.trend
-    ? { trend: product.aiPrediction.trend, confidence: product.aiPrediction.confidence }
-    : predictPriceTrend(history);
+  const trendSource = getReliableTrend(product, history);
   const trendInfo = normalizeTrend(trendSource?.trend);
   const confidence = typeof trendSource?.confidence === 'number'
     ? Math.round(trendSource.confidence * 100)
@@ -128,6 +123,11 @@ export const buildSmartInsightsMessage = (product = {}) => {
     targets.slice(0, 3).forEach(target => {
       lines.push(`• ${escapeMarkdownV2(target.label)}: ${escapeMarkdownV2(formatMoney(target.targetPrice))}`);
     });
+  }
+
+  if (product.anomaly?.isAnomaly) {
+    const reason = product.anomaly.reason ? `: ${escapeMarkdownV2(product.anomaly.reason)}` : '';
+    lines.push('', `⚠️ *Possible Anomaly${reason}*`);
   }
 
   const nextCheck = formatDateTime(product.nextCheck);

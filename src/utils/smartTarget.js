@@ -1,4 +1,5 @@
-import { calculatePriceStats, calculateDropProbability, predictPriceTrend } from './priceUtils.js';
+import { calculatePriceStats, calculateDropProbability } from './priceUtils.js';
+import { getReliableTrend } from './trendUtils.js';
 
 const toMoney = (value) => Number(value.toFixed(2));
 
@@ -35,7 +36,7 @@ export const buildSmartTargetSuggestions = (product = {}) => {
   const low = stats30d.min;
   const avg = stats30d.average;
   const stdDev = stats30d.stdDev || 0;
-  const trend = product.aiPrediction ? { trend: product.aiPrediction.trend } : predictPriceTrend(history);
+  const trend = getReliableTrend(product, history);
   const dropProbability = calculateDropProbability(currentPrice, stats30d, trend);
 
   const quickRaw = Math.max(low * 1.15, avg * 0.95, avg - stdDev * 0.25);

@@ -6,7 +6,10 @@ import PricePoint from '../models/PricePoint.js';
 import pLimit from 'p-limit';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
 import { logger } from '../utils/logger.js';
-import { calculateVolatility, calculatePriceStats, calculateDealScore, predictPriceTrend, applyJitter, calculateDropProbability } from '../utils/priceUtils.js';
+import { calculateVolatility, calculatePriceStats, calculateDealScore, applyJitter, calculateDropProbability } from '../utils/priceUtils.js';
+import { detectPriceAnomaly } from '../utils/anomalyUtils.js';
+import { computeDecisionConfidence } from '../utils/confidenceUtils.js';
+import { getReliableTrend } from '../utils/trendUtils.js';
 import { scraperService } from './scraperService.js';
 import { NotificationService } from './notificationService.js';
 import { priceCheckQueue } from '../queue/priceQueue.js';
@@ -190,7 +193,7 @@ export class PriceTrackerService {
       if (currentPrice === previousPrice) {
         const { score: volatilityScore, interval: checkInterval } = calculateVolatility(product.priceHistory);
         const stats30d = calculatePriceStats(product.priceHistory, 30);
-        const trend = predictPriceTrend(product.priceHistory);
+        const trend = getReliableTrend(product, product.priceHistory);
 
         const smartScore = calculateDealScore(
           currentPrice,
@@ -215,6 +218,12 @@ export class PriceTrackerService {
               checkInterval,
               smartScore,
               dealLabel,
+              anomaly: {
+                isAnomaly: false,
+                score: 0,
+                reason: null,
+                detectedAt: null
+              },
               ...(scrapeResult.merchant && { merchant: scrapeResult.merchant }),
               ...(scrapeResult.prime !== undefined && { prime: scrapeResult.prime }),
               ...(scrapeResult.delivery && { delivery: scrapeResult.delivery }),
@@ -237,7 +246,7 @@ export class PriceTrackerService {
         : 0;
       const isDrop = priceChangePercent < 0;
       const stats30d = calculatePriceStats(product.priceHistory, 30);
-      const trend = predictPriceTrend(product.priceHistory);
+      const trend = getReliableTrend(product, product.priceHistory);
 
       let smartScore = calculateDealScore(
         currentPrice,
@@ -247,12 +256,71 @@ export class PriceTrackerService {
         trend
       );
 
+      const anomaly = detectPriceAnomaly({
+        product,
+        oldPrice: previousPrice,
+        newPrice: currentPrice,
+        priceChangePercent,
+        stats30d
+      });
+
+      if (anomaly.isAnomaly) {
+        logger.warn(`⚠️ Possible price anomaly detected for ${product.asin}: ${anomaly.reason}`);
+
+        const updatedProduct = await Product.findOneAndUpdate(
+          { asin: asin },
+          {
+            $set: {
+              currentPrice: currentPrice,
+              lastChecked: new Date(),
+              nextCheck: new Date(Date.now() + applyJitter(30) * 60000),
+              dealLabel: 'fair_price',
+              lastPriceChange: {
+                date: new Date(),
+                oldPrice: previousPrice,
+                newPrice: currentPrice,
+                diff: currentPrice - previousPrice,
+                percent: priceChangePercent
+              },
+              anomaly: {
+                isAnomaly: true,
+                score: anomaly.score,
+                reason: anomaly.reason,
+                detectedAt: new Date()
+              },
+              ...(imageUrl && { imageUrl }),
+              ...(scrapeResult.merchant && { merchant: scrapeResult.merchant }),
+              ...(scrapeResult.prime !== undefined && { prime: scrapeResult.prime }),
+              ...(scrapeResult.delivery && { delivery: scrapeResult.delivery }),
+              ...(scrapeResult.coupon && { coupon: scrapeResult.coupon }),
+              ...(scrapeResult.dealProgress && { dealProgress: scrapeResult.dealProgress }),
+              ...(scrapeResult.otherSellers && { otherSellers: scrapeResult.otherSellers })
+            }
+          },
+          { new: true }
+        );
+
+        return {
+          product: updatedProduct,
+          previousPrice,
+          currentPrice,
+          anomaly: true
+        };
+      }
+
       // AI Analysis
       const daysSinceAnalysis = product.lastAiAnalysis
         ? (Date.now() - new Date(product.lastAiAnalysis).getTime()) / (1000 * 60 * 60 * 24)
         : 999;
 
       let aiAnalysisResult = null;
+      const aiDecisionConfidence = computeDecisionConfidence({
+        priceHistory: product.priceHistory,
+        stats30d,
+        volatilityScore,
+        isOutOfStock: product.isOutOfStock,
+        lastPriceChangeAt: product.lastPriceChange?.date
+      });
 
       if ((isDrop && Math.abs(priceChangePercent) > 3) || daysSinceAnalysis > 7) {
         try {
@@ -274,8 +342,13 @@ export class PriceTrackerService {
           });
 
           if (aiResult) {
-            aiAnalysisResult = aiResult;
-            smartScore = aiResult.score;
+            aiAnalysisResult = {
+              ...aiResult,
+              confidence: aiDecisionConfidence
+            };
+            if (aiDecisionConfidence >= 0.45) {
+              smartScore = aiResult.score;
+            }
           }
         } catch (err) {
           logger.error('Failed to run AI analysis:', err);
@@ -337,9 +410,16 @@ export class PriceTrackerService {
               diff: currentPrice - previousPrice,
               percent: priceChangePercent
             },
+            anomaly: {
+              isAnomaly: false,
+              score: 0,
+              reason: null,
+              detectedAt: null
+            },
             ...(aiAnalysisResult && {
               aiAnalysis: aiAnalysisResult.reason,
-              lastAiAnalysis: new Date()
+              lastAiAnalysis: new Date(),
+              aiAnalysisConfidence: aiAnalysisResult.confidence
             }),
             ...(aiPredictionResult && {
               aiPrediction: {
@@ -459,6 +539,12 @@ export class PriceTrackerService {
     const isDecrease = newPrice < oldPrice;
     let user = tracker.user;
 
+    if (product?.anomaly?.isAnomaly) {
+      const detectedAt = product.anomaly.detectedAt ? new Date(product.anomaly.detectedAt).getTime() : 0;
+      const hoursSince = detectedAt ? (Date.now() - detectedAt) / (1000 * 60 * 60) : 0;
+      if (hoursSince < 6) return false;
+    }
+
     if (tracker.lastAlertedAt) {
       const hoursSinceLastAlert = (Date.now() - tracker.lastAlertedAt.getTime()) / (1000 * 60 * 60);
       if (hoursSinceLastAlert < 3) return false;
@@ -521,7 +607,7 @@ export class PriceTrackerService {
 
     // Calculate context stats
     const stats30d = calculatePriceStats(product.priceHistory, 30);
-    const trend = product.aiPrediction ? { trend: product.aiPrediction.trend } : predictPriceTrend(product.priceHistory);
+    const trend = getReliableTrend(product, product.priceHistory);
     const dropProbability = stats30d ? calculateDropProbability(newPrice, stats30d, trend) : null;
     const smartScore = typeof product.smartScore === 'number' && product.smartScore > 0
       ? product.smartScore
@@ -700,7 +786,7 @@ export class PriceTrackerService {
     const stats30d = calculatePriceStats(product.priceHistory, 30);
     if (!stats30d) return;
 
-    const trend = product.aiPrediction ? { trend: product.aiPrediction.trend } : predictPriceTrend(product.priceHistory);
+    const trend = getReliableTrend(product, product.priceHistory);
     const probability = calculateDropProbability(product.currentPrice, stats30d, trend);
 
     const subscriptions = await Subscription.find({ product: product._id }).populate('user');

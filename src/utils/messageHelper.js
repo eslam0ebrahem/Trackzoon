@@ -2,6 +2,7 @@
 // Uses MarkdownV2 escaping and provides rich message formatting with emojis
 
 import { calculatePriceStats, calculateDropProbability, calculateSeasonalityHint } from './priceUtils.js';
+import { getReliableTrend } from './trendUtils.js';
 
 const escapeMarkdownV2 = (text = '') => {
     // First, handle any pre-escaped characters (those with a single backslash)
@@ -150,7 +151,7 @@ const formatProductDetails = (product, tracker) => {
     // Feature 9: Drop Probability
     if (product.priceHistory && product.priceHistory.length > 5) {
         const stats30d = calculatePriceStats(product.priceHistory, 30);
-        const trend = product.aiPrediction || { trend: 'STABLE' };
+        const trend = getReliableTrend(product, product.priceHistory);
         const prob = calculateDropProbability(currentPrice, stats30d, trend);
 
         if (prob > 50) {
@@ -176,6 +177,11 @@ const formatProductDetails = (product, tracker) => {
         } else if (seasonality.nextLowInMonths <= 3) {
             message += `\n   ⏳ Next low season in ${escapeMarkdownV2(String(seasonality.nextLowInMonths))} month\\(s\\)\\.`;
         }
+    }
+
+    if (product.anomaly?.isAnomaly) {
+        const reason = product.anomaly.reason ? `: ${escapeMarkdownV2(product.anomaly.reason)}` : '';
+        message += `\n⚠️ *Anomaly Detected${reason}*`;
     }
 
     // Add recommendation

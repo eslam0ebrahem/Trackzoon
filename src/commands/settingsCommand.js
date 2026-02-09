@@ -1,11 +1,13 @@
 import { UserService } from '../services/userService.js';
 import { buildSettingsMessage } from '../utils/messageHelper.js';
+import { resolveAdviceThresholds } from '../utils/adviceUtils.js';
 import { handleError } from '../utils/errorHandler.js';
 
 export default (bot) => {
     bot.command('settings', async (ctx) => {
         try {
             const user = await UserService.getUserSettings(ctx.chat.id);
+            const adviceThresholds = resolveAdviceThresholds(user.settings || {});
 
             const message = [
                 '⚙️ *Settings*',
@@ -17,6 +19,7 @@ export default (bot) => {
                 `🎯 Auto Target: ${user.settings.autoTarget?.enabled ? 'Enabled' : 'Disabled'}`,
                 `🔁 Watch Again: ${user.settings.watchAgain?.enabled ? 'Enabled' : 'Disabled'}`,
                 `🎲 Drop Probability Alerts: ${user.settings.dropProbabilityAlerts?.enabled ? `On (${user.settings.dropProbabilityAlerts.threshold || 65}%)` : 'Off'}`,
+                `🤖 AI Advice Thresholds: Buy ≥ ${adviceThresholds.buyNow} | Wait ≤ ${adviceThresholds.wait}`,
                 '',
                 '*Advanced Preferences*',
                 `🌙 Quiet Mode: ${user.settings.quietMode?.enabled ? `On (${user.settings.quietMode.startHour}:00 - ${user.settings.quietMode.endHour}:00)` : 'Off'}`,

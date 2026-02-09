@@ -1,7 +1,8 @@
 import { ProductService } from '../services/productService.js';
 import { UserService } from '../services/userService.js';
-import { calculatePriceStats, calculateDropProbability, predictPriceTrend } from '../utils/priceUtils.js';
+import { calculatePriceStats, calculateDropProbability } from '../utils/priceUtils.js';
 import { escapeMarkdownV2 } from '../utils/messageHelper.js';
+import { getReliableTrend } from '../utils/trendUtils.js';
 
 const formatMoney = (value) => {
   if (typeof value !== 'number' || Number.isNaN(value)) return 'N/A';
@@ -83,7 +84,7 @@ export default (bot) => {
           if (!p.currentPrice || p.currentPrice <= 0) return null;
           const stats30d = calculatePriceStats(p.priceHistory, 30);
           if (!stats30d) return null;
-          const trend = p.aiPrediction ? { trend: p.aiPrediction.trend } : predictPriceTrend(p.priceHistory);
+          const trend = getReliableTrend(p, p.priceHistory);
           const probability = calculateDropProbability(p.currentPrice, stats30d, trend);
           return { product: p, probability };
         })

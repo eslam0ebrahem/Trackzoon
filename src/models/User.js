@@ -44,6 +44,10 @@ const userSettingsSchema = new mongoose.Schema({
   dropProbabilityAlerts: {
     enabled: { type: Boolean, default: false },
     threshold: { type: Number, default: 65 }
+  },
+  aiAdviceThresholds: {
+    buyNow: { type: Number, default: null },
+    wait: { type: Number, default: null }
   }
 });
 

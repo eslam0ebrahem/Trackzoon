@@ -15,6 +15,11 @@ import { handleError } from '../utils/errorHandler.js';
 import { renderDealsList } from '../utils/dealsRenderer.js';
 import { buildSmartTargetSuggestions } from '../utils/smartTarget.js';
 import { marketIntelligenceService } from '../services/marketIntelligenceService.js';
+import { UserService } from '../services/userService.js';
+import { calculatePriceStats, calculateDealScore } from '../utils/priceUtils.js';
+import { computeDecisionConfidence } from '../utils/confidenceUtils.js';
+import { resolveAdviceThresholds, computePersonalizedAdvice } from '../utils/adviceUtils.js';
+import { getReliableTrend } from '../utils/trendUtils.js';
 import Product from '../models/Product.js';
 
 export default (bot) => {
@@ -299,6 +304,7 @@ export default (bot) => {
     try {
       const asin = ctx.match[1];
       const product = await ProductService.getProduct(asin, ctx.chat.id);
+      const userSettings = await UserService.getUserSettings(ctx.chat.id).catch(() => null);
 
       if (!process.env.GROQ_API_KEY) {
         return await ctx.answerCbQuery('AI is not configured yet.');
@@ -331,14 +337,40 @@ export default (bot) => {
         return await ctx.answerCbQuery('AI advice unavailable right now.');
       }
 
-      const adviceLabel = advice.advice === 'buy_now'
+      const thresholds = resolveAdviceThresholds(userSettings?.settings || {});
+      const stats30d = calculatePriceStats(product.priceHistory, 30);
+      const trend = getReliableTrend(product, product.priceHistory);
+      const baseScore = typeof product.smartScore === 'number'
+        ? product.smartScore
+        : (stats30d
+          ? calculateDealScore(product.currentPrice || 0, stats30d, product.volatilityScore || 0, product.isOutOfStock, trend)
+          : null);
+
+      const confidence = computeDecisionConfidence({
+        priceHistory: product.priceHistory,
+        stats30d,
+        volatilityScore: product.volatilityScore || 0,
+        isOutOfStock: product.isOutOfStock,
+        lastPriceChangeAt: product.lastPriceChange?.date
+      });
+
+      const personalized = computePersonalizedAdvice({
+        aiAdvice: advice,
+        score: baseScore,
+        thresholds,
+        confidence
+      });
+
+      const finalAdvice = personalized.finalAdvice;
+
+      const adviceLabel = finalAdvice === 'buy_now'
         ? 'Buy Now'
-        : advice.advice === 'wait'
+        : finalAdvice === 'wait'
           ? 'Wait'
           : 'Neutral';
-      const adviceEmoji = advice.advice === 'buy_now'
+      const adviceEmoji = finalAdvice === 'buy_now'
         ? '🟢'
-        : advice.advice === 'wait'
+        : finalAdvice === 'wait'
           ? '🟡'
           : '🔵';
 
@@ -349,8 +381,13 @@ export default (bot) => {
         `💰 Current: EGP${escapeMarkdownV2((product.currentPrice || 0).toFixed(2))}`,
         '',
         `${adviceEmoji} *Advice:* ${escapeMarkdownV2(adviceLabel)}`,
+        typeof baseScore === 'number' ? `🧠 *Smart Score:* ${escapeMarkdownV2(String(Math.round(baseScore)))}\\/100` : '',
+        `🎚️ *Your Thresholds:* Buy ≥ ${escapeMarkdownV2(String(thresholds.buyNow))} \\| Wait ≤ ${escapeMarkdownV2(String(thresholds.wait))}`,
+        `🧪 *Confidence:* ${escapeMarkdownV2(String(Math.round(confidence * 100)))}%`,
         advice.reasoning ? `💡 _${escapeMarkdownV2(advice.reasoning)}_` : '',
         advice.newsSummary ? `📰 ${escapeMarkdownV2(advice.newsSummary)}` : '',
+        personalized.adjusted ? '⚙️ _Personalized to your thresholds_' : '',
+        product.anomaly?.isAnomaly ? `⚠️ ${escapeMarkdownV2('Possible price anomaly detected')}` : '',
         '',
         'Tap back to return to the product'
       ].filter(Boolean);

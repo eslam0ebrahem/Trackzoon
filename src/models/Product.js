@@ -63,6 +63,7 @@ const ProductSchema = new mongoose.Schema({
   // AI Analysis Fields
   aiAnalysis: { type: String }, // Text explanation from AI
   lastAiAnalysis: { type: Date }, // When AI last analyzed this product
+  aiAnalysisConfidence: { type: Number }, // Confidence in AI analysis
   aiPrediction: {
     trend: { type: String, enum: ['DROP', 'RISE', 'STABLE', 'UNKNOWN'] },
     confidence: Number,
@@ -85,6 +86,14 @@ const ProductSchema = new mongoose.Schema({
     condition: String,
     seller: String
   }],
+
+  // Anomaly Detection
+  anomaly: {
+    isAnomaly: { type: Boolean, default: false },
+    score: { type: Number, default: 0 },
+    reason: { type: String },
+    detectedAt: { type: Date }
+  },
 
   // Market Intelligence (Perplexity API)
   marketComparisonData: [{
