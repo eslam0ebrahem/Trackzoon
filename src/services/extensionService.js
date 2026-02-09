@@ -5,8 +5,47 @@ import { calculateDealScore, calculateVolatility, predictPriceTrend, calculatePr
 import { aiService } from './aiService.js';
 
 export class ExtensionService {
+  static async getStatus(asin) {
+    if (!asin) {
+      const error = new Error('Missing ASIN');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const product = await Product.findOne({ asin }).select('asin currentPrice isOutOfStock lastUpdated');
+    if (!product) {
+      return { status: 'not_tracked', tracked: false, asin };
+    }
+
+    return {
+      status: 'tracked',
+      tracked: true,
+      product: {
+        asin: product.asin,
+        currentPrice: product.currentPrice,
+        isOutOfStock: product.isOutOfStock,
+        lastUpdated: product.lastUpdated
+      }
+    };
+  }
+
   static async syncProduct(payload) {
-    let { asin, url, name, price, imageUrl, isOutOfStock, create } = payload;
+    let {
+      asin,
+      url,
+      name,
+      price,
+      imageUrl,
+      isOutOfStock,
+      create,
+      availabilityReason,
+      rating,
+      ratingCount,
+      merchant,
+      prime,
+      deliveryMessage,
+      coupon
+    } = payload;
 
     if (!asin || !url || price === undefined) {
       const error = new Error('Missing required fields');
@@ -15,7 +54,9 @@ export class ExtensionService {
     }
 
     // AI VERIFICATION FALLBACK
-    if (isOutOfStock || price === 0) {
+    const skipAi = availabilityReason === 'unqualified-buybox' || availabilityReason === 'no-featured-offers';
+
+    if ((isOutOfStock || price === 0) && !skipAi) {
       logger.info(`🕵️ Extension flagged ${asin} as OOS. Verifying with AI...`);
       const aiResult = await aiService.checkProductAvailability(url, null, { asin });
 
@@ -26,6 +67,8 @@ export class ExtensionService {
       } else if (aiResult && !aiResult.isAvailable) {
         logger.debug(`✅ AI Confirmed OOS: ${aiResult.reason}`);
       }
+    } else if (skipAi) {
+      logger.info(`⚠️ Extension flagged ${asin} as unavailable (${availabilityReason}). Skipping AI verification.`);
     }
 
     logger.info(`📥 Extension Sync: ${asin} - ${price} EGP (OOS: ${isOutOfStock})`);
@@ -43,6 +86,24 @@ export class ExtensionService {
 
       if (!product.imageUrl && imageUrl) product.imageUrl = imageUrl;
       if (!product.name && name) product.name = name;
+      if (merchant) product.merchant = merchant;
+      if (typeof prime === 'boolean') product.prime = prime;
+      if (coupon) product.coupon = coupon;
+      if (deliveryMessage) {
+        product.delivery = {
+          ...product.delivery,
+          message: deliveryMessage
+        };
+      }
+      const hasRating = typeof rating === 'number' && !Number.isNaN(rating);
+      const hasRatingCount = typeof ratingCount === 'number' && !Number.isNaN(ratingCount);
+      if (hasRating || hasRatingCount) {
+        product.rating = {
+          stars: hasRating ? rating : product.rating?.stars,
+          count: hasRatingCount ? ratingCount : (product.rating?.count || 0),
+          lastUpdated: new Date()
+        };
+      }
 
       if (priceChanged || product.priceHistory.length === 0) {
         product.priceHistory.push({ price, date: new Date() });
@@ -100,6 +161,17 @@ export class ExtensionService {
       imageUrl,
       currentPrice: price,
       isOutOfStock,
+      merchant: merchant || undefined,
+      prime: typeof prime === 'boolean' ? prime : undefined,
+      coupon: coupon || undefined,
+      delivery: deliveryMessage ? { message: deliveryMessage } : undefined,
+      rating: (typeof rating === 'number' && !Number.isNaN(rating)) || (typeof ratingCount === 'number' && !Number.isNaN(ratingCount))
+        ? {
+          stars: typeof rating === 'number' && !Number.isNaN(rating) ? rating : undefined,
+          count: typeof ratingCount === 'number' && !Number.isNaN(ratingCount) ? ratingCount : 0,
+          lastUpdated: new Date()
+        }
+        : undefined,
       priceHistory: [{ price, date: new Date() }],
       lastChecked: new Date(),
       lastUpdated: new Date()

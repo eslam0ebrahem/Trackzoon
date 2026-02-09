@@ -2,52 +2,239 @@
 <html>
 
 <head>
+    <meta charset="utf-8" />
     <style>
-        body {
-            width: 300px;
-            padding: 15px;
-            font-family: sans-serif;
+        :root {
+            --bg: #0f172a;
+            --panel: #111827;
+            --card: #0b1220;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --accent: #22c55e;
+            --accent-2: #38bdf8;
+            --danger: #ef4444;
+            --border: #1f2937;
         }
 
-        input {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
+        * {
             box-sizing: border-box;
         }
 
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #232f3e;
-            color: white;
-            border: none;
-            cursor: pointer;
+        body {
+            width: 340px;
+            padding: 14px;
+            margin: 0;
+            font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+            color: var(--text);
+            background: radial-gradient(120% 120% at 10% 0%, #1f2937 0%, #0b1020 50%, #0a0f1c 100%);
         }
 
-        button:hover {
-            background: #37475a;
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        header .title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--accent);
+        }
+
+        .section {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"] {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: var(--text);
+        }
+
+        .toggle input {
+            accent-color: var(--accent);
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        button {
+            flex: 1;
+            padding: 9px 10px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: #1f2937;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #04120a;
+            font-weight: 700;
+        }
+
+        button.ghost {
+            background: transparent;
+            border-color: var(--border);
+            color: var(--muted);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .status {
-            margin-top: 10px;
+            margin-top: 8px;
             font-size: 12px;
-            color: green;
+            color: var(--accent);
+        }
+
+        .status.error {
+            color: var(--danger);
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            background: var(--card);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .product-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .meta-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .meta-line strong {
+            color: var(--text);
+            font-weight: 600;
         }
     </style>
 </head>
 
 <body>
-    <h3>Trackzoon Settings</h3>
+    <header>
+        <div class="title">Trackzoon Extension</div>
+        <div class="badge">Smart Sync</div>
+    </header>
 
-    <label>Server URL</label>
-    <input type="text" id="serverUrl" placeholder="http://localhost:3000">
+    <div class="section">
+        <div class="section-title">Connection</div>
+        <label>Server URL</label>
+        <input type="text" id="serverUrl" placeholder="http://localhost:3000">
 
-    <label>API Key</label>
-    <input type="password" id="apiKey" placeholder="Enter Extension API Key">
+        <label>API Key</label>
+        <input type="password" id="apiKey" placeholder="Enter Extension API Key">
 
-    <button id="saveBtn">Save Settings</button>
-    <div id="status" class="status"></div>
+        <div class="row">
+            <button id="saveBtn" class="primary">Save Settings</button>
+        </div>
+        <div id="status" class="status"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Behavior</div>
+        <label class="toggle">
+            <input type="checkbox" id="autoSync">
+            Auto-sync on product pages
+        </label>
+        <label class="toggle">
+            <input type="checkbox" id="showTrackButton">
+            Show floating track button
+        </label>
+        <label>Sync cooldown (minutes)</label>
+        <input type="number" id="syncCooldown" min="1" max="1440" placeholder="30">
+    </div>
+
+    <div class="section">
+        <div class="section-title">Current Page</div>
+        <div id="pageStatus" class="muted">Open an Amazon.eg product page.</div>
+
+        <div id="productCard" class="card hidden">
+            <div id="productTitle" class="product-title"></div>
+            <div class="meta-line">ASIN <strong id="productAsin"></strong></div>
+            <div class="meta-line">Price <strong id="productPrice"></strong></div>
+            <div class="meta-line">Stock <strong id="productStock"></strong></div>
+        </div>
+
+        <div class="row">
+            <button id="syncNowBtn" class="primary">Sync Now</button>
+            <button id="trackBtn">Track</button>
+        </div>
+        <div class="row">
+            <button id="copyAsinBtn" class="ghost">Copy ASIN</button>
+            <button id="refreshBtn" class="ghost">Refresh</button>
+        </div>
+
+        <div id="lastSync" class="muted"></div>
+    </div>
 
     <script src="popup.js"></script>
 </body>

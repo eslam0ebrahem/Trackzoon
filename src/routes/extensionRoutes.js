@@ -1,5 +1,5 @@
 import express from 'express';
-import { syncProduct } from '../controllers/extensionController.js';
+import { syncProduct, getStatus } from '../controllers/extensionController.js';
 import { extensionAuth } from '../middleware/extensionAuth.js';
 
 const router = express.Router();
@@ -8,5 +8,6 @@ const router = express.Router();
 router.use(extensionAuth);
 
 router.post('/sync', syncProduct);
+router.get('/status', getStatus);
 
 export default router;

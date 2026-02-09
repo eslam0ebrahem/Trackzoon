@@ -22,3 +22,14 @@ export const syncProduct = async (req, res) => {
         res.status(status).json({ error: error.message });
     }
 };
+
+export const getStatus = async (req, res) => {
+    try {
+        const { asin } = req.query;
+        const result = await ExtensionService.getStatus(asin);
+        return res.json(result);
+    } catch (error) {
+        const status = error.statusCode || 500;
+        res.status(status).json({ error: error.message });
+    }
+};
