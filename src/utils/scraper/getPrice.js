@@ -4,6 +4,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '../logger.js';
 import { aiService } from '../../services/aiService.js';
+import { shouldAllowAiCall, isAvailabilityCooldownActive, setAvailabilityCooldown } from '../aiGuard.js';
+import { scheduleAiAvailabilityCheck } from '../../queue/aiAvailabilityQueue.js';
+
+const AI_VERIFY_MIN_CONFIDENCE = Number(process.env.AI_VERIFY_MIN_CONFIDENCE || 0.5);
+const AI_AVAILABILITY_SCHEDULE_COOLDOWN = Number(process.env.AI_AVAILABILITY_SCHEDULE_COOLDOWN_SECONDS || 1800);
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -171,8 +176,12 @@ function smartAvailabilityCheck($) {
       const hasUnqualifiedBuyBox = unqualifiedSelectors.some(sel => $(sel).length > 0);
 
       if (hasUnqualifiedBuyBox) {
-        logger.info('📦 No featured offers, but "See All Buying Options" found. Proceeding...');
-        // Proceed to next checks
+        logger.info('📦 No featured offers and "See All Buying Options" found. Treating as unavailable.');
+        return {
+          isAvailable: false,
+          reason: 'unqualified-buybox',
+          details: 'See All Buying Options'
+        };
       } else {
         logger.info('📦 No featured offers available detected (no buybox)');
         return {
@@ -224,17 +233,11 @@ function smartAvailabilityCheck($) {
 
   const hasUnqualifiedBuyBox = unqualifiedSelectors.some(sel => $(sel).length > 0);
   if (hasUnqualifiedBuyBox) {
-    logger.debug('❌ Unqualified Buy Box detected (See All Buying Options)');
-    // If we have an unqualified buy box, treat as unavailable essentially, 
-    // unless we want to track third party prices (which checkThirdPartySeller checks for).
-    // But since checkThirdPartySeller didn't trigger above (it's the first check), 
-    // we can assume we want to mark this as unavailable to avoid grabbing random prices.
-    logger.warn('⚠️ Unqualified Buy Box detected (See All Buying Options) - Attempting to find price anyway...');
-    // Allow proceeding to price extraction
+    logger.warn('⚠️ Unqualified Buy Box detected (See All Buying Options) - treating as unavailable.');
     return {
-      isAvailable: true,
+      isAvailable: false,
       reason: 'unqualified-buybox',
-      details: 'Unqualified Buy Box present - checking for other offers'
+      details: 'See All Buying Options'
     };
   }
 
@@ -297,17 +300,31 @@ function extractPriceFromSelectors($) {
     '#rightCol',  // Exclude entire right column (contains ads)
     '#amsDetailRight-dramabot_feature_div',  // Specific ad placements
     '.celwidget[data-feature-name*="ams"]',  // Amazon Marketing Services ads
+    '#moreBuyingChoices_feature_div',
+    '#mbc',
+    '#buybox-see-all-buying-choices',
+    '#buybox-see-all-buying-choices-announce',
+    '#unqualifiedBuyBox',
+    '#aod-offer-listing',
+    '#aod-offer-listing-container'
   ];
 
   const selectors = [
     '#corePrice_feature_div .a-price .a-offscreen',
     '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen',
+    '#corePriceDisplay_desktop_feature_div .priceToPay .a-offscreen',
+    '#corePriceDisplay_desktop_feature_div .a-price.a-text-price .a-offscreen',
+    '#corePriceDisplay_desktop_feature_div [data-a-size="xl"] .a-offscreen',
     '#price_inside_buybox',
     '#priceblock_ourprice',
     '#priceblock_dealprice',
     // '.a-price .a-offscreen', // Too broad, picks up related items
     '#buybox .a-price .a-offscreen',
     '#apex_desktop .a-price .a-offscreen',
+    '#apex_desktop .priceToPay .a-offscreen',
+    '#apex_desktop_newAccordionRow .a-price .a-offscreen',
+    '#apex_desktop_newAccordionRow .priceToPay .a-offscreen',
+    '#apex_offerDisplay_desktop_feature_div .a-price .a-offscreen',
     '.reinvent-PriceDisplay .a-offscreen',
     '#centerCol .a-price .a-offscreen' // Safer fallback than global
   ];
@@ -768,7 +785,7 @@ async function getPrice(url, options = {}) {
     // ============================================
     // STEP 1: Smart Availability Check
     // ============================================
-    return await extractFromCheerio($, url);
+    return await extractFromCheerio($, url, options);
 
   } catch (error) {
     // Check if we should try the fallback (Puppeteer)
@@ -792,6 +809,7 @@ async function getPrice(url, options = {}) {
     if (error.message.includes('out-of-stock') ||
       error.message.includes('third-party') ||
       error.message.includes('unavailable') ||
+      error.message.includes('unqualified-buybox') ||
       error.message.includes('no-buybox') ||
       error.message.includes('no-buy-box')) {
       // This is an expected "error" - product is just not available
@@ -806,7 +824,7 @@ async function getPrice(url, options = {}) {
 /**
  * Extracted logic for processing Cheerio instance
  */
-async function extractFromCheerio($, url) {
+async function extractFromCheerio($, url, options = {}) {
   // ============================================
   // STEP 1: Smart Availability Check
   // ============================================
@@ -825,29 +843,59 @@ async function extractFromCheerio($, url) {
   // ============================================
   const priceResult = smartPriceExtraction($);
 
-  // LOGIC ENHANCEMENT: If unavailable OR no price found, try AI verification
+  // LOGIC ENHANCEMENT: If unavailable OR no price found, optionally schedule AI verification
   const isStandardUnavailable = !availabilityCheck.isAvailable;
+  const allowAiVerification = options.allowAiVerification !== false;
+  const aiConfidence = typeof options.aiConfidence === 'number' ? options.aiConfidence : 0.5;
+  const aiVerifyMode = options.aiVerifyMode || process.env.AI_VERIFY_MODE || 'direct';
+  const asin = options.asin;
 
   if (isStandardUnavailable || !priceResult) {
-    logger.info('⚠️ Standard scraper reported unavailable/no-price. Verifying with AI...');
-    const aiResult = await aiService.checkProductAvailability(url);
+    const skipReasons = [];
 
-    if (aiResult) {
-      // If AI says it IS available, or gives a valid price, we trust it over the "dumb" scraper
-      if (aiResult.isAvailable && aiResult.price) {
-        logger.info(`✅ AI recovered product availability! Price: ${aiResult.price}`);
-        return {
-          currentPrice: aiResult.price,
-          isOutOfStock: false,
-          currency: aiResult.currency || 'EGP',
-          extractionMethod: 'ai-perplexity',
-          merchant: 'AI Detected',
-          delivery: aiResult.reason
-        };
-      }
-      // If AI confirms it's unavailable, strictly return unavailable
-      if (!aiResult.isAvailable) {
-        throw new Error(`Item unavailable (AI confirmed): ${aiResult.reason || availabilityCheck.reason}`);
+    if (availabilityCheck.reason === 'unqualified-buybox') {
+      skipReasons.push('unqualified-buybox');
+    }
+    if (!allowAiVerification) skipReasons.push('disabled');
+    if (aiConfidence < AI_VERIFY_MIN_CONFIDENCE) skipReasons.push('low-confidence');
+    if (asin && await isAvailabilityCooldownActive(asin, url)) skipReasons.push('cooldown');
+
+    const allowance = await shouldAllowAiCall({ tokenEstimate: 1600 });
+    if (!allowance.allowed) skipReasons.push(allowance.reason || 'budget');
+
+    if (skipReasons.length === 0) {
+      if (aiVerifyMode === 'queue') {
+        const scheduled = await scheduleAiAvailabilityCheck({
+          asin,
+          url,
+          reason: availabilityCheck.reason || 'unavailable'
+        });
+        if (scheduled) {
+          await setAvailabilityCooldown(asin, url, AI_AVAILABILITY_SCHEDULE_COOLDOWN);
+        }
+      } else {
+        logger.info('⚠️ Standard scraper reported unavailable/no-price. Verifying with AI...');
+        const aiResult = await aiService.checkProductAvailability(url, null, { asin });
+
+        if (aiResult) {
+          // If AI says it IS available, or gives a valid price, we trust it over the "dumb" scraper
+          if (aiResult.isAvailable && aiResult.price) {
+            logger.info(`✅ AI recovered product availability! Price: ${aiResult.price}`);
+            return {
+              currentPrice: aiResult.price,
+              isOutOfStock: false,
+              currency: aiResult.currency || 'EGP',
+              extractionMethod: 'ai-perplexity',
+              merchant: 'AI Detected',
+              delivery: aiResult.reason
+            };
+          }
+          // If AI confirms it's unavailable, strictly return unavailable
+          if (!aiResult.isAvailable) {
+            await setAvailabilityCooldown(asin, url, 6 * 60 * 60);
+            throw new Error(`Item unavailable (AI confirmed): ${aiResult.reason || availabilityCheck.reason}`);
+          }
+        }
       }
     }
   }
@@ -855,7 +903,8 @@ async function extractFromCheerio($, url) {
   // If AI didn't rescue, throw original error
   if (!availabilityCheck.isAvailable) {
     logger.info(`❌ Product unavailable: ${availabilityCheck.reason}`);
-    throw new Error(`Product is ${availabilityCheck.reason}: ${availabilityCheck.details}`);
+    const reasonLabel = availabilityCheck.reason || 'unavailable';
+    throw new Error(`Product is unavailable (${reasonLabel}): ${availabilityCheck.details}`);
   }
 
   if (!priceResult) {
@@ -1155,7 +1204,7 @@ async function fetchWithPuppeteer(url, options = {}) {
     }
 
     const $ = cheerio.load(content);
-    return extractFromCheerio($, url);
+    return extractFromCheerio($, url, options);
   } catch (error) {
     logger.error(`Puppeteer failed: ${error.message}`);
     throw error;

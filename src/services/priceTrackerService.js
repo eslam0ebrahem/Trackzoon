@@ -28,10 +28,24 @@ export class PriceTrackerService {
       const wasOutOfStock = product.isOutOfStock || false;
       const previousPrice = product.currentPrice;
       const asin = product.asin;
+      const aiConfidenceForScrape = computeDecisionConfidence({
+        priceHistory: product.priceHistory,
+        stats30d: calculatePriceStats(product.priceHistory, 30),
+        volatilityScore: product.volatilityScore || 0,
+        isOutOfStock: product.isOutOfStock,
+        lastPriceChangeAt: product.lastPriceChange?.date
+      });
+      const allowAiVerification = !product.isOutOfStock;
+      const aiVerifyMode = process.env.AI_VERIFY_MODE || 'queue';
 
       try {
         // Use ScraperService
-        scrapeResult = await scraperService.scrapeProduct(product.url);
+        scrapeResult = await scraperService.scrapeProduct(product.url, {
+          asin,
+          allowAiVerification,
+          aiConfidence: aiConfidenceForScrape,
+          aiVerifyMode
+        });
 
         currentPrice = scrapeResult.currentPrice;
         imageUrl = scrapeResult.imageUrl || null;
@@ -152,6 +166,7 @@ export class PriceTrackerService {
         if (priceError.message.includes('out-of-stock') ||
           priceError.message.includes('third-party') ||
           priceError.message.includes('unavailable') ||
+          priceError.message.includes('unqualified-buybox') ||
           priceError.message.includes('no-buybox') ||
           priceError.message.includes('no-buy-box')) {
 

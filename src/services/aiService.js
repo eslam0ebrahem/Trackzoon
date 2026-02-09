@@ -4,6 +4,7 @@ import { SystemPrompts } from '../utils/prompts.js';
 import { getPrice } from '../utils/scraper/getPrice.js';
 import { cleanHtml } from '../utils/htmlCleaner.js';
 import cache from '../config/cache.js';
+import { shouldAllowAiCall, incrementDailyUsage, pauseGlobalAi, isAvailabilityCooldownActive, setAvailabilityCooldown } from '../utils/aiGuard.js';
 export class AiService {
     constructor() {
         this.groqKey = process.env.GROQ_API_KEY;
@@ -21,13 +22,17 @@ export class AiService {
      * @param {Object} options - { systemPrompt, userPrompt, model, temperature, jsonMode }
      * @returns {Promise<any>} - Parsed JSON or string content
      */
-    async ask({ systemPrompt, userPrompt, model = 'llama-3.1-8b-instant', temperature = 0.2, jsonMode = false }) {
+    async ask({ systemPrompt, userPrompt, model = 'llama-3.1-8b-instant', temperature = 0.2, jsonMode = false, tokenEstimate = 1200 }) {
         // Enforce safe model selection if unsupported aliases slip in
         if (model === 'sonar' || model === 'sonar-mini') model = 'llama-3.1-8b-instant';
         if (model === 'sonar-pro') model = 'llama-3.3-70b-versatile';
 
         try {
-            return await this.askGroq({ systemPrompt, userPrompt, temperature, jsonMode, model });
+            const allowance = await shouldAllowAiCall({ tokenEstimate });
+            if (!allowance.allowed) {
+                throw new Error(`AI disabled: ${allowance.reason}`);
+            }
+            return await this.askGroq({ systemPrompt, userPrompt, temperature, jsonMode, model, tokenEstimate });
         } catch (error) {
             logger.error(`❌ Groq failed: ${error.message}`);
             throw error;
@@ -63,7 +68,7 @@ export class AiService {
         }
     }
 
-    async askGroq({ systemPrompt, userPrompt, temperature, jsonMode, model }) {
+    async askGroq({ systemPrompt, userPrompt, temperature, jsonMode, model, tokenEstimate = 1200 }) {
         if (!this.groqKey) throw new Error('GROQ_API_KEY not configured');
 
         // Default to fast model if not specified, but usually passed by caller
@@ -96,13 +101,38 @@ export class AiService {
                 }
             );
 
+            const usageTokens = response.data?.usage?.total_tokens;
+            await incrementDailyUsage({
+                tokens: Number.isFinite(usageTokens) ? usageTokens : tokenEstimate,
+                requests: 1
+            });
+
             const content = response.data.choices[0].message.content;
             return this.parseContent(content, jsonMode);
 
         } catch (error) {
+            if (error.response?.status === 429 || String(error.message || '').includes('Rate limit')) {
+                const retrySeconds = this.parseRetrySeconds(error.response?.data?.error?.message || error.message);
+                await pauseGlobalAi(retrySeconds || 300, 'rate_limit');
+            }
             logger.warn(`Groq Error: ${error.response?.data?.error?.message || error.message}`);
             throw error;
         }
+    }
+
+    parseRetrySeconds(message = '') {
+        const lower = String(message).toLowerCase();
+        const matchMinute = lower.match(/in\s+(\d+)m(\d+(\.\d+)?)s/);
+        if (matchMinute) {
+            const minutes = Number(matchMinute[1] || 0);
+            const seconds = Number(matchMinute[2] || 0);
+            return Math.ceil(minutes * 60 + seconds);
+        }
+        const matchSeconds = lower.match(/in\s+(\d+(\.\d+)?)s/);
+        if (matchSeconds) {
+            return Math.ceil(Number(matchSeconds[1]));
+        }
+        return null;
     }
 
 
@@ -339,10 +369,25 @@ export class AiService {
      * @param {string} [pageContent] - Optional cleaned HTML content (CyberScraper workflow)
      * @returns {Promise<{isAvailable: boolean, price: number | null, currency: string, reason: string}>}
      */
-    async checkProductAvailability(url, pageContent = null) {
+    async checkProductAvailability(url, pageContent = null, meta = {}) {
         if (!this.groqKey) {
             logger.warn('Skipping AI availability check: No API keys configured');
             return null;
+        }
+
+        const allowance = await shouldAllowAiCall({ tokenEstimate: 1600 });
+        if (!allowance.allowed) {
+            logger.warn(`Skipping AI availability check (${allowance.reason})`);
+            return null;
+        }
+
+        const asin = meta.asin;
+        if (asin && !meta.skipCooldown) {
+            const cooldownActive = await isAvailabilityCooldownActive(asin, url);
+            if (cooldownActive) {
+                logger.info(`Skipping AI availability check for ${asin} (cooldown active)`);
+                return null;
+            }
         }
 
         try {
@@ -372,15 +417,25 @@ export class AiService {
                 `;
             }
 
-            return await this.ask({
+            const result = await this.ask({
                 systemPrompt: SystemPrompts.AVAILABILITY_CHECK_JSON,
                 userPrompt: `${promptContext}\n\nExtract availability and price.`,
                 model: 'llama-3.1-8b-instant',
                 temperature: 0.1,
-                jsonMode: true
+                jsonMode: true,
+                tokenEstimate: 1600
             });
 
+            if (asin && result && result.isAvailable === false) {
+                await setAvailabilityCooldown(asin, url, 6 * 60 * 60);
+            }
+
+            return result;
+
         } catch (error) {
+            if (asin) {
+                await setAvailabilityCooldown(asin, url, 2 * 60 * 60);
+            }
             logger.error(`❌ AI Fetch Error: ${error.message}`);
             return null;
         }

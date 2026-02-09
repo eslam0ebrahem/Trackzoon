@@ -17,7 +17,7 @@ export class ExtensionService {
     // AI VERIFICATION FALLBACK
     if (isOutOfStock || price === 0) {
       logger.info(`🕵️ Extension flagged ${asin} as OOS. Verifying with AI...`);
-      const aiResult = await aiService.checkProductAvailability(url);
+      const aiResult = await aiService.checkProductAvailability(url, null, { asin });
 
       if (aiResult && aiResult.isAvailable && aiResult.price) {
         logger.info(`✅ AI Correction: Item IS available at ${aiResult.price} EGP`);

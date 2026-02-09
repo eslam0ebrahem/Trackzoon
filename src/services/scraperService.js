@@ -40,7 +40,7 @@ export class ScraperService {
         logger.info('🔄 Circuit Breaker manually reset.');
     }
 
-    async scrapeProduct(url) {
+    async scrapeProduct(url, options = {}) {
         // Circuit Breaker Check
         if (this.coolDownUntil && Date.now() < this.coolDownUntil) {
             const minutesLeft = Math.ceil((this.coolDownUntil - Date.now()) / 60000);
@@ -60,7 +60,7 @@ export class ScraperService {
         return scrapingLimit(async () => {
             this.totalScrapes++;
             try {
-                const result = await getPrice(url);
+                const result = await getPrice(url, options);
 
                 // Success! Reset circuit breaker if we had some failures but didn't trip
                 if (this.consecutiveCaptchaCount > 0) {

@@ -15,6 +15,7 @@ import { mainKeyboard } from './utils/keyboards/mainKeyboard.js';
 import { startServer } from './server.js';
 import { startKeepAlive } from './services/keepAliveService.js';
 import { createWorker } from './queue/priceQueue.js'; // Import Worker Factory
+import { createAiWorker } from './queue/aiQueue.js';
 
 const BOT_LOCK_KEY = process.env.BOT_LOCK_KEY || 'trackzoon:bot:polling-lock';
 const BOT_LOCK_TTL_MS = Number(process.env.BOT_LOCK_TTL_MS || 60000);
@@ -141,6 +142,7 @@ startKeepAlive();
 if (!process.env.PROCESS_TYPE || process.env.PROCESS_TYPE === 'combined') {
   logger.info('🔄 Application running in COMBINED mode (Web + Worker)');
   createWorker(bot);
+  createAiWorker(bot);
   logger.info('🛠️ Internal Worker started');
 } else {
   logger.info(`ℹ️ Application running in ${process.env.PROCESS_TYPE} mode. Worker not started internally.`);
