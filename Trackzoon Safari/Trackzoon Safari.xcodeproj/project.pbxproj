@@ -1,0 +1,1005 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B834DCA92F3A00F900EEC891 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B834DCA82F3A00F900EEC891 /* AppDelegate.swift */; };
+		B834DCAB2F3A00F900EEC891 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B834DCAA2F3A00F900EEC891 /* SceneDelegate.swift */; };
+		B834DCAE2F3A00F900EEC891 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B834DCAC2F3A00F900EEC891 /* LaunchScreen.storyboard */; };
+		B834DCB12F3A00F900EEC891 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B834DCAF2F3A00F900EEC891 /* Main.storyboard */; };
+		B834DCBA2F3A00F900EEC891 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B834DCB92F3A00F900EEC891 /* AppDelegate.swift */; };
+		B834DCBD2F3A00F900EEC891 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B834DCBB2F3A00F900EEC891 /* Main.storyboard */; };
+		B834DCC42F3A00F900EEC891 /* Trackzoon Safari Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B834DCC32F3A00F900EEC891 /* Trackzoon Safari Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B834DCCE2F3A00F900EEC891 /* Trackzoon Safari Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B834DCCD2F3A00F900EEC891 /* Trackzoon Safari Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B834DCD32F3A00F900EEC891 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = B834DC982F3A00F800EEC891 /* Main.html */; };
+		B834DCD42F3A00F900EEC891 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = B834DC982F3A00F800EEC891 /* Main.html */; };
+		B834DCD52F3A00F900EEC891 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = B834DC9A2F3A00F800EEC891 /* Icon.png */; };
+		B834DCD62F3A00F900EEC891 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = B834DC9A2F3A00F800EEC891 /* Icon.png */; };
+		B834DCD72F3A00F900EEC891 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = B834DC9B2F3A00F800EEC891 /* Style.css */; };
+		B834DCD82F3A00F900EEC891 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = B834DC9B2F3A00F800EEC891 /* Style.css */; };
+		B834DCD92F3A00F900EEC891 /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = B834DC9C2F3A00F800EEC891 /* Script.js */; };
+		B834DCDA2F3A00F900EEC891 /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = B834DC9C2F3A00F800EEC891 /* Script.js */; };
+		B834DCDB2F3A00F900EEC891 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B834DC9D2F3A00F800EEC891 /* ViewController.swift */; };
+		B834DCDC2F3A00F900EEC891 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B834DC9D2F3A00F800EEC891 /* ViewController.swift */; };
+		B834DCDD2F3A00F900EEC891 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B834DC9E2F3A00F900EEC891 /* Assets.xcassets */; };
+		B834DCDE2F3A00F900EEC891 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B834DC9E2F3A00F900EEC891 /* Assets.xcassets */; };
+		B834DCDF2F3A00F900EEC891 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B834DCA02F3A00F900EEC891 /* SafariWebExtensionHandler.swift */; };
+		B834DCE02F3A00F900EEC891 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B834DCA02F3A00F900EEC891 /* SafariWebExtensionHandler.swift */; };
+		B834DCF82F3A00F900EEC891 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF22F3A00F900EEC891 /* popup.js */; };
+		B834DCF92F3A00F900EEC891 /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF32F3A00F900EEC891 /* background.js */; };
+		B834DCFA2F3A00F900EEC891 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF42F3A00F900EEC891 /* popup.html */; };
+		B834DCFB2F3A00F900EEC891 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF52F3A00F900EEC891 /* icons */; };
+		B834DCFC2F3A00F900EEC891 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF62F3A00F900EEC891 /* manifest.json */; };
+		B834DCFD2F3A00F900EEC891 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF72F3A00F900EEC891 /* content.js */; };
+		B834DCFE2F3A00F900EEC891 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF22F3A00F900EEC891 /* popup.js */; };
+		B834DCFF2F3A00F900EEC891 /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF32F3A00F900EEC891 /* background.js */; };
+		B834DD002F3A00F900EEC891 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF42F3A00F900EEC891 /* popup.html */; };
+		B834DD012F3A00F900EEC891 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF52F3A00F900EEC891 /* icons */; };
+		B834DD022F3A00F900EEC891 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF62F3A00F900EEC891 /* manifest.json */; };
+		B834DD032F3A00F900EEC891 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = B834DCF72F3A00F900EEC891 /* content.js */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B834DCC52F3A00F900EEC891 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B834DC922F3A00F800EEC891 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B834DCC22F3A00F900EEC891;
+			remoteInfo = "Trackzoon Safari Extension (iOS)";
+		};
+		B834DCCF2F3A00F900EEC891 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B834DC922F3A00F800EEC891 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B834DCCC2F3A00F900EEC891;
+			remoteInfo = "Trackzoon Safari Extension (macOS)";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B834DCE62F3A00F900EEC891 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B834DCC42F3A00F900EEC891 /* Trackzoon Safari Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCED2F3A00F900EEC891 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B834DCCE2F3A00F900EEC891 /* Trackzoon Safari Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		B834DC992F3A00F800EEC891 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		B834DC9A2F3A00F800EEC891 /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		B834DC9B2F3A00F800EEC891 /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		B834DC9C2F3A00F800EEC891 /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		B834DC9D2F3A00F800EEC891 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		B834DC9E2F3A00F900EEC891 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B834DCA02F3A00F900EEC891 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		B834DCA52F3A00F900EEC891 /* Trackzoon Safari.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Trackzoon Safari.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B834DCA82F3A00F900EEC891 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B834DCAA2F3A00F900EEC891 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		B834DCAD2F3A00F900EEC891 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		B834DCB02F3A00F900EEC891 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		B834DCB22F3A00F900EEC891 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B834DCB72F3A00F900EEC891 /* Trackzoon Safari.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Trackzoon Safari.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B834DCB92F3A00F900EEC891 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B834DCBC2F3A00F900EEC891 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		B834DCBE2F3A00F900EEC891 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B834DCC32F3A00F900EEC891 /* Trackzoon Safari Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Trackzoon Safari Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B834DCC82F3A00F900EEC891 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B834DCCD2F3A00F900EEC891 /* Trackzoon Safari Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Trackzoon Safari Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B834DCD22F3A00F900EEC891 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B834DCF22F3A00F900EEC891 /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = popup.js; path = ../../extension/popup.js; sourceTree = "<group>"; };
+		B834DCF32F3A00F900EEC891 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = background.js; path = ../../extension/background.js; sourceTree = "<group>"; };
+		B834DCF42F3A00F900EEC891 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = popup.html; path = ../../extension/popup.html; sourceTree = "<group>"; };
+		B834DCF52F3A00F900EEC891 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = ../../extension/icons; sourceTree = "<group>"; };
+		B834DCF62F3A00F900EEC891 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = ../../extension/manifest.json; sourceTree = "<group>"; };
+		B834DCF72F3A00F900EEC891 /* content.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = content.js; path = ../../extension/content.js; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B834DCA22F3A00F900EEC891 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCB42F3A00F900EEC891 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCC02F3A00F900EEC891 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCCA2F3A00F900EEC891 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B834DC912F3A00F800EEC891 = {
+			isa = PBXGroup;
+			children = (
+				B834DC962F3A00F800EEC891 /* Shared (App) */,
+				B834DC9F2F3A00F900EEC891 /* Shared (Extension) */,
+				B834DCA72F3A00F900EEC891 /* iOS (App) */,
+				B834DCB82F3A00F900EEC891 /* macOS (App) */,
+				B834DCC72F3A00F900EEC891 /* iOS (Extension) */,
+				B834DCD12F3A00F900EEC891 /* macOS (Extension) */,
+				B834DCA62F3A00F900EEC891 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B834DC962F3A00F800EEC891 /* Shared (App) */ = {
+			isa = PBXGroup;
+			children = (
+				B834DC9D2F3A00F800EEC891 /* ViewController.swift */,
+				B834DC9E2F3A00F900EEC891 /* Assets.xcassets */,
+				B834DC972F3A00F800EEC891 /* Resources */,
+			);
+			path = "Shared (App)";
+			sourceTree = "<group>";
+		};
+		B834DC972F3A00F800EEC891 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B834DC982F3A00F800EEC891 /* Main.html */,
+				B834DC9A2F3A00F800EEC891 /* Icon.png */,
+				B834DC9B2F3A00F800EEC891 /* Style.css */,
+				B834DC9C2F3A00F800EEC891 /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B834DC9F2F3A00F900EEC891 /* Shared (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				B834DCF12F3A00F900EEC891 /* Resources */,
+				B834DCA02F3A00F900EEC891 /* SafariWebExtensionHandler.swift */,
+			);
+			path = "Shared (Extension)";
+			sourceTree = "<group>";
+		};
+		B834DCA62F3A00F900EEC891 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B834DCA52F3A00F900EEC891 /* Trackzoon Safari.app */,
+				B834DCB72F3A00F900EEC891 /* Trackzoon Safari.app */,
+				B834DCC32F3A00F900EEC891 /* Trackzoon Safari Extension.appex */,
+				B834DCCD2F3A00F900EEC891 /* Trackzoon Safari Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B834DCA72F3A00F900EEC891 /* iOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				B834DCA82F3A00F900EEC891 /* AppDelegate.swift */,
+				B834DCAA2F3A00F900EEC891 /* SceneDelegate.swift */,
+				B834DCAC2F3A00F900EEC891 /* LaunchScreen.storyboard */,
+				B834DCAF2F3A00F900EEC891 /* Main.storyboard */,
+				B834DCB22F3A00F900EEC891 /* Info.plist */,
+			);
+			path = "iOS (App)";
+			sourceTree = "<group>";
+		};
+		B834DCB82F3A00F900EEC891 /* macOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				B834DCB92F3A00F900EEC891 /* AppDelegate.swift */,
+				B834DCBB2F3A00F900EEC891 /* Main.storyboard */,
+				B834DCBE2F3A00F900EEC891 /* Info.plist */,
+			);
+			path = "macOS (App)";
+			sourceTree = "<group>";
+		};
+		B834DCC72F3A00F900EEC891 /* iOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				B834DCC82F3A00F900EEC891 /* Info.plist */,
+			);
+			path = "iOS (Extension)";
+			sourceTree = "<group>";
+		};
+		B834DCD12F3A00F900EEC891 /* macOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				B834DCD22F3A00F900EEC891 /* Info.plist */,
+			);
+			path = "macOS (Extension)";
+			sourceTree = "<group>";
+		};
+		B834DCF12F3A00F900EEC891 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B834DCF22F3A00F900EEC891 /* popup.js */,
+				B834DCF32F3A00F900EEC891 /* background.js */,
+				B834DCF42F3A00F900EEC891 /* popup.html */,
+				B834DCF52F3A00F900EEC891 /* icons */,
+				B834DCF62F3A00F900EEC891 /* manifest.json */,
+				B834DCF72F3A00F900EEC891 /* content.js */,
+			);
+			name = Resources;
+			path = "Shared (Extension)";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B834DCA42F3A00F900EEC891 /* Trackzoon Safari (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B834DCE72F3A00F900EEC891 /* Build configuration list for PBXNativeTarget "Trackzoon Safari (iOS)" */;
+			buildPhases = (
+				B834DCA12F3A00F900EEC891 /* Sources */,
+				B834DCA22F3A00F900EEC891 /* Frameworks */,
+				B834DCA32F3A00F900EEC891 /* Resources */,
+				B834DCE62F3A00F900EEC891 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B834DCC62F3A00F900EEC891 /* PBXTargetDependency */,
+			);
+			name = "Trackzoon Safari (iOS)";
+			packageProductDependencies = (
+			);
+			productName = "Trackzoon Safari (iOS)";
+			productReference = B834DCA52F3A00F900EEC891 /* Trackzoon Safari.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B834DCB62F3A00F900EEC891 /* Trackzoon Safari (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B834DCEE2F3A00F900EEC891 /* Build configuration list for PBXNativeTarget "Trackzoon Safari (macOS)" */;
+			buildPhases = (
+				B834DCB32F3A00F900EEC891 /* Sources */,
+				B834DCB42F3A00F900EEC891 /* Frameworks */,
+				B834DCB52F3A00F900EEC891 /* Resources */,
+				B834DCED2F3A00F900EEC891 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B834DCD02F3A00F900EEC891 /* PBXTargetDependency */,
+			);
+			name = "Trackzoon Safari (macOS)";
+			packageProductDependencies = (
+			);
+			productName = "Trackzoon Safari (macOS)";
+			productReference = B834DCB72F3A00F900EEC891 /* Trackzoon Safari.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B834DCC22F3A00F900EEC891 /* Trackzoon Safari Extension (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B834DCE32F3A00F900EEC891 /* Build configuration list for PBXNativeTarget "Trackzoon Safari Extension (iOS)" */;
+			buildPhases = (
+				B834DCBF2F3A00F900EEC891 /* Sources */,
+				B834DCC02F3A00F900EEC891 /* Frameworks */,
+				B834DCC12F3A00F900EEC891 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Trackzoon Safari Extension (iOS)";
+			packageProductDependencies = (
+			);
+			productName = "Trackzoon Safari Extension (iOS)";
+			productReference = B834DCC32F3A00F900EEC891 /* Trackzoon Safari Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		B834DCCC2F3A00F900EEC891 /* Trackzoon Safari Extension (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B834DCEA2F3A00F900EEC891 /* Build configuration list for PBXNativeTarget "Trackzoon Safari Extension (macOS)" */;
+			buildPhases = (
+				B834DCC92F3A00F900EEC891 /* Sources */,
+				B834DCCA2F3A00F900EEC891 /* Frameworks */,
+				B834DCCB2F3A00F900EEC891 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Trackzoon Safari Extension (macOS)";
+			packageProductDependencies = (
+			);
+			productName = "Trackzoon Safari Extension (macOS)";
+			productReference = B834DCCD2F3A00F900EEC891 /* Trackzoon Safari Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B834DC922F3A00F800EEC891 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					B834DCA42F3A00F900EEC891 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					B834DCB62F3A00F900EEC891 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					B834DCC22F3A00F900EEC891 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					B834DCCC2F3A00F900EEC891 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = B834DC952F3A00F800EEC891 /* Build configuration list for PBXProject "Trackzoon Safari" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B834DC912F3A00F800EEC891;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B834DCA62F3A00F900EEC891 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B834DCA42F3A00F900EEC891 /* Trackzoon Safari (iOS) */,
+				B834DCB62F3A00F900EEC891 /* Trackzoon Safari (macOS) */,
+				B834DCC22F3A00F900EEC891 /* Trackzoon Safari Extension (iOS) */,
+				B834DCCC2F3A00F900EEC891 /* Trackzoon Safari Extension (macOS) */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B834DCA32F3A00F900EEC891 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B834DCD52F3A00F900EEC891 /* Icon.png in Resources */,
+				B834DCAE2F3A00F900EEC891 /* LaunchScreen.storyboard in Resources */,
+				B834DCD32F3A00F900EEC891 /* Main.html in Resources */,
+				B834DCD92F3A00F900EEC891 /* Script.js in Resources */,
+				B834DCDD2F3A00F900EEC891 /* Assets.xcassets in Resources */,
+				B834DCB12F3A00F900EEC891 /* Main.storyboard in Resources */,
+				B834DCD72F3A00F900EEC891 /* Style.css in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCB52F3A00F900EEC891 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B834DCD62F3A00F900EEC891 /* Icon.png in Resources */,
+				B834DCD82F3A00F900EEC891 /* Style.css in Resources */,
+				B834DCBD2F3A00F900EEC891 /* Main.storyboard in Resources */,
+				B834DCDA2F3A00F900EEC891 /* Script.js in Resources */,
+				B834DCDE2F3A00F900EEC891 /* Assets.xcassets in Resources */,
+				B834DCD42F3A00F900EEC891 /* Main.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCC12F3A00F900EEC891 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B834DD032F3A00F900EEC891 /* content.js in Resources */,
+				B834DCFF2F3A00F900EEC891 /* background.js in Resources */,
+				B834DD012F3A00F900EEC891 /* icons in Resources */,
+				B834DD022F3A00F900EEC891 /* manifest.json in Resources */,
+				B834DD002F3A00F900EEC891 /* popup.html in Resources */,
+				B834DCFE2F3A00F900EEC891 /* popup.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCCB2F3A00F900EEC891 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B834DCFD2F3A00F900EEC891 /* content.js in Resources */,
+				B834DCF92F3A00F900EEC891 /* background.js in Resources */,
+				B834DCFB2F3A00F900EEC891 /* icons in Resources */,
+				B834DCFC2F3A00F900EEC891 /* manifest.json in Resources */,
+				B834DCFA2F3A00F900EEC891 /* popup.html in Resources */,
+				B834DCF82F3A00F900EEC891 /* popup.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B834DCA12F3A00F900EEC891 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B834DCDB2F3A00F900EEC891 /* ViewController.swift in Sources */,
+				B834DCA92F3A00F900EEC891 /* AppDelegate.swift in Sources */,
+				B834DCAB2F3A00F900EEC891 /* SceneDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCB32F3A00F900EEC891 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B834DCDC2F3A00F900EEC891 /* ViewController.swift in Sources */,
+				B834DCBA2F3A00F900EEC891 /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCBF2F3A00F900EEC891 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B834DCDF2F3A00F900EEC891 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B834DCC92F3A00F900EEC891 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B834DCE02F3A00F900EEC891 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B834DCC62F3A00F900EEC891 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B834DCC22F3A00F900EEC891 /* Trackzoon Safari Extension (iOS) */;
+			targetProxy = B834DCC52F3A00F900EEC891 /* PBXContainerItemProxy */;
+		};
+		B834DCD02F3A00F900EEC891 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B834DCCC2F3A00F900EEC891 /* Trackzoon Safari Extension (macOS) */;
+			targetProxy = B834DCCF2F3A00F900EEC891 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		B834DC982F3A00F800EEC891 /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B834DC992F3A00F800EEC891 /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		B834DCAC2F3A00F900EEC891 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B834DCAD2F3A00F900EEC891 /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		B834DCAF2F3A00F900EEC891 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B834DCB02F3A00F900EEC891 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		B834DCBB2F3A00F900EEC891 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B834DCBC2F3A00F900EEC891 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		B834DCE12F3A00F900EEC891 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		B834DCE22F3A00F900EEC891 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		B834DCE42F3A00F900EEC891 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trackzoon Safari Extension";
+CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/Trackzoon Safari Extension.entitlements";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Trackzoon-Safari.Extension";
+				PRODUCT_NAME = "Trackzoon Safari Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B834DCE52F3A00F900EEC891 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trackzoon Safari Extension";
+CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/Trackzoon Safari Extension.entitlements";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Trackzoon-Safari.Extension";
+				PRODUCT_NAME = "Trackzoon Safari Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		B834DCE82F3A00F900EEC891 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trackzoon Safari";
+CODE_SIGN_ENTITLEMENTS = "macOS (App)/Trackzoon Safari.entitlements";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Trackzoon-Safari";
+				PRODUCT_NAME = "Trackzoon Safari";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B834DCE92F3A00F900EEC891 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trackzoon Safari";
+CODE_SIGN_ENTITLEMENTS = "macOS (App)/Trackzoon Safari.entitlements";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Trackzoon-Safari";
+				PRODUCT_NAME = "Trackzoon Safari";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		B834DCEB2F3A00F900EEC891 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trackzoon Safari Extension";
+CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/Trackzoon Safari Extension.entitlements";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Trackzoon-Safari.Extension";
+				PRODUCT_NAME = "Trackzoon Safari Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B834DCEC2F3A00F900EEC891 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trackzoon Safari Extension";
+CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/Trackzoon Safari Extension.entitlements";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Trackzoon-Safari.Extension";
+				PRODUCT_NAME = "Trackzoon Safari Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		B834DCEF2F3A00F900EEC891 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4TBXQFDJ3F;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trackzoon Safari";
+CODE_SIGN_ENTITLEMENTS = "macOS (App)/Trackzoon Safari.entitlements";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Trackzoon-Safari";
+				PRODUCT_NAME = "Trackzoon Safari";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B834DCF02F3A00F900EEC891 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4TBXQFDJ3F;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trackzoon Safari";
+CODE_SIGN_ENTITLEMENTS = "macOS (App)/Trackzoon Safari.entitlements";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Trackzoon-Safari";
+				PRODUCT_NAME = "Trackzoon Safari";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B834DC952F3A00F800EEC891 /* Build configuration list for PBXProject "Trackzoon Safari" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B834DCE12F3A00F900EEC891 /* Debug */,
+				B834DCE22F3A00F900EEC891 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B834DCE32F3A00F900EEC891 /* Build configuration list for PBXNativeTarget "Trackzoon Safari Extension (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B834DCE42F3A00F900EEC891 /* Debug */,
+				B834DCE52F3A00F900EEC891 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B834DCE72F3A00F900EEC891 /* Build configuration list for PBXNativeTarget "Trackzoon Safari (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B834DCE82F3A00F900EEC891 /* Debug */,
+				B834DCE92F3A00F900EEC891 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B834DCEA2F3A00F900EEC891 /* Build configuration list for PBXNativeTarget "Trackzoon Safari Extension (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B834DCEB2F3A00F900EEC891 /* Debug */,
+				B834DCEC2F3A00F900EEC891 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B834DCEE2F3A00F900EEC891 /* Build configuration list for PBXNativeTarget "Trackzoon Safari (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B834DCEF2F3A00F900EEC891 /* Debug */,
+				B834DCF02F3A00F900EEC891 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = B834DC922F3A00F800EEC891 /* Project object */;
+}

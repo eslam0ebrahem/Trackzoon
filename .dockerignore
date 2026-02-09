@@ -1,0 +1,16 @@
+
+# Render / Docker build context ignore
+.git
+node_modules
+Dockerfile
+.dockerignore
+.railwayignore
+render.yaml
+README.md
+
+# Application specific exclusions
+Trackzoon Safari
+extension-safari
+extension
+docs
+scripts
