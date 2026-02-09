@@ -18,6 +18,7 @@ import exportCommand from './exportCommand.js';
 import searchCommand from './searchCommand.js';
 import trendingCommand from './trendingCommand.js';
 import healthCommand from './healthCommand.js';
+import insightsCommand from './insightsCommand.js';
 
 export default (bot) => {
   // Register all commands
@@ -36,4 +37,5 @@ export default (bot) => {
   searchCommand(bot);
   trendingCommand(bot);
   healthCommand(bot);
+  insightsCommand(bot);
 };

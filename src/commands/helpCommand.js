@@ -27,6 +27,7 @@ export default (bot) => {
       builder.addLine('`/list` - View your tracked items');
       builder.addLine('`/deals` - See top price drops (24h)');
       builder.addLine('`/report` - Get daily price summary');
+      builder.addLine('`/insights <name/ASIN>` - Smart analytics for a product');
       builder.addLine('`/settings` - Configure your alerts');
       builder.addLine('`/help` - Show this help message');
       builder.addSpacer();

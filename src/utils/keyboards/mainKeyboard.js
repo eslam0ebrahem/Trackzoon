@@ -34,6 +34,7 @@ export const productActionsKeyboard = (asin) => {
           { text: '🧠 Smart Target', callback_data: `action_smart_target_${asin}` }
         ],
         [
+          { text: '🧠 Insights', callback_data: `action_insights_${asin}` },
           { text: '🤖 AI Advice', callback_data: `action_ai_advice_${asin}` }
         ],
         [
