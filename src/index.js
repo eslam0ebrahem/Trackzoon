@@ -209,6 +209,18 @@ process.once('SIGINT', () => shutdown('SIGINT'));
 process.once('SIGTERM', () => shutdown('SIGTERM'));
 process.once('SIGUSR2', () => shutdown('SIGUSR2')); // For nodemon restarts
 
+const isExpectedAvailabilityError = (reason) => {
+  const message = typeof reason === 'string' ? reason : reason?.message || '';
+  return (
+    message.includes('Product is unavailable') ||
+    message.includes('Item unavailable (AI confirmed)') ||
+    message.includes('out-of-stock') ||
+    message.includes('unqualified-buybox') ||
+    message.includes('no-buybox') ||
+    message.includes('no-buy-box')
+  );
+};
+
 // Prevent crash on Puppeteer Protocol Error (TargetCloseError)
 process.on('uncaughtException', (error) => {
   if (error.message && error.message.includes('TargetCloseError') && error.message.includes('Protocol error')) {
@@ -225,11 +237,15 @@ process.on('uncaughtException', (error) => {
   setTimeout(() => process.exit(1), 1000);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   if (reason && reason.message && reason.message.includes('TargetCloseError')) {
     logger.error('⚠️ Caught unhandled Rejection (Puppeteer Protocol Error):', reason.message);
     return;
   }
-  logger.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  if (isExpectedAvailabilityError(reason)) {
+    logger.warn(`⚠️ Late-handled availability rejection: ${reason?.message || String(reason)}`);
+    return;
+  }
+  logger.error('❌ Unhandled Rejection:', reason);
   captureError(reason, { context: 'unhandledRejection' });
 });

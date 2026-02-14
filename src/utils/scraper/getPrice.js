@@ -713,6 +713,18 @@ function extractOtherSellers($) {
   return otherSellers;
 }
 
+function isExpectedUnavailableError(error) {
+  if (!error || !error.message) return false;
+  return (
+    error.message.includes('out-of-stock') ||
+    error.message.includes('third-party') ||
+    error.message.includes('unavailable') ||
+    error.message.includes('unqualified-buybox') ||
+    error.message.includes('no-buybox') ||
+    error.message.includes('no-buy-box')
+  );
+}
+
 async function getPrice(url, options = {}) {
   const { returnContent = false } = options;
   try {
@@ -799,19 +811,18 @@ async function getPrice(url, options = {}) {
       try {
         return await fetchWithPuppeteer(url, options);
       } catch (puppeteerError) {
-        logger.error(`❌ Puppeteer fallback also failed: ${puppeteerError.message}`);
+        if (isExpectedUnavailableError(puppeteerError)) {
+          logger.info(`ℹ️ Puppeteer fallback confirmed unavailability: ${puppeteerError.message}`);
+        } else {
+          logger.error(`❌ Puppeteer fallback also failed: ${puppeteerError.message}`);
+        }
         // Throw the original error or a combined one? 
         // Let's throw the Puppeteer error as it's the final attempt
         throw puppeteerError;
       }
     }
 
-    if (error.message.includes('out-of-stock') ||
-      error.message.includes('third-party') ||
-      error.message.includes('unavailable') ||
-      error.message.includes('unqualified-buybox') ||
-      error.message.includes('no-buybox') ||
-      error.message.includes('no-buy-box')) {
+    if (isExpectedUnavailableError(error)) {
       // This is an expected "error" - product is just not available
       throw error;
     }
@@ -1134,11 +1145,14 @@ async function fetchWithPuppeteer(url, options = {}) {
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const resourceType = req.resourceType();
-      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
-        req.abort();
-      } else {
-        req.continue();
-      }
+      const action = ['image', 'stylesheet', 'font', 'media'].includes(resourceType)
+        ? req.abort()
+        : req.continue();
+
+      // Avoid late unhandled rejections when Chromium invalidates intercepted requests.
+      action.catch((requestError) => {
+        logger.debug(`Request interception warning: ${requestError.message}`);
+      });
     });
 
     // START CyberScraper Stealth Port
@@ -1204,7 +1218,7 @@ async function fetchWithPuppeteer(url, options = {}) {
     }
 
     const $ = cheerio.load(content);
-    return extractFromCheerio($, url, options);
+    return await extractFromCheerio($, url, options);
   } catch (error) {
     logger.error(`Puppeteer failed: ${error.message}`);
     throw error;
