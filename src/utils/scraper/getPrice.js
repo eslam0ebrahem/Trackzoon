@@ -1220,7 +1220,9 @@ async function fetchWithPuppeteer(url, options = {}) {
     const $ = cheerio.load(content);
     return await extractFromCheerio($, url, options);
   } catch (error) {
-    logger.error(`Puppeteer failed: ${error.message}`);
+    if (!isExpectedUnavailableError(error)) {
+      logger.error(`Puppeteer failed: ${error.message}`);
+    }
     throw error;
   } finally {
     if (browser) {

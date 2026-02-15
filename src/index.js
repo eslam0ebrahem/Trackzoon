@@ -25,6 +25,9 @@ const BOT_INSTANCE_ID = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}
 let botLockRedis = null;
 let botLockRenewTimer = null;
 let botLaunchEnabled = true;
+let stopScheduler = null;
+let internalPriceWorker = null;
+let internalAiWorker = null;
 
 const acquireBotLock = async () => {
   const redis = cache.getClient();
@@ -95,9 +98,6 @@ bot.use(attachState);
 // Register command and action handlers
 registerHandlers(bot);
 
-// Start the scheduler and store cleanup function
-const stopScheduler = startScheduler(bot);
-
 // Handle state timeouts
 stateManager.on('stateTimeout', async ({ chatId, state }) => {
   try {
@@ -137,24 +137,27 @@ bot.telegram.setMyCommands([
 startServer(bot);
 startKeepAlive();
 
-// Start Worker in the SAME process if simpler hosting is desired (Combined Mode)
-// Check env var process_TYPE or NODE_TYPE. Default to combined.
-if (!process.env.PROCESS_TYPE || process.env.PROCESS_TYPE === 'combined') {
-  logger.info('🔄 Application running in COMBINED mode (Web + Worker)');
-  createWorker(bot);
-  createAiWorker(bot);
-  logger.info('🛠️ Internal Worker started');
-} else {
-  logger.info(`ℹ️ Application running in ${process.env.PROCESS_TYPE} mode. Worker not started internally.`);
-}
-
 // Launch the bot
 logger.info('Launching Trackzoon bot...');
 botLaunchEnabled = await acquireBotLock();
 
 if (!botLaunchEnabled) {
-  logger.warn('Another instance is already polling Telegram. Skipping bot.launch() to avoid conflicts.');
+  logger.warn('Another instance is already leader. Skipping bot.launch(), scheduler, and internal workers to avoid duplicate processing.');
 } else {
+  // Leader-only workloads
+  stopScheduler = startScheduler(bot);
+
+  // Start Worker in the SAME process if simpler hosting is desired (Combined Mode)
+  // Check env var process_TYPE or NODE_TYPE. Default to combined.
+  if (!process.env.PROCESS_TYPE || process.env.PROCESS_TYPE === 'combined') {
+    logger.info('🔄 Application running in COMBINED mode (Web + Worker)');
+    internalPriceWorker = createWorker(bot);
+    internalAiWorker = createAiWorker(bot);
+    logger.info('🛠️ Internal Worker started');
+  } else {
+    logger.info(`ℹ️ Application running in ${process.env.PROCESS_TYPE} mode. Worker not started internally.`);
+  }
+
   bot.launch().then(() => {
     logger.info('Bot successfully launched!');
 
@@ -181,7 +184,7 @@ if (!botLaunchEnabled) {
 }
 
 // Enable graceful shutdown
-const shutdown = (signal) => {
+const shutdown = async (signal) => {
   logger.info(`Received ${signal}. Stopping bot...`);
 
   // Stop scheduler tasks
@@ -189,14 +192,44 @@ const shutdown = (signal) => {
     stopScheduler();
   }
 
+  // Stop workers if running
+  const workerShutdowns = [];
+  if (internalPriceWorker) {
+    workerShutdowns.push(
+      internalPriceWorker.close().catch(error => {
+        logger.warn(`Failed to close price worker cleanly: ${error.message}`);
+      })
+    );
+  }
+  if (internalAiWorker) {
+    workerShutdowns.push(
+      internalAiWorker.close().catch(error => {
+        logger.warn(`Failed to close AI worker cleanly: ${error.message}`);
+      })
+    );
+  }
+  if (workerShutdowns.length) {
+    await Promise.allSettled(workerShutdowns);
+  }
+
+  // Stop bot only if we attempted to launch it on this instance
+  if (botLaunchEnabled) {
+    try {
+      bot.stop(signal);
+    } catch (error) {
+      if (error.message && error.message.includes('Bot is not running')) {
+        logger.warn('Bot stop skipped: bot is not running.');
+      } else {
+        logger.error('Error stopping bot during shutdown:', error);
+      }
+    }
+  }
+
   // Close cache connection
   cache.close();
 
-  // Stop bot
-  bot.stop(signal);
-
   // Release bot lock if held
-  releaseBotLock().catch(() => {});
+  await releaseBotLock().catch(() => {});
 
   // Clear all states
   stateManager.clearAllStates?.();
