@@ -110,6 +110,50 @@ export const shouldAllowAiCall = async ({
   return { allowed: true, reason: null };
 };
 
+export const getAiBudgetTelemetry = async ({
+  dailyTokenLimit = Number(process.env.AI_DAILY_TOKEN_LIMIT || 450000),
+  dailyRequestLimit = Number(process.env.AI_DAILY_REQUEST_LIMIT || 0)
+} = {}) => {
+  const usage = await getDailyUsage();
+  const now = Date.now();
+  const disabledUntil = await getGlobalDisabledUntil();
+  const pauseRemainingSeconds = disabledUntil > now ? Math.ceil((disabledUntil - now) / 1000) : 0;
+
+  const tokenLimit = Number.isFinite(dailyTokenLimit) && dailyTokenLimit > 0
+    ? Math.round(dailyTokenLimit)
+    : null;
+  const requestLimit = Number.isFinite(dailyRequestLimit) && dailyRequestLimit > 0
+    ? Math.round(dailyRequestLimit)
+    : null;
+
+  const tokenRemaining = tokenLimit !== null
+    ? Math.max(0, tokenLimit - usage.tokens)
+    : null;
+  const requestRemaining = requestLimit !== null
+    ? Math.max(0, requestLimit - usage.requests)
+    : null;
+
+  return {
+    date: getTodayKey(),
+    usage,
+    limits: {
+      tokens: tokenLimit,
+      requests: requestLimit
+    },
+    remaining: {
+      tokens: tokenRemaining,
+      requests: requestRemaining
+    },
+    usagePercent: {
+      tokens: tokenLimit ? Number(((usage.tokens / tokenLimit) * 100).toFixed(1)) : null,
+      requests: requestLimit ? Number(((usage.requests / requestLimit) * 100).toFixed(1)) : null
+    },
+    paused: pauseRemainingSeconds > 0,
+    pauseRemainingSeconds,
+    pausedUntil: pauseRemainingSeconds > 0 ? new Date(disabledUntil).toISOString() : null
+  };
+};
+
 export const isAvailabilityCooldownActive = async (asin, url) => {
   const key = availabilityKey(asin, url);
   if (!key) return false;

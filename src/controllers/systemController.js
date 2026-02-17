@@ -31,3 +31,12 @@ export const getMetricsHistory = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+export const getAiBudget = async (req, res) => {
+    try {
+        const budget = await SystemService.getAiBudget();
+        res.json(budget);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

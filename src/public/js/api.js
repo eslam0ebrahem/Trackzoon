@@ -179,6 +179,11 @@ export const API = {
         return res.json();
     },
 
+    async getAiBudget() {
+        const res = await fetch('/api/system/ai-budget', { headers: this.getHeaders() });
+        return res.json();
+    },
+
     async getSettings() {
         const res = await fetch('/api/user/settings', { headers: this.getHeaders() });
         return res.json();

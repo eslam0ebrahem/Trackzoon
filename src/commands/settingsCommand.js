@@ -1,6 +1,5 @@
 import { UserService } from '../services/userService.js';
-import { buildSettingsMessage } from '../utils/messageHelper.js';
-import { resolveAdviceThresholds } from '../utils/adviceUtils.js';
+import { resolveAdviceThresholds, resolveConfidenceThresholds } from '../utils/adviceUtils.js';
 import { handleError } from '../utils/errorHandler.js';
 
 export default (bot) => {
@@ -8,6 +7,7 @@ export default (bot) => {
         try {
             const user = await UserService.getUserSettings(ctx.chat.id);
             const adviceThresholds = resolveAdviceThresholds(user.settings || {});
+            const confidenceThresholds = resolveConfidenceThresholds(user.settings || {});
 
             const message = [
                 '⚙️ *Settings*',
@@ -20,6 +20,7 @@ export default (bot) => {
                 `🔁 Watch Again: ${user.settings.watchAgain?.enabled ? 'Enabled' : 'Disabled'}`,
                 `🎲 Drop Probability Alerts: ${user.settings.dropProbabilityAlerts?.enabled ? `On (${user.settings.dropProbabilityAlerts.threshold || 65}%)` : 'Off'}`,
                 `🤖 AI Advice Thresholds: Buy ≥ ${adviceThresholds.buyNow} | Wait ≤ ${adviceThresholds.wait}`,
+                `🧪 AI Confidence Guard: Buy ≥ ${confidenceThresholds.buyNow}% | Wait ≥ ${confidenceThresholds.wait}%`,
                 '',
                 '*Advanced Preferences*',
                 `🌙 Quiet Mode: ${user.settings.quietMode?.enabled ? `On (${user.settings.quietMode.startHour}:00 - ${user.settings.quietMode.endHour}:00)` : 'Off'}`,
@@ -66,6 +67,12 @@ export default (bot) => {
                             {
                                 text: '🧠 Alert Sensitivity',
                                 callback_data: 'action_set_alert_sensitivity'
+                            }
+                        ],
+                        [
+                            {
+                                text: '🧪 AI Confidence Guard',
+                                callback_data: 'action_ai_confidence_menu'
                             }
                         ],
                         [

@@ -7,5 +7,6 @@ router.get('/health', systemController.getHealth);
 router.get('/db-stats', systemController.getDbStats);
 router.get('/queue', systemController.getQueueStatus);
 router.get('/metrics', systemController.getMetricsHistory);
+router.get('/ai-budget', systemController.getAiBudget);
 
 export default router;

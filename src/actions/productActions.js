@@ -18,7 +18,7 @@ import { marketIntelligenceService } from '../services/marketIntelligenceService
 import { UserService } from '../services/userService.js';
 import { calculatePriceStats, calculateDealScore } from '../utils/priceUtils.js';
 import { computeDecisionConfidence } from '../utils/confidenceUtils.js';
-import { resolveAdviceThresholds, computePersonalizedAdvice } from '../utils/adviceUtils.js';
+import { resolveAdviceThresholds, resolveConfidenceThresholds, computePersonalizedAdvice } from '../utils/adviceUtils.js';
 import { getReliableTrend } from '../utils/trendUtils.js';
 import Product from '../models/Product.js';
 
@@ -320,6 +320,7 @@ export default (bot) => {
       const asin = ctx.match[1];
       const product = await ProductService.getProduct(asin, ctx.chat.id);
       const userSettings = await UserService.getUserSettings(ctx.chat.id).catch(() => null);
+      const settings = userSettings?.settings || {};
 
       if (!process.env.GROQ_API_KEY) {
         return await ctx.answerCbQuery('AI is not configured yet.');
@@ -352,7 +353,8 @@ export default (bot) => {
         return await ctx.answerCbQuery('AI advice unavailable right now.');
       }
 
-      const thresholds = resolveAdviceThresholds(userSettings?.settings || {});
+      const thresholds = resolveAdviceThresholds(settings);
+      const confidenceThresholds = resolveConfidenceThresholds(settings);
       const stats30d = calculatePriceStats(product.priceHistory, 30);
       const trend = getReliableTrend(product, product.priceHistory);
       const baseScore = typeof product.smartScore === 'number'
@@ -373,21 +375,30 @@ export default (bot) => {
         aiAdvice: advice,
         score: baseScore,
         thresholds,
-        confidence
+        confidence,
+        confidenceThresholds
       });
 
       const finalAdvice = personalized.finalAdvice;
+      const baseAdvice = personalized.baseAdvice || advice.advice || 'neutral';
+      const confidencePercent = personalized.confidencePercent ?? Math.round(confidence * 100);
+      const labelForAdvice = (value) => (value === 'buy_now' ? 'Buy Now' : value === 'wait' ? 'Wait' : 'Neutral');
 
-      const adviceLabel = finalAdvice === 'buy_now'
-        ? 'Buy Now'
-        : finalAdvice === 'wait'
-          ? 'Wait'
-          : 'Neutral';
+      const adviceLabel = labelForAdvice(finalAdvice);
       const adviceEmoji = finalAdvice === 'buy_now'
         ? '🟢'
         : finalAdvice === 'wait'
           ? '🟡'
           : '🔵';
+      const thresholdSource = thresholds.source === 'custom'
+        ? 'Custom score thresholds'
+        : `Alert sensitivity (${settings.alertSensitivity || 'balanced'})`;
+      const confidenceSource = confidenceThresholds.source === 'custom'
+        ? 'Custom confidence guard'
+        : `Alert sensitivity (${settings.alertSensitivity || 'balanced'})`;
+      const decisionPathLines = (personalized.explanations || []).map(
+        (line) => `• ${escapeMarkdownV2(line)}`
+      );
 
       const messageLines = [
         '🤖 *AI Buying Advice*',
@@ -395,13 +406,19 @@ export default (bot) => {
         `📦 [${escapeMarkdownV2(product.name)}](${escapeMarkdownV2(product.url)})`,
         `💰 Current: EGP${escapeMarkdownV2((product.currentPrice || 0).toFixed(2))}`,
         '',
-        `${adviceEmoji} *Advice:* ${escapeMarkdownV2(adviceLabel)}`,
+        `${adviceEmoji} *Final Advice:* ${escapeMarkdownV2(adviceLabel)}`,
+        `🤖 *Base AI Advice:* ${escapeMarkdownV2(labelForAdvice(baseAdvice))}`,
         typeof baseScore === 'number' ? `🧠 *Smart Score:* ${escapeMarkdownV2(String(Math.round(baseScore)))}\\/100` : '',
-        `🎚️ *Your Thresholds:* Buy ≥ ${escapeMarkdownV2(String(thresholds.buyNow))} \\| Wait ≤ ${escapeMarkdownV2(String(thresholds.wait))}`,
-        `🧪 *Confidence:* ${escapeMarkdownV2(String(Math.round(confidence * 100)))}%`,
+        `🎚️ *Score Thresholds:* Buy ≥ ${escapeMarkdownV2(String(thresholds.buyNow))} \\| Wait ≤ ${escapeMarkdownV2(String(thresholds.wait))}`,
+        `🧪 *Confidence Guard:* Buy ≥ ${escapeMarkdownV2(String(confidenceThresholds.buyNow))}% \\| Wait ≥ ${escapeMarkdownV2(String(confidenceThresholds.wait))}%`,
+        `🧪 *Confidence:* ${escapeMarkdownV2(String(confidencePercent))}%`,
+        `📎 *Threshold Source:* ${escapeMarkdownV2(thresholdSource)}`,
+        `📎 *Confidence Source:* ${escapeMarkdownV2(confidenceSource)}`,
+        decisionPathLines.length ? '🧭 *Decision Path:*' : '',
+        ...decisionPathLines,
         advice.reasoning ? `💡 _${escapeMarkdownV2(advice.reasoning)}_` : '',
         advice.newsSummary ? `📰 ${escapeMarkdownV2(advice.newsSummary)}` : '',
-        personalized.adjusted ? '⚙️ _Personalized to your thresholds_' : '',
+        personalized.adjusted ? '⚙️ _Personalization adjusted the base advice_' : '',
         product.anomaly?.isAnomaly ? `⚠️ ${escapeMarkdownV2('Possible price anomaly detected')}` : '',
         '',
         'Tap back to return to the product'

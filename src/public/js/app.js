@@ -116,9 +116,10 @@ window.triggerPriceCheck = async () => {
 
 async function updateSystemStats() {
     try {
-        const [health, dbStats] = await Promise.all([
+        const [health, dbStats, aiBudget] = await Promise.all([
             API.getSystemHealth(),
-            API.getDbStats()
+            API.getDbStats(),
+            API.getAiBudget()
         ]);
 
         // Update Server Health
@@ -135,6 +136,31 @@ async function updateSystemStats() {
             document.getElementById('scrapeSuccess').textContent = health.scraper.succeeded;
             document.getElementById('scrapeFailed').textContent = health.scraper.failed;
             document.getElementById('scrapeUnchanged').textContent = health.scraper.unchanged;
+        }
+
+        // Update AI Budget
+        const aiStatusEl = document.getElementById('aiBudgetStatus');
+        const aiTokensEl = document.getElementById('aiTokensUsage');
+        const aiRequestsEl = document.getElementById('aiRequestsUsage');
+        const aiPauseEl = document.getElementById('aiPauseStatus');
+
+        if (aiStatusEl && aiTokensEl && aiRequestsEl && aiPauseEl && aiBudget && !aiBudget.error) {
+            const formatNumber = (value) => Number(value || 0).toLocaleString();
+            const tokenLimit = aiBudget?.limits?.tokens;
+            const requestLimit = aiBudget?.limits?.requests;
+            const tokenPercent = typeof aiBudget?.usagePercent?.tokens === 'number' ? `${aiBudget.usagePercent.tokens}%` : 'n/a';
+            const requestPercent = typeof aiBudget?.usagePercent?.requests === 'number' ? `${aiBudget.usagePercent.requests}%` : 'n/a';
+
+            aiStatusEl.textContent = aiBudget.paused ? 'Paused' : 'Active';
+            aiTokensEl.textContent = tokenLimit
+                ? `${formatNumber(aiBudget.usage.tokens)} / ${formatNumber(tokenLimit)} (${tokenPercent})`
+                : `${formatNumber(aiBudget.usage.tokens)} / unlimited`;
+            aiRequestsEl.textContent = requestLimit
+                ? `${formatNumber(aiBudget.usage.requests)} / ${formatNumber(requestLimit)} (${requestPercent})`
+                : `${formatNumber(aiBudget.usage.requests)} / unlimited`;
+            aiPauseEl.textContent = aiBudget.paused
+                ? `${Math.max(0, aiBudget.pauseRemainingSeconds || 0)}s remaining`
+                : 'None';
         }
     } catch (e) { console.error('Error updating system stats:', e); }
 }

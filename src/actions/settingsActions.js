@@ -2,12 +2,15 @@ import { UserService } from '../services/userService.js';
 import { mainKeyboard, backToMainKeyboard } from '../utils/keyboards/mainKeyboard.js';
 import { escapeMarkdownV2, safeEditMessageText } from '../utils/messageHelper.js';
 import { stateManager, BotStates } from '../utils/stateManager.js';
+import { resolveAdviceThresholds, resolveConfidenceThresholds } from '../utils/adviceUtils.js';
 
 export default (bot) => {
   // Settings menu
   bot.action('action_settings', async (ctx) => {
     try {
       const user = await UserService.getUserSettings(ctx.chat.id);
+      const adviceThresholds = resolveAdviceThresholds(user.settings || {});
+      const confidenceThresholds = resolveConfidenceThresholds(user.settings || {});
       
       const message = escapeMarkdownV2([
         '⚙️ *Settings*',
@@ -19,6 +22,8 @@ export default (bot) => {
         `🎯 Auto Target: ${user.settings.autoTarget?.enabled ? 'Enabled' : 'Disabled'}`,
         `🔁 Watch Again: ${user.settings.watchAgain?.enabled ? 'Enabled' : 'Disabled'}`,
         `🎲 Drop Probability Alerts: ${user.settings.dropProbabilityAlerts?.enabled ? `On (${user.settings.dropProbabilityAlerts.threshold || 65}%)` : 'Off'}`,
+        `🤖 AI Score Thresholds: Buy ≥ ${adviceThresholds.buyNow} | Wait ≤ ${adviceThresholds.wait}`,
+        `🧪 AI Confidence Guard: Buy ≥ ${confidenceThresholds.buyNow}% | Wait ≥ ${confidenceThresholds.wait}%`,
         '',
         '*Advanced Preferences*',
         `🌙 Quiet Mode: ${user.settings.quietMode?.enabled ? `On (${user.settings.quietMode.startHour}:00 - ${user.settings.quietMode.endHour}:00)` : 'Off'}`,
@@ -65,6 +70,12 @@ export default (bot) => {
               {
                 text: '🧠 Alert Sensitivity',
                 callback_data: 'action_set_alert_sensitivity'
+              }
+            ],
+            [
+              {
+                text: '🧪 AI Confidence Guard',
+                callback_data: 'action_ai_confidence_menu'
               }
             ],
             [
@@ -335,6 +346,93 @@ export default (bot) => {
     } catch (error) {
       console.error('Error setting drop probability threshold:', error);
       await ctx.answerCbQuery('⚠️ Error updating threshold. Please try again.');
+    }
+  });
+
+  // AI confidence settings menu
+  bot.action('action_ai_confidence_menu', async (ctx) => {
+    try {
+      const user = await UserService.getUserSettings(ctx.chat.id);
+      const confidenceThresholds = resolveConfidenceThresholds(user.settings || {});
+
+      const message = escapeMarkdownV2([
+        '🧪 *AI Confidence Guard*',
+        '',
+        `Buy advice requires at least *${confidenceThresholds.buyNow}%* confidence.`,
+        `Wait advice requires at least *${confidenceThresholds.wait}%* confidence.`,
+        '',
+        'Set a stricter value to reduce risky advice.'
+      ].join('\n'));
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🟢 Set Buy Minimum', callback_data: 'action_set_ai_confidence_buy_now' }],
+            [{ text: '🟡 Set Wait Minimum', callback_data: 'action_set_ai_confidence_wait' }],
+            [{ text: '♻️ Reset to Defaults', callback_data: 'action_reset_ai_confidence' }],
+            [{ text: '🔙 Back', callback_data: 'action_settings' }]
+          ]
+        }
+      });
+    } catch (error) {
+      console.error('Error showing AI confidence settings:', error);
+      await ctx.answerCbQuery('⚠️ Error loading AI confidence settings.');
+    }
+  });
+
+  bot.action('action_set_ai_confidence_buy_now', async (ctx) => {
+    try {
+      stateManager.setState(ctx.chat.id, BotStates.SETTING_AI_CONFIDENCE_BUY_NOW);
+      const message = escapeMarkdownV2([
+        '🟢 *Set Buy Minimum Confidence*',
+        '',
+        'Send a number between 10 and 95.',
+        'Example: `55` means Buy advice needs at least 55% confidence.'
+      ].join('\n'));
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+    } catch (error) {
+      console.error('Error setting Buy confidence threshold:', error);
+      await ctx.answerCbQuery('⚠️ Error updating Buy confidence threshold.');
+    }
+  });
+
+  bot.action('action_set_ai_confidence_wait', async (ctx) => {
+    try {
+      stateManager.setState(ctx.chat.id, BotStates.SETTING_AI_CONFIDENCE_WAIT);
+      const message = escapeMarkdownV2([
+        '🟡 *Set Wait Minimum Confidence*',
+        '',
+        'Send a number between 10 and 95.',
+        'Example: `40` means Wait advice needs at least 40% confidence.'
+      ].join('\n'));
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        ...backToMainKeyboard()
+      });
+    } catch (error) {
+      console.error('Error setting Wait confidence threshold:', error);
+      await ctx.answerCbQuery('⚠️ Error updating Wait confidence threshold.');
+    }
+  });
+
+  bot.action('action_reset_ai_confidence', async (ctx) => {
+    try {
+      const user = await UserService.getUserSettings(ctx.chat.id);
+      user.settings.aiConfidenceThresholds = { buyNow: null, wait: null };
+      await user.save();
+
+      await ctx.answerCbQuery('♻️ AI confidence guard reset to defaults');
+      ctx.update.callback_query.data = 'action_ai_confidence_menu';
+      return bot.handleUpdate(ctx.update);
+    } catch (error) {
+      console.error('Error resetting AI confidence thresholds:', error);
+      await ctx.answerCbQuery('⚠️ Error resetting AI confidence thresholds.');
     }
   });
 };

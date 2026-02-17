@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import SystemMetric from '../models/SystemMetric.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
+import { getAiBudgetTelemetry } from '../utils/aiGuard.js';
 
 export class SystemService {
   static async getHealth({ includeScraper = false } = {}) {
@@ -63,5 +64,9 @@ export class SystemService {
       .limit(parseInt(limit, 10));
 
     return metrics.reverse();
+  }
+
+  static async getAiBudget() {
+    return getAiBudgetTelemetry();
   }
 }

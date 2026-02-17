@@ -681,6 +681,71 @@ async function handleDropProbabilityThresholdInput(ctx) {
     });
 }
 
+async function handleAiConfidenceThresholdInput(ctx, thresholdType = 'buyNow') {
+    const input = ctx.message.text.trim();
+    const value = parseFloat(input);
+
+    if (isNaN(value) || value < 10 || value > 95) {
+        throw new BotError(
+            'Invalid confidence threshold',
+            ErrorCodes.INVALID_THRESHOLD,
+            [
+                '❌ *Invalid Confidence Threshold*',
+                '',
+                '💡 *Please enter a number between 10 and 95.*',
+                'Example: `55`',
+                '',
+                'Try again:'
+            ].join('\n')
+        );
+    }
+
+    const user = await UserService.getUserSettings(ctx.chat.id);
+    user.settings.aiConfidenceThresholds = user.settings.aiConfidenceThresholds || {};
+
+    let adjusted = false;
+    const rounded = Math.round(value);
+
+    if (thresholdType === 'buyNow') {
+        user.settings.aiConfidenceThresholds.buyNow = rounded;
+        const currentWait = user.settings.aiConfidenceThresholds.wait;
+        if (typeof currentWait === 'number' && currentWait > rounded) {
+            user.settings.aiConfidenceThresholds.wait = rounded;
+            adjusted = true;
+        }
+    } else {
+        const currentBuy = user.settings.aiConfidenceThresholds.buyNow;
+        if (typeof currentBuy === 'number' && rounded > currentBuy) {
+            user.settings.aiConfidenceThresholds.wait = currentBuy;
+            adjusted = true;
+        } else {
+            user.settings.aiConfidenceThresholds.wait = rounded;
+        }
+    }
+
+    await user.save();
+    stateManager.clearState(ctx.chat.id);
+
+    const savedBuy = typeof user.settings.aiConfidenceThresholds.buyNow === 'number'
+        ? user.settings.aiConfidenceThresholds.buyNow
+        : null;
+    const savedWait = typeof user.settings.aiConfidenceThresholds.wait === 'number'
+        ? user.settings.aiConfidenceThresholds.wait
+        : null;
+
+    const message = [
+        `✅ AI ${thresholdType === 'buyNow' ? 'Buy' : 'Wait'} confidence minimum set.`,
+        `🧪 Buy: ${savedBuy !== null ? `${savedBuy}%` : 'default'}`,
+        `🧪 Wait: ${savedWait !== null ? `${savedWait}%` : 'default'}`,
+        adjusted ? 'ℹ️ Wait minimum was adjusted to stay within Buy minimum.' : ''
+    ].filter(Boolean).join('\n');
+
+    await ctx.reply(escapeMarkdownV2(message), {
+        parse_mode: 'MarkdownV2',
+        ...mainKeyboard()
+    });
+}
+
 export default (bot) => {
     bot.on('text', async (ctx) => {
         try {
@@ -790,6 +855,12 @@ export default (bot) => {
                     break;
                 case BotStates.SETTING_DROP_PROBABILITY_THRESHOLD:
                     await handleDropProbabilityThresholdInput(ctx);
+                    break;
+                case BotStates.SETTING_AI_CONFIDENCE_BUY_NOW:
+                    await handleAiConfidenceThresholdInput(ctx, 'buyNow');
+                    break;
+                case BotStates.SETTING_AI_CONFIDENCE_WAIT:
+                    await handleAiConfidenceThresholdInput(ctx, 'wait');
                     break;
 
                 default:

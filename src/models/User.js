@@ -48,6 +48,10 @@ const userSettingsSchema = new mongoose.Schema({
   aiAdviceThresholds: {
     buyNow: { type: Number, default: null },
     wait: { type: Number, default: null }
+  },
+  aiConfidenceThresholds: {
+    buyNow: { type: Number, default: null },
+    wait: { type: Number, default: null }
   }
 });
 
