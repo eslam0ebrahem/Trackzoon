@@ -1,5 +1,4 @@
 import { Telegraf } from 'telegraf';
-import User from '../models/User.js';
 
 const initializeBot = (commands) => {
   let bot;
@@ -10,12 +9,7 @@ const initializeBot = (commands) => {
     bot = new Telegraf(process.env.BOT_TOKEN);
     console.log('Telegram bot initialized.');
 
-    // Set bot commands with direct English descriptions
-    const botCommands = commands.map(cmd => ({
-      command: cmd.command,
-      description: cmd.description || cmd.command
-    }));
-    bot.telegram.setMyCommands(botCommands);
+    // Bot commands are registered in src/index.js after leader lock is acquired.
 
     // Use centralized middleware for user attachment
     bot.use(async (ctx, next) => {

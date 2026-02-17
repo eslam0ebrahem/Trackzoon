@@ -28,6 +28,26 @@ let botLaunchEnabled = true;
 let stopScheduler = null;
 let internalPriceWorker = null;
 let internalAiWorker = null;
+const BOT_COMMAND_RETRIES = Math.max(1, Number(process.env.BOT_COMMAND_RETRIES || 3));
+const BOT_COMMAND_RETRY_MS = Math.max(500, Number(process.env.BOT_COMMAND_RETRY_MS || 2000));
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const telegramCommands = [
+  { command: 'start', description: 'Start the bot' },
+  { command: 'help', description: 'Show help and commands' },
+  { command: 'add', description: 'Track a new product' },
+  { command: 'add_percentage', description: 'Track by % drop' },
+  { command: 'list', description: 'View your tracked products' },
+  { command: 'pinned', description: 'View your pinned products' },
+  { command: 'deals', description: 'See top 5 price drops (24h)' },
+  { command: 'report', description: 'Get your daily price report' },
+  { command: 'chart', description: 'View price history chart' },
+  { command: 'settings', description: 'Manage your preferences' },
+  { command: 'snooze', description: 'Snooze product alerts' },
+  { command: 'removeone', description: 'Stop tracking a product' },
+  { command: 'ask', description: 'Ask AI about your products' }
+];
 
 const acquireBotLock = async () => {
   const redis = cache.getClient();
@@ -77,6 +97,22 @@ const releaseBotLock = async () => {
   }
 };
 
+const registerBotCommands = async () => {
+  for (let attempt = 1; attempt <= BOT_COMMAND_RETRIES; attempt++) {
+    try {
+      await bot.telegram.setMyCommands(telegramCommands);
+      logger.info('Bot commands menu updated successfully');
+      return true;
+    } catch (error) {
+      logger.warn(`Failed to set bot commands (attempt ${attempt}/${BOT_COMMAND_RETRIES}): ${error.message}`);
+      if (attempt < BOT_COMMAND_RETRIES) {
+        await sleep(BOT_COMMAND_RETRY_MS * attempt);
+      }
+    }
+  }
+  return false;
+};
+
 // Initialize Sentry error monitoring first
 initSentry();
 
@@ -114,27 +150,6 @@ stateManager.on('stateTimeout', async ({ chatId, state }) => {
   }
 });
 
-// Set bot commands menu for Telegram
-bot.telegram.setMyCommands([
-  { command: 'start', description: 'Start the bot' },
-  { command: 'help', description: 'Show help and commands' },
-  { command: 'add', description: 'Track a new product' },
-  { command: 'add_percentage', description: 'Track by % drop' },
-  { command: 'list', description: 'View your tracked products' },
-  { command: 'pinned', description: 'View your pinned products' },
-  { command: 'deals', description: 'See top 5 price drops (24h)' },
-  { command: 'report', description: 'Get your daily price report' },
-  { command: 'chart', description: 'View price history chart' },
-  { command: 'settings', description: 'Manage your preferences' },
-  { command: 'snooze', description: 'Snooze product alerts' },
-  { command: 'removeone', description: 'Stop tracking a product' },
-  { command: 'ask', description: 'Ask AI about your products' }
-]).then(() => {
-  console.log('Bot commands menu updated successfully');
-}).catch(error => {
-  console.error('Failed to set bot commands:', error);
-});
-
 // Start Web Dashboard immediately to satisfy Railway health check
 startServer(bot);
 startKeepAlive();
@@ -146,6 +161,8 @@ botLaunchEnabled = await acquireBotLock();
 if (!botLaunchEnabled) {
   logger.warn('Another instance is already leader. Skipping bot.launch(), scheduler, and internal workers to avoid duplicate processing.');
 } else {
+  await registerBotCommands();
+
   // Leader-only workloads
   stopScheduler = startScheduler(bot);
 
@@ -228,10 +245,8 @@ const shutdown = async (signal) => {
   }
 
   // Close cache connection
-  cache.close();
-
-  // Release bot lock if held
   await releaseBotLock().catch(() => {});
+  cache.close();
 
   // Clear all states
   stateManager.clearAllStates?.();
