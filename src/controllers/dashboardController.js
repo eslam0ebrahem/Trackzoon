@@ -1,5 +1,6 @@
 import { DashboardService } from '../services/dashboardService.js';
 import { SystemService } from '../services/systemService.js';
+import { DASHBOARD_USER_ID } from '../config/constants.js';
 
 export const getStats = async (req, res) => {
     try {
@@ -138,13 +139,14 @@ export const exportData = async (req, res) => {
     }
 };
 
-export const getLogs = (req, res) => {
-    // In a real app, read from a log file.
-    // Here we'll return simulated recent logs or capture console output if we hooked it.
-
-    const { level, search } = req.query;
-    const events = DashboardService.getLogs(level, search);
-    res.json(events);
+export const getLogs = async (req, res) => {
+    try {
+        const { level, search, limit } = req.query;
+        const events = await DashboardService.getLogs(level, search, limit);
+        res.json(events);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
 
 // Feature 5: Bulk Import
@@ -200,8 +202,11 @@ export const archiveProduct = async (req, res) => {
 // Feature 9: Get User Products
 export const getUserProducts = async (req, res) => {
     try {
-        const chatId = req.query.chatId || req.headers['x-chat-id'] || req.headers['x-telegram-id'];
-        if (!chatId) return res.status(400).json({ error: 'Chat ID is required' });
+        const chatId = req.query.chatId
+            || req.headers['x-chat-id']
+            || req.headers['x-telegram-id']
+            || req.user?.telegramId
+            || DASHBOARD_USER_ID;
         const products = await DashboardService.getUserProducts(chatId);
         res.json(products);
     } catch (error) {

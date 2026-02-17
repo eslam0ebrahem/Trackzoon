@@ -2,8 +2,34 @@ import Product from '../models/Product.js';
 import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import PricePoint from '../models/PricePoint.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { ProductService } from './productService.js';
 import { DASHBOARD_USER_ID } from '../config/constants.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const LOGS_DIR = path.resolve(__dirname, '../../logs');
+const LOG_FILE_PATTERN = /^(app|error)-\d{4}-\d{2}-\d{2}\.log$/;
+const LOG_LINE_PATTERN = /^\[(.+?)\]\s\[(\w+)\]\s(.+)$/;
+
+const normalizeLevel = (level = '') => String(level || '').toLowerCase();
+
+const parseLogLine = (line = '') => {
+  const match = line.match(LOG_LINE_PATTERN);
+  if (!match) return null;
+
+  const [, rawTime, rawLevel, rawMessage] = match;
+  const parsed = new Date(rawTime.replace(' ', 'T'));
+  const time = Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+
+  return {
+    time,
+    level: normalizeLevel(rawLevel),
+    message: rawMessage.trim()
+  };
+};
 
 export class DashboardService {
   static async getStats() {
@@ -177,29 +203,45 @@ export class DashboardService {
     return [headers.join(','), ...rows].join('\n');
   }
 
-  static getLogs(level, search) {
-    let events = [
-      { level: 'info', message: 'Server started successfully', time: new Date(Date.now() - 1000000).toISOString() },
-      { level: 'info', message: 'Connected to MongoDB', time: new Date(Date.now() - 990000).toISOString() },
-      { level: 'info', message: 'Scheduler initialized', time: new Date(Date.now() - 980000).toISOString() },
-      { level: 'info', message: 'Price check cycle started', time: new Date(Date.now() - 500000).toISOString() },
-      { level: 'info', message: 'Checked 150 products', time: new Date(Date.now() - 400000).toISOString() },
-      { level: 'warn', message: 'Rate limit warning from Amazon (simulated)', time: new Date(Date.now() - 300000).toISOString() },
-      { level: 'error', message: 'Failed to scrape product B08XYZ123', time: new Date(Date.now() - 250000).toISOString() },
-      { level: 'info', message: 'Price check cycle completed', time: new Date(Date.now() - 200000).toISOString() },
-      { level: 'info', message: 'New deal found: Samsung Monitor', time: new Date(Date.now() - 100000).toISOString() }
-    ];
+  static async getLogs(level = 'all', search = '', limit = 300) {
+    const wantedLevel = normalizeLevel(level);
+    const query = String(search || '').toLowerCase().trim();
+    const safeLimit = Math.max(1, Math.min(1000, Number.parseInt(limit, 10) || 300));
 
-    if (level && level !== 'all') {
-      events = events.filter(e => e.level === level);
+    let filenames = [];
+    try {
+      filenames = await fs.readdir(LOGS_DIR);
+    } catch (error) {
+      return [];
     }
 
-    if (search) {
-      const q = search.toLowerCase();
-      events = events.filter(e => e.message.toLowerCase().includes(q));
+    const files = filenames
+      .filter(name => LOG_FILE_PATTERN.test(name))
+      .sort((a, b) => a.localeCompare(b))
+      .slice(-5);
+
+    const events = [];
+    for (const name of files) {
+      const fullPath = path.join(LOGS_DIR, name);
+      let content = '';
+      try {
+        content = await fs.readFile(fullPath, 'utf8');
+      } catch (error) {
+        continue;
+      }
+
+      const lines = content.split(/\r?\n/).filter(Boolean);
+      for (const line of lines) {
+        const parsed = parseLogLine(line);
+        if (!parsed) continue;
+        if (wantedLevel && wantedLevel !== 'all' && parsed.level !== wantedLevel) continue;
+        if (query && !parsed.message.toLowerCase().includes(query)) continue;
+        events.push(parsed);
+      }
     }
 
-    return events.reverse();
+    events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    return events.slice(0, safeLimit);
   }
 
   static async bulkImportProducts(urls, chatId = DASHBOARD_USER_ID) {

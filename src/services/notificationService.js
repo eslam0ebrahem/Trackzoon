@@ -135,7 +135,7 @@ export class NotificationService {
                     reply_markup: {
                         inline_keyboard: [
                             [{ text: '🛒 Buy Now', url: product.url }],
-                            [{ text: '💤 Snooze 24h', callback_data: `action_snooze_${product.asin}` }]
+                            [{ text: '💤 Snooze Alerts', callback_data: `action_snooze_${product.asin}` }]
                         ]
                     }
                 });

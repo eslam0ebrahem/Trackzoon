@@ -9,6 +9,28 @@ import { resolveAmazonUrl } from '../utils/url.js';
 import { logger } from '../utils/logger.js';
 import { calculatePriceStats } from '../utils/priceUtils.js';
 
+const toLegacyTracker = (chatId, subscription) => ({
+  chatId: chatId,
+  thresholdPrice: subscription.targetPrice,
+  snoozeUntil: subscription.snoozeUntil,
+  alertType: subscription.alertType,
+  percentageThreshold: subscription.percentageThreshold,
+  baselinePrice: subscription.baselinePrice,
+  isPinned: Boolean(subscription.isPinned)
+});
+
+const sortByPinAndActivity = (products = []) => {
+  return [...products].sort((a, b) => {
+    const aPinned = a?.currentUserSubscription?.isPinned ? 1 : 0;
+    const bPinned = b?.currentUserSubscription?.isPinned ? 1 : 0;
+    if (aPinned !== bPinned) return bPinned - aPinned;
+
+    const aLast = new Date(a?.lastChecked || a?.lastUpdated || 0).getTime();
+    const bLast = new Date(b?.lastChecked || b?.lastUpdated || 0).getTime();
+    return bLast - aLast;
+  });
+};
+
 export class ProductService {
   static async previewProduct(productUrl) {
     try {
@@ -94,14 +116,7 @@ export class ProductService {
           // For now, let's attach a temporary property or mock trackedBy for backward compatibility if needed.
           // But better to return the subscription info separately or attach it.
           product.currentUserSubscription = existingSubscription;
-          product.trackedBy = [{
-            chatId: chatId,
-            thresholdPrice: existingSubscription.targetPrice,
-            snoozeUntil: existingSubscription.snoozeUntil,
-            alertType: existingSubscription.alertType,
-            percentageThreshold: existingSubscription.percentageThreshold,
-            baselinePrice: existingSubscription.baselinePrice
-          }];
+          product.trackedBy = [toLegacyTracker(chatId, existingSubscription)];
           return { product, isNew, isAlreadyTracked };
         }
       }
@@ -215,6 +230,7 @@ export class ProductService {
 
       // Attach subscription for caller convenience
       product.currentUserSubscription = subscription;
+      product.trackedBy = [toLegacyTracker(chatId, subscription)];
 
       return { product, isNew, isAlreadyTracked, autoTargetApplied, autoTargetPrice };
 
@@ -330,6 +346,7 @@ export class ProductService {
 
       // Attach subscription for caller
       product.currentUserSubscription = subscription;
+      product.trackedBy = [toLegacyTracker(chatId, subscription)];
       return product;
 
     } catch (error) {
@@ -384,14 +401,7 @@ export class ProductService {
 
       product.currentUserSubscription = subscription;
       // Backward compatibility mock
-      product.trackedBy = [{
-        chatId: chatId,
-        thresholdPrice: subscription.targetPrice,
-        snoozeUntil: subscription.snoozeUntil,
-        alertType: subscription.alertType,
-        percentageThreshold: subscription.percentageThreshold,
-        baselinePrice: subscription.baselinePrice
-      }];
+      product.trackedBy = [toLegacyTracker(chatId, subscription)];
 
       return product;
     } catch (error) {
@@ -428,6 +438,7 @@ export class ProductService {
 
       // Attach subscription for caller
       product.currentUserSubscription = subscription;
+      product.trackedBy = [toLegacyTracker(chatId, subscription)];
       return product;
     } catch (error) {
       if (error instanceof BotError) throw error;
@@ -436,29 +447,66 @@ export class ProductService {
     }
   }
 
-  static async getUserProducts(chatId) {
+  static async togglePin(asin, chatId, pinned = null) {
     try {
+      const user = await User.findOne({ telegramId: chatId });
+      if (!user) throw new BotError('User not found', ErrorCodes.USER_NOT_FOUND);
+
+      const product = await Product.findOne({ asin });
+      if (!product) throw new BotError('Product not found', ErrorCodes.PRODUCT_NOT_FOUND);
+
+      const subscription = await Subscription.findOne({ user: user._id, product: product._id });
+      if (!subscription) {
+        throw new BotError(
+          'Product not found',
+          ErrorCodes.PRODUCT_NOT_FOUND,
+          'Product not found or not tracked by you'
+        );
+      }
+
+      const nextPinned = typeof pinned === 'boolean' ? pinned : !Boolean(subscription.isPinned);
+      subscription.isPinned = nextPinned;
+      await subscription.save();
+
+      product.currentUserSubscription = subscription;
+      product.trackedBy = [toLegacyTracker(chatId, subscription)];
+
+      return { product, isPinned: nextPinned };
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+      logger.error('Error toggling pin state:', error);
+      throw new BotError(
+        'Failed to update pin state',
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to update pin state. Please try again later.'
+      );
+    }
+  }
+
+  static async getUserProducts(chatId, options = {}) {
+    try {
+      const { onlyPinned = false } = options;
       const user = await User.findOne({ telegramId: chatId });
       if (!user) return [];
 
-      const subscriptions = await Subscription.find({ user: user._id }).populate('product');
+      const query = { user: user._id };
+      if (onlyPinned) {
+        query.isPinned = true;
+      }
 
-      return subscriptions.map(sub => {
+      const subscriptions = await Subscription.find(query).populate('product');
+
+      const products = subscriptions.map(sub => {
         const product = sub.product;
         if (product) {
           product.currentUserSubscription = sub;
           // Backward compatibility mock for listCommand
-          product.trackedBy = [{
-            chatId: chatId,
-            thresholdPrice: sub.targetPrice,
-            snoozeUntil: sub.snoozeUntil,
-            alertType: sub.alertType,
-            percentageThreshold: sub.percentageThreshold,
-            baselinePrice: sub.baselinePrice
-          }];
+          product.trackedBy = [toLegacyTracker(chatId, sub)];
         }
         return product;
       }).filter(p => p != null);
+
+      return sortByPinAndActivity(products);
 
     } catch (error) {
       logger.error('Error fetching user products:', error);
@@ -492,14 +540,7 @@ export class ProductService {
 
       product.currentUserSubscription = subscription;
       // Backward compatibility mock
-      product.trackedBy = [{
-        chatId: chatId,
-        thresholdPrice: subscription.targetPrice,
-        snoozeUntil: subscription.snoozeUntil,
-        alertType: subscription.alertType,
-        percentageThreshold: subscription.percentageThreshold,
-        baselinePrice: subscription.baselinePrice
-      }];
+      product.trackedBy = [toLegacyTracker(chatId, subscription)];
 
       return product;
     } catch (error) {
@@ -607,7 +648,8 @@ export class ProductService {
               snoozeUntil: sub.snoozeUntil,
               alertType: sub.alertType,
               percentageThreshold: sub.percentageThreshold,
-              baselinePrice: sub.baselinePrice
+              baselinePrice: sub.baselinePrice,
+              isPinned: Boolean(sub.isPinned)
             };
             // Also attach to product for consistency if needed
             item.product.currentUserSubscription = sub;
@@ -629,5 +671,9 @@ export class ProductService {
       sort: 'smart'
     });
     return result.items;
+  }
+
+  static async getPinnedProducts(chatId) {
+    return this.getUserProducts(chatId, { onlyPinned: true });
   }
 }

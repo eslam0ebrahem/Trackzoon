@@ -13,15 +13,17 @@ export const mainKeyboard = () => {
           { text: '📊 Daily Report', callback_data: 'action_report' }
         ],
         [
-          { text: '⚙️ Settings', callback_data: 'action_settings' },
-          { text: '❓ Help', callback_data: 'action_help' }
-        ]
+          { text: '📌 Pinned', callback_data: 'action_list_pinned' },
+          { text: '⚙️ Settings', callback_data: 'action_settings' }
+        ],
+        [{ text: '❓ Help', callback_data: 'action_help' }]
       ]
     }
   };
 };
 
-export const productActionsKeyboard = (asin) => {
+export const productActionsKeyboard = (asin, tracker = null) => {
+  const isPinned = tracker?.isPinned;
   return {
     reply_markup: {
       inline_keyboard: [
@@ -36,6 +38,10 @@ export const productActionsKeyboard = (asin) => {
         [
           { text: '🧠 Insights', callback_data: `action_insights_${asin}` },
           { text: '🤖 AI Advice', callback_data: `action_ai_advice_${asin}` }
+        ],
+        [
+          { text: isPinned ? '📌 Unpin' : '📌 Pin', callback_data: `action_toggle_pin_${asin}` },
+          { text: '💤 Snooze', callback_data: `action_snooze_${asin}` }
         ],
         [
           { text: '❌ Stop Tracking', callback_data: `action_remove_${asin}` }

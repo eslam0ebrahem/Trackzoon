@@ -553,7 +553,11 @@ function toggleLogs() {
 
 async function fetchLogs() {
     try {
-        const data = await API.getLogs();
+        const levelEl = document.getElementById('logLevelFilter');
+        const searchEl = document.getElementById('logSearch');
+        const level = levelEl ? levelEl.value : 'all';
+        const search = searchEl ? searchEl.value : '';
+        const data = await API.getLogs(level, search, 400);
         UI.renderLogs(data);
     } catch (e) {
         document.getElementById('logsList').innerHTML = '<div class="text-red-400">Failed to load logs</div>';

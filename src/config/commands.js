@@ -20,8 +20,16 @@ export default [
     description: 'List all tracked products'
   },
   {
+    command: 'pinned',
+    description: 'Show your pinned products'
+  },
+  {
     command: 'removeone',
     description: 'Remove a product'
+  },
+  {
+    command: 'snooze',
+    description: 'Snooze alerts for a product'
   },
   {
     command: 'updateprice',

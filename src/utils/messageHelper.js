@@ -38,6 +38,7 @@ const formatPercentage = (oldPrice, newPrice) => {
 const formatProductLine = (index, product, tracker, showCurrentPrice = true) => {
     const name = escapeMarkdownV2(product.name || product.asin || 'Unknown');
     const url = product.url || '';
+    const pinPrefix = tracker?.isPinned ? '📌 ' : '';
     const threshold = tracker ? tracker.thresholdPrice : product.thresholdPrice;
     const thresholdValue = typeof threshold === 'number' && !Number.isNaN(threshold) ? threshold : null;
     const isPercentageAlert = tracker?.alertType === 'percentage' && tracker?.percentageThreshold;
@@ -51,7 +52,7 @@ const formatProductLine = (index, product, tracker, showCurrentPrice = true) => 
         ? product.priceHistory[product.priceHistory.length - 2].price
         : null;
 
-    let message = `${index}\\. 📦 [${name}](${url})`;
+    let message = `${index}\\. ${pinPrefix}📦 [${name}](${url})`;
 
     if (showCurrentPrice && product.currentPrice) {
         message += `\n   💰 Price: *${escapeMarkdownV2(formatPrice(product.currentPrice, 'EGP', true, previousPrice))}*`;
@@ -121,7 +122,11 @@ const formatProductDetails = (product, tracker) => {
     }
 
     let message = `🛍️ *Product Details*\n\n`;
-    message += `📦 *Name:* [${name}](${url})\n\n`;
+    message += `📦 *Name:* [${name}](${url})\n`;
+    if (tracker?.isPinned) {
+        message += `📌 *Pinned:* Yes\n`;
+    }
+    message += `\n`;
 
     // Add rating if available
     if (product.rating && product.rating.stars > 0) {

@@ -20,6 +20,8 @@ import trendingCommand from './trendingCommand.js';
 import healthCommand from './healthCommand.js';
 import insightsCommand from './insightsCommand.js';
 import digestCommand from './digestCommand.js';
+import pinnedCommand from './pinnedCommand.js';
+import snoozeCommand from './snoozeCommand.js';
 
 export default (bot) => {
   // Register all commands
@@ -40,4 +42,6 @@ export default (bot) => {
   healthCommand(bot);
   insightsCommand(bot);
   digestCommand(bot);
+  pinnedCommand(bot);
+  snoozeCommand(bot);
 };

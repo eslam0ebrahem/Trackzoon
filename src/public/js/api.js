@@ -67,8 +67,14 @@ export const API = {
         return res.json();
     },
 
-    async getLogs() {
-        const res = await fetch('/api/logs', { headers: this.getHeaders() });
+    async getLogs(level = 'all', search = '', limit = 300) {
+        const params = new URLSearchParams();
+        if (level) params.set('level', level);
+        if (search) params.set('search', search);
+        if (limit) params.set('limit', String(limit));
+        const query = params.toString();
+
+        const res = await fetch(`/api/logs${query ? `?${query}` : ''}`, { headers: this.getHeaders() });
         return res.json();
     },
 

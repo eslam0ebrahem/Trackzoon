@@ -15,6 +15,8 @@ import dealsCommand from './commands/dealsCommand.js';
 import settingsCommand from './commands/settingsCommand.js';
 import { askCommand } from './commands/askCommand.js';
 import addPercentageCommand from './commands/add_percentage.js';
+import pinnedCommand from './commands/pinnedCommand.js';
+import snoozeCommand from './commands/snoozeCommand.js';
 
 // Text Handler
 import textHandler from './handlers/textHandler.js';
@@ -36,6 +38,8 @@ const registerHandlers = (bot) => {
   dealsCommand(bot);
   settingsCommand(bot);
   addPercentageCommand(bot);
+  pinnedCommand(bot);
+  snoozeCommand(bot);
   bot.command('ask', askCommand);
 
   chartCommand(bot);

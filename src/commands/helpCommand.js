@@ -25,6 +25,8 @@ export default (bot) => {
       builder.addLine('`/add <link>` - Track a new product');
       builder.addLine('`/add_percentage <link> <percent>` - Track by % drop');
       builder.addLine('`/list` - View your tracked items');
+      builder.addLine('`/pinned` - View pinned products');
+      builder.addLine('`/snooze <asin/name> <hours>` - Snooze alerts');
       builder.addLine('`/deals` - See top price drops (24h)');
       builder.addLine('`/report` - Get daily price summary');
       builder.addLine('`/digest` - Smart portfolio digest');

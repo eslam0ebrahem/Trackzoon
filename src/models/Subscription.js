@@ -5,6 +5,7 @@ const SubscriptionSchema = new mongoose.Schema({
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
 
     // User-specific settings for this product
+    isPinned: { type: Boolean, default: false, index: true },
     targetPrice: { type: Number }, // Renamed from thresholdPrice for clarity
     alertType: { type: String, enum: ['drop', 'percentage'], default: 'drop' },
     percentageThreshold: { type: Number }, // For percentage based alerts

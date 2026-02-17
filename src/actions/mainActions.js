@@ -127,6 +127,52 @@ export default (bot) => {
     }
   });
 
+  // Pinned products quick view
+  bot.action('action_list_pinned', async (ctx) => {
+    try {
+      const products = await ProductService.getPinnedProducts(ctx.chat.id);
+
+      if (!products || products.length === 0) {
+        const message = escapeMarkdownV2([
+          '📌 *Pinned Products*',
+          '',
+          'You have no pinned products yet\\.',
+          'Open any product and tap *Pin* to keep it at the top\\.'
+        ].join('\n'));
+
+        await safeEditMessageText(ctx, message, {
+          parse_mode: 'MarkdownV2',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📋 My Products', callback_data: 'action_list_products' }],
+              [{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]
+            ]
+          }
+        });
+        return;
+      }
+
+      const keyboard = products.slice(0, 20).map((product) => ([
+        {
+          text: `${product.name.substring(0, 35)}${product.name.length > 35 ? '...' : ''} - ${product.currentPrice ? `EGP${product.currentPrice.toFixed(2)}` : 'N/A'}`,
+          callback_data: `action_view_${product.asin}`
+        }
+      ]));
+
+      keyboard.push([{ text: '📋 My Products', callback_data: 'action_list_products' }]);
+      keyboard.push([{ text: '🔙 Back to Main Menu', callback_data: 'action_main_menu' }]);
+
+      const message = `📌 *Pinned Products*\\n\\nShowing your ${products.length} pinned item\\(s\\)`;
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: { inline_keyboard: keyboard }
+      });
+    } catch (error) {
+      console.error('Error in pinned products action:', error);
+      await ctx.answerCbQuery('⚠️ Error loading pinned products. Please try again.');
+    }
+  });
+
   // Help action
   bot.action('action_help', async (ctx) => {
     try {
@@ -141,7 +187,9 @@ export default (bot) => {
         '📦 *Product Management:*',
         '/add <URL> <price> \\- Add a new product to track',
         '/list \\- View all tracked products',
+        '/pinned \\- View your pinned products',
         '/removeone <ASIN or name> \\- Remove a tracked product',
+        '/snooze <ASIN or name> <hours> \\- Snooze alerts for a product',
         '/updateprice <ASIN or name> <new_price> \\- Update a product\'s alert price',
         '',
         '💡 *Pro Tips:*',

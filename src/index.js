@@ -121,10 +121,12 @@ bot.telegram.setMyCommands([
   { command: 'add', description: 'Track a new product' },
   { command: 'add_percentage', description: 'Track by % drop' },
   { command: 'list', description: 'View your tracked products' },
+  { command: 'pinned', description: 'View your pinned products' },
   { command: 'deals', description: 'See top 5 price drops (24h)' },
   { command: 'report', description: 'Get your daily price report' },
   { command: 'chart', description: 'View price history chart' },
   { command: 'settings', description: 'Manage your preferences' },
+  { command: 'snooze', description: 'Snooze product alerts' },
   { command: 'removeone', description: 'Stop tracking a product' },
   { command: 'ask', description: 'Ask AI about your products' }
 ]).then(() => {

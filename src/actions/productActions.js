@@ -213,11 +213,26 @@ export default (bot) => {
       await safeEditMessageText(ctx, message, {
         parse_mode: 'MarkdownV2',
         disable_web_page_preview: false,
-        ...productActionsKeyboard(asin, product.url)
+        ...productActionsKeyboard(asin, tracker)
       });
     } catch (error) {
       console.error('Error in view product action:', error);
       await ctx.answerCbQuery('⚠️ Error fetching product details. Please try again.');
+    }
+  });
+
+  // Toggle pin/unpin
+  bot.action(/^action_toggle_pin_([^_]+)$/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const { isPinned } = await ProductService.togglePin(asin, ctx.chat.id);
+      await ctx.answerCbQuery(isPinned ? '📌 Product pinned' : '📌 Product unpinned');
+
+      ctx.update.callback_query.data = `action_view_${asin}`;
+      return bot.handleUpdate(ctx.update);
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      await ctx.answerCbQuery('⚠️ Error updating pin state. Please try again.');
     }
   });
 
@@ -750,14 +765,68 @@ Choose a threshold or set a custom one:`,
     }
   });
 
-  // Snooze alert action
-  bot.action(/action_snooze_(\w+)/, async (ctx) => {
+  // Snooze alert menu
+  bot.action(/^action_snooze_([^_]+)$/, async (ctx) => {
     try {
       const asin = ctx.match[1];
-      await ProductService.snoozeProduct(asin, ctx.chat.id, 24); // Snooze for 24 hours
-      await ctx.answerCbQuery('💤 Alerts snoozed for 24 hours.');
+      const message = escapeMarkdownV2([
+        '💤 Snooze Alerts',
+        '',
+        'Choose how long to snooze alerts for this product:'
+      ].join('\n'));
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '6 hours', callback_data: `action_snooze_for_${asin}_6` },
+              { text: '24 hours', callback_data: `action_snooze_for_${asin}_24` }
+            ],
+            [{ text: '3 days', callback_data: `action_snooze_for_${asin}_72` }],
+            [{ text: '🔙 Back to Product', callback_data: `action_view_${asin}` }]
+          ]
+        }
+      });
     } catch (error) {
       console.error('Error in snooze action:', error);
+      await ctx.answerCbQuery('⚠️ Error loading snooze options. Please try again.');
+    }
+  });
+
+  // Apply snooze duration
+  bot.action(/^action_snooze_for_([^_]+)_(\d+)$/, async (ctx) => {
+    try {
+      const asin = ctx.match[1];
+      const hours = Number.parseInt(ctx.match[2], 10);
+      if (!Number.isFinite(hours) || hours <= 0) {
+        return await ctx.answerCbQuery('Invalid snooze duration.');
+      }
+
+      const product = await ProductService.snoozeProduct(asin, ctx.chat.id, hours);
+      const snoozeUntil = product.currentUserSubscription?.snoozeUntil
+        ? new Date(product.currentUserSubscription.snoozeUntil)
+        : new Date(Date.now() + hours * 60 * 60 * 1000);
+
+      const message = escapeMarkdownV2([
+        '✅ Alerts Snoozed',
+        '',
+        `Product: ${product.name}`,
+        `Duration: ${hours} hour(s)`,
+        `Until: ${snoozeUntil.toLocaleString()}`
+      ].join('\n'));
+
+      await safeEditMessageText(ctx, message, {
+        parse_mode: 'MarkdownV2',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔙 Back to Product', callback_data: `action_view_${asin}` }]
+          ]
+        }
+      });
+      await ctx.answerCbQuery('💤 Alerts snoozed.');
+    } catch (error) {
+      console.error('Error applying snooze duration:', error);
       await ctx.answerCbQuery('⚠️ Error snoozing alerts. Please try again.');
     }
   });
