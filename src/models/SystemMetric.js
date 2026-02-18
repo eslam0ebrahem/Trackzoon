@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const SystemMetricSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
-    type: { type: String, enum: ['scraper', 'database', 'system'], required: true },
+    type: { type: String, enum: ['scraper', 'database', 'system', 'extension'], required: true },
     data: { type: mongoose.Schema.Types.Mixed, required: true }
 });
 

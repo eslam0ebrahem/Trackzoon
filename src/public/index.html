@@ -779,7 +779,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
                 <!-- Server Health -->
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Server Health</h3>
@@ -837,6 +837,37 @@
                         <div class="flex justify-between">
                             <span class="text-gray-500 dark:text-gray-400">Pause Remaining</span>
                             <span id="aiPauseStatus" class="font-mono">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extension Pipeline -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Extension Pipeline (24h)</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Total Syncs</span>
+                            <span id="extSyncTotal" class="font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Success / Failed</span>
+                            <span class="font-mono"><span id="extSyncSuccess">-</span> / <span id="extSyncFailed">-</span></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">AI Corrected</span>
+                            <span id="extAiCorrected" class="font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Avg Duration</span>
+                            <span id="extAvgDuration" class="font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Last Sync</span>
+                            <span id="extLastSync" class="font-mono text-right">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Top OOS Reason</span>
+                            <span id="extTopReason" class="font-mono text-right break-all">-</span>
                         </div>
                     </div>
                 </div>

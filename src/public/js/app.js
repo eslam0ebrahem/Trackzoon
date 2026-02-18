@@ -116,10 +116,11 @@ window.triggerPriceCheck = async () => {
 
 async function updateSystemStats() {
     try {
-        const [health, dbStats, aiBudget] = await Promise.all([
+        const [health, dbStats, aiBudget, extensionStats] = await Promise.all([
             API.getSystemHealth(),
             API.getDbStats(),
-            API.getAiBudget()
+            API.getAiBudget(),
+            API.getExtensionStats(24)
         ]);
 
         // Update Server Health
@@ -160,6 +161,43 @@ async function updateSystemStats() {
                 : `${formatNumber(aiBudget.usage.requests)} / unlimited`;
             aiPauseEl.textContent = aiBudget.paused
                 ? `${Math.max(0, aiBudget.pauseRemainingSeconds || 0)}s remaining`
+                : 'None';
+        }
+
+        // Update Extension Pipeline
+        const extTotalEl = document.getElementById('extSyncTotal');
+        const extSuccessEl = document.getElementById('extSyncSuccess');
+        const extFailEl = document.getElementById('extSyncFailed');
+        const extCorrectedEl = document.getElementById('extAiCorrected');
+        const extDurationEl = document.getElementById('extAvgDuration');
+        const extLastSyncEl = document.getElementById('extLastSync');
+        const extTopReasonEl = document.getElementById('extTopReason');
+
+        if (
+            extTotalEl && extSuccessEl && extFailEl && extCorrectedEl &&
+            extDurationEl && extLastSyncEl && extTopReasonEl &&
+            extensionStats && !extensionStats.error
+        ) {
+            extTotalEl.textContent = String(extensionStats.total ?? 0);
+            extSuccessEl.textContent = String(extensionStats.successes ?? 0);
+            extFailEl.textContent = String(extensionStats.failures ?? 0);
+            extCorrectedEl.textContent = String(extensionStats.aiCorrected ?? 0);
+            extDurationEl.textContent = `${extensionStats.avgDurationMs ?? 0} ms`;
+
+            if (extensionStats.lastSyncAt) {
+                const lastSyncDate = new Date(extensionStats.lastSyncAt);
+                extLastSyncEl.textContent = Number.isNaN(lastSyncDate.getTime())
+                    ? '-'
+                    : lastSyncDate.toLocaleString();
+            } else {
+                extLastSyncEl.textContent = '-';
+            }
+
+            const topReason = Array.isArray(extensionStats.topAvailabilityReasons) && extensionStats.topAvailabilityReasons.length > 0
+                ? extensionStats.topAvailabilityReasons[0]
+                : null;
+            extTopReasonEl.textContent = topReason
+                ? `${topReason.reason} (${topReason.count})`
                 : 'None';
         }
     } catch (e) { console.error('Error updating system stats:', e); }

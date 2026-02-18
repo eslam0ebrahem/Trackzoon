@@ -49,6 +49,11 @@ export const API = {
         return res.json();
     },
 
+    async getExtensionStats(hours = 24) {
+        const res = await fetch(`/api/stats/extension?hours=${hours}`, { headers: this.getHeaders() });
+        return res.json();
+    },
+
     async getHealth() {
         const res = await fetch('/api/health'); // Public endpoint
         return res.json();

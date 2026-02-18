@@ -2,6 +2,7 @@ import Product from '../models/Product.js';
 import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import PricePoint from '../models/PricePoint.js';
+import SystemMetric from '../models/SystemMetric.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -290,5 +291,67 @@ export class DashboardService {
 
   static async getUserProducts(chatId) {
     return ProductService.getUserProducts(chatId);
+  }
+
+  static async getExtensionStats(hours = 24) {
+    const safeHours = Math.max(1, Math.min(168, Number(hours) || 24));
+    const since = new Date(Date.now() - safeHours * 60 * 60 * 1000);
+
+    const metrics = await SystemMetric.find({
+      type: 'extension',
+      timestamp: { $gte: since }
+    })
+      .sort({ timestamp: -1 })
+      .limit(2000)
+      .lean();
+
+    const summary = {
+      windowHours: safeHours,
+      total: metrics.length,
+      successes: 0,
+      failures: 0,
+      created: 0,
+      updated: 0,
+      newProduct: 0,
+      aiCorrected: 0,
+      avgDurationMs: 0,
+      lastSyncAt: metrics[0]?.timestamp || null,
+      topAvailabilityReasons: []
+    };
+
+    const reasonCount = new Map();
+    let durationTotal = 0;
+    let durationCount = 0;
+
+    for (const event of metrics) {
+      const data = event?.data || {};
+      if (data.status === 'error') {
+        summary.failures += 1;
+      } else {
+        summary.successes += 1;
+      }
+
+      if (data.action === 'created') summary.created += 1;
+      if (data.action === 'updated') summary.updated += 1;
+      if (data.action === 'new_product') summary.newProduct += 1;
+      if (data.aiCorrected) summary.aiCorrected += 1;
+
+      if (Number.isFinite(data.durationMs) && data.durationMs >= 0) {
+        durationTotal += data.durationMs;
+        durationCount += 1;
+      }
+
+      if (data.availabilityReason) {
+        reasonCount.set(data.availabilityReason, (reasonCount.get(data.availabilityReason) || 0) + 1);
+      }
+    }
+
+    summary.avgDurationMs = durationCount > 0 ? Math.round(durationTotal / durationCount) : 0;
+    summary.topAvailabilityReasons = Array.from(reasonCount.entries())
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return summary;
   }
 }

@@ -115,6 +115,16 @@ export const getTopTracked = async (req, res) => {
     }
 };
 
+export const getExtensionStats = async (req, res) => {
+    try {
+        const hours = Number(req.query?.hours) || 24;
+        const stats = await DashboardService.getExtensionStats(hours);
+        res.json(stats);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const getHealth = async (req, res) => {
     try {
         const health = await SystemService.getHealth();

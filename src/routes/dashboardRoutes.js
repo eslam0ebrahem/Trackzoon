@@ -23,6 +23,7 @@ router.get('/stats/categories', dashboardController.getCategoryStats);
 router.get('/search', dashboardController.searchProducts);
 router.get('/recent', dashboardController.getRecentActivity);
 router.get('/top-tracked', dashboardController.getTopTracked);
+router.get('/stats/extension', dashboardController.getExtensionStats);
 router.get('/export', dashboardController.exportData);
 router.get('/logs', dashboardController.getLogs);
 router.get('/products/user', dashboardController.getUserProducts);
