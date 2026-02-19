@@ -253,5 +253,16 @@ export const API = {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to add product');
         return data;
+    },
+
+    async previewProduct(url) {
+        const res = await fetch('/api/products/preview', {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to preview product');
+        return data;
     }
 };

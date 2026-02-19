@@ -17,14 +17,40 @@ window.closeAddProductModal = UI.closeAddProductModal;
 window.submitNewProduct = submitNewProduct;
 window.downloadCSV = downloadCSV;
 window.fetchDeals = fetchDeals; // Expose for UI if needed
+
+const getImportModal = () => document.getElementById('importModal');
+
 // Management Functions
-window.openImportModal = () => document.getElementById('importModal').classList.remove('hidden');
-window.closeImportModal = () => document.getElementById('importModal').classList.add('hidden');
+window.openImportModal = () => {
+    const modal = getImportModal();
+    if (!modal) return;
+    modal.classList.remove('hidden');
+};
+window.closeImportModal = () => {
+    const modal = getImportModal();
+    if (!modal) return;
+    modal.classList.add('hidden');
+};
 
 window.submitImport = async () => {
+    const modal = getImportModal();
+    if (!modal) {
+        alert('Bulk import UI is not available in this build.');
+        return;
+    }
+
     const btn = document.querySelector('#importModal button:last-child');
+    if (!btn) {
+        alert('Import action is unavailable right now.');
+        return;
+    }
     const originalText = btn.innerHTML;
-    const urls = document.getElementById('importUrls').value.split('\n').map(u => u.trim()).filter(u => u);
+    const importInput = document.getElementById('importUrls');
+    if (!importInput) {
+        alert('Import input is missing.');
+        return;
+    }
+    const urls = importInput.value.split('\n').map(u => u.trim()).filter(u => u);
 
     if (urls.length === 0) return alert('Please enter at least one URL');
 
@@ -35,7 +61,7 @@ window.submitImport = async () => {
         const res = await API.bulkImport(urls);
         alert(`Imported: ${res.success}, Failed: ${res.failed}`);
         window.closeImportModal();
-        document.getElementById('importUrls').value = '';
+        importInput.value = '';
         init(); // Refresh
     } catch (e) {
         alert('Error importing products');
@@ -711,13 +737,17 @@ window.handleUrlInput = (url) => {
     loading.classList.remove('hidden');
 
     searchTimeout = setTimeout(async () => {
+        const hasAuthHeader = Boolean(API.getHeaders()?.Authorization);
+        if (!hasAuthHeader) {
+            loading.classList.add('hidden');
+            validationIcon.innerHTML = `<svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 .28-.11.53-.29.71A1 1 0 1112 11zm0 0V7m0 8h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2h-3.17A3 3 0 0013 4h-2a3 3 0 00-2.83 2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>`;
+            validationIcon.classList.remove('hidden');
+            submitBtn.disabled = true;
+            return;
+        }
+
         try {
-            const res = await fetch('/api/products/preview', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url })
-            });
-            const data = await res.json();
+            const data = await API.previewProduct(url);
 
             loading.classList.add('hidden');
 
@@ -749,7 +779,9 @@ window.handleUrlInput = (url) => {
             loading.classList.add('hidden');
             validationIcon.innerHTML = `<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
             validationIcon.classList.remove('hidden');
-            console.error(e);
+            if (!String(e?.message || '').toLowerCase().includes('access denied')) {
+                console.error(e);
+            }
         }
     }, 800);
 };
