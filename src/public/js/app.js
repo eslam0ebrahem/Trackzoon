@@ -116,16 +116,33 @@ window.triggerPriceCheck = async () => {
 
 async function updateSystemStats() {
     try {
-        const [health, dbStats, aiBudget, extensionStats] = await Promise.all([
+        const [health, dbStats, aiBudget, extensionStats, queueStatus] = await Promise.all([
             API.getSystemHealth(),
             API.getDbStats(),
             API.getAiBudget(),
-            API.getExtensionStats(24)
+            API.getExtensionStats(24),
+            API.getQueueStatus()
         ]);
 
         // Update Server Health
         document.getElementById('sysUptime').textContent = `${(health.uptime / 3600).toFixed(1)} hrs`;
         document.getElementById('sysMemory').textContent = `${health.memory.heapUsed} MB`;
+        const redisPolicyEl = document.getElementById('sysRedisPolicy');
+        if (redisPolicyEl) {
+            const policy = health?.cache?.evictionPolicy;
+            if (!health?.cache?.enabled) {
+                redisPolicyEl.textContent = 'disabled';
+                redisPolicyEl.className = 'font-mono text-yellow-500';
+            } else if (!policy) {
+                redisPolicyEl.textContent = 'unknown';
+                redisPolicyEl.className = 'font-mono text-gray-500';
+            } else {
+                redisPolicyEl.textContent = policy;
+                redisPolicyEl.className = policy === 'noeviction'
+                    ? 'font-mono text-green-500'
+                    : 'font-mono text-red-500';
+            }
+        }
 
         // Update DB Stats
         document.getElementById('dbSize').textContent = dbStats.storageSize;
@@ -199,6 +216,21 @@ async function updateSystemStats() {
             extTopReasonEl.textContent = topReason
                 ? `${topReason.reason} (${topReason.count})`
                 : 'None';
+        }
+
+        // Update Queue Stats
+        const queueActiveEl = document.getElementById('queueActive');
+        const queueWaitingEl = document.getElementById('queueWaiting');
+        const queueCompletedEl = document.getElementById('queueCompleted');
+        const queueFailedEl = document.getElementById('queueFailed');
+        if (
+            queueActiveEl && queueWaitingEl && queueCompletedEl && queueFailedEl &&
+            queueStatus && !queueStatus.error
+        ) {
+            queueActiveEl.textContent = String(queueStatus.active ?? 0);
+            queueWaitingEl.textContent = String(queueStatus.waiting ?? queueStatus.pending ?? 0);
+            queueCompletedEl.textContent = String(queueStatus.completed ?? 0);
+            queueFailedEl.textContent = String(queueStatus.failed ?? 0);
         }
     } catch (e) { console.error('Error updating system stats:', e); }
 }

@@ -19,7 +19,12 @@ export const getDbStats = async (req, res) => {
 };
 
 export const getQueueStatus = async (req, res) => {
-    res.json(SystemService.getQueueStatus());
+    try {
+        const status = await SystemService.getQueueStatus();
+        res.json(status);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
 
 export const getMetricsHistory = async (req, res) => {

@@ -8,6 +8,47 @@ import { captureError, captureMessage } from './sentry.js';
 
 let redisClient = null;
 let isEnabled = false;
+let evictionPolicy = null;
+let evictionPolicyCheckedAt = null;
+let policyCheckTimer = null;
+let lastWarnedEvictionPolicy = null;
+
+const POLICY_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+
+const extractEvictionPolicy = (configResult) => {
+  if (!configResult) return null;
+  if (Array.isArray(configResult)) {
+    const idx = configResult.findIndex((item) => item === 'maxmemory-policy');
+    if (idx >= 0 && typeof configResult[idx + 1] === 'string') {
+      return configResult[idx + 1].trim().toLowerCase();
+    }
+    if (configResult.length >= 2 && typeof configResult[1] === 'string') {
+      return configResult[1].trim().toLowerCase();
+    }
+  }
+  if (typeof configResult === 'object' && typeof configResult['maxmemory-policy'] === 'string') {
+    return configResult['maxmemory-policy'].trim().toLowerCase();
+  }
+  return null;
+};
+
+const checkEvictionPolicy = async () => {
+  if (!redisClient) return;
+  try {
+    const rawPolicy = await redisClient.config('GET', 'maxmemory-policy');
+    evictionPolicy = extractEvictionPolicy(rawPolicy);
+    evictionPolicyCheckedAt = new Date();
+
+    if (evictionPolicy && evictionPolicy !== 'noeviction' && evictionPolicy !== lastWarnedEvictionPolicy) {
+      const warningMessage = `IMPORTANT! Redis eviction policy is ${evictionPolicy}. It should be "noeviction"`;
+      console.warn(warningMessage);
+      captureMessage(warningMessage, 'warning', { redisEvictionPolicy: evictionPolicy });
+      lastWarnedEvictionPolicy = evictionPolicy;
+    }
+  } catch (error) {
+    console.warn(`Failed to inspect Redis eviction policy: ${error.message}`);
+  }
+};
 
 /**
  * Initialize Redis connection
@@ -36,6 +77,16 @@ export const initCache = () => {
       isEnabled = true;
     });
 
+    redisClient.on('ready', () => {
+      checkEvictionPolicy().catch(() => {});
+      if (!policyCheckTimer) {
+        policyCheckTimer = setInterval(() => {
+          checkEvictionPolicy().catch(() => {});
+        }, POLICY_CHECK_INTERVAL_MS);
+        policyCheckTimer.unref?.();
+      }
+    });
+
     redisClient.on('error', (error) => {
       console.error('Redis error:', error.message);
       captureError(error, { service: 'redis' });
@@ -45,6 +96,10 @@ export const initCache = () => {
     redisClient.on('close', () => {
       console.log('⚠️  Redis connection closed');
       isEnabled = false;
+      if (policyCheckTimer) {
+        clearInterval(policyCheckTimer);
+        policyCheckTimer = null;
+      }
     });
 
     return true;
@@ -147,10 +202,17 @@ export const isCacheEnabled = () => isEnabled;
  * Close Redis connection
  */
 export const closeCache = async () => {
+  if (policyCheckTimer) {
+    clearInterval(policyCheckTimer);
+    policyCheckTimer = null;
+  }
   if (redisClient) {
     await redisClient.quit();
     redisClient = null;
     isEnabled = false;
+    evictionPolicy = null;
+    evictionPolicyCheckedAt = null;
+    lastWarnedEvictionPolicy = null;
     console.log('Redis cache closed');
   }
 };
@@ -159,6 +221,16 @@ export const closeCache = async () => {
  * Get raw Redis client
  */
 export const getClient = () => redisClient;
+
+/**
+ * Get cache/redis health snapshot
+ */
+export const getCacheHealth = () => ({
+  enabled: isEnabled,
+  status: redisClient?.status || 'disconnected',
+  evictionPolicy,
+  evictionPolicyCheckedAt
+});
 
 /**
  * Cache key generators for consistency
@@ -190,6 +262,7 @@ export default {
   deletePattern,
   isEnabled: isCacheEnabled,
   getClient: () => redisClient,
+  getHealth: getCacheHealth,
   close: closeCache,
   keys: CacheKeys,
   ttl: CacheTTL,

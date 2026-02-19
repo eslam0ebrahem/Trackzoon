@@ -28,10 +28,29 @@ let botLaunchEnabled = true;
 let stopScheduler = null;
 let internalPriceWorker = null;
 let internalAiWorker = null;
+let botCommandRetryTimer = null;
+let botCommandsSynced = false;
 const BOT_COMMAND_RETRIES = Math.max(1, Number(process.env.BOT_COMMAND_RETRIES || 3));
 const BOT_COMMAND_RETRY_MS = Math.max(500, Number(process.env.BOT_COMMAND_RETRY_MS || 2000));
+const BOT_COMMAND_TIMEOUT_MS = Math.max(2000, Number(process.env.BOT_COMMAND_TIMEOUT_MS || 15000));
+const BOT_COMMAND_RETRY_INTERVAL_MS = Math.max(30000, Number(process.env.BOT_COMMAND_RETRY_INTERVAL_MS || 300000));
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const withTimeout = async (promise, timeoutMs, label = 'operation') => {
+  let timeoutId;
+  try {
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      timeoutId.unref?.();
+    });
+
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 const telegramCommands = [
   { command: 'start', description: 'Start the bot' },
@@ -97,19 +116,52 @@ const releaseBotLock = async () => {
   }
 };
 
+const stopBotCommandRetryLoop = () => {
+  if (botCommandRetryTimer) {
+    clearInterval(botCommandRetryTimer);
+    botCommandRetryTimer = null;
+  }
+};
+
+const startBotCommandRetryLoop = () => {
+  if (botCommandRetryTimer) return;
+
+  logger.warn(`Bot commands will retry every ${BOT_COMMAND_RETRY_INTERVAL_MS}ms until successful.`);
+  botCommandRetryTimer = setInterval(() => {
+    registerBotCommands().catch((error) => {
+      logger.warn(`Background bot command sync failed: ${error.message}`);
+    });
+  }, BOT_COMMAND_RETRY_INTERVAL_MS);
+  botCommandRetryTimer.unref?.();
+};
+
 const registerBotCommands = async () => {
+  let lastError = null;
   for (let attempt = 1; attempt <= BOT_COMMAND_RETRIES; attempt++) {
     try {
-      await bot.telegram.setMyCommands(telegramCommands);
+      await withTimeout(
+        bot.telegram.setMyCommands(telegramCommands),
+        BOT_COMMAND_TIMEOUT_MS,
+        'setMyCommands'
+      );
+      botCommandsSynced = true;
+      stopBotCommandRetryLoop();
       logger.info('Bot commands menu updated successfully');
       return true;
     } catch (error) {
+      lastError = error;
       logger.warn(`Failed to set bot commands (attempt ${attempt}/${BOT_COMMAND_RETRIES}): ${error.message}`);
       if (attempt < BOT_COMMAND_RETRIES) {
         await sleep(BOT_COMMAND_RETRY_MS * attempt);
       }
     }
   }
+
+  botCommandsSynced = false;
+  if (lastError) {
+    captureError(lastError, { operation: 'set_my_commands' });
+  }
+
   return false;
 };
 
@@ -161,7 +213,11 @@ botLaunchEnabled = await acquireBotLock();
 if (!botLaunchEnabled) {
   logger.warn('Another instance is already leader. Skipping bot.launch(), scheduler, and internal workers to avoid duplicate processing.');
 } else {
-  await registerBotCommands();
+  const commandSyncOk = await registerBotCommands();
+  if (!commandSyncOk) {
+    logger.warn('Continuing startup without command menu sync; retry loop enabled.');
+    startBotCommandRetryLoop();
+  }
 
   // Leader-only workloads
   stopScheduler = startScheduler(bot);
@@ -205,6 +261,7 @@ if (!botLaunchEnabled) {
 // Enable graceful shutdown
 const shutdown = async (signal) => {
   logger.info(`Received ${signal}. Stopping bot...`);
+  stopBotCommandRetryLoop();
 
   // Stop scheduler tasks
   if (stopScheduler) {
