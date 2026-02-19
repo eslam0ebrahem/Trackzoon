@@ -333,6 +333,7 @@ export async function init() {
         fetchTopTracked(),
         fetchCategoryStats(),
         fetchTopCategories(),
+        fetchDealOpportunities(),
         fetchBestDrops(),
         fetchTrendOverview(),
         fetchLogs(), // Initial logs fetch
@@ -398,6 +399,7 @@ async function refreshData() {
         fetchRecent(),
         fetchLogs(),
         fetchStats(),
+        fetchDealOpportunities(),
         fetchBestDrops(),
         fetchTrendOverview()
     ]);
@@ -432,6 +434,13 @@ async function fetchBestDrops() {
         const data = await API.getBestDrops(5, 24);
         UI.renderBestDrops(data);
     } catch (e) { console.error('Error fetching best drops:', e); }
+}
+
+async function fetchDealOpportunities() {
+    try {
+        const data = await API.getDealOpportunities(6);
+        UI.renderDealOpportunities(data);
+    } catch (e) { console.error('Error fetching deal opportunities:', e); }
 }
 
 async function fetchTrendOverview() {
@@ -548,15 +557,29 @@ async function fetchHealth() {
 
 async function loadHistory(asin) {
     try {
-        const [historyData, forecast, volatility, bestDay, stockHistory] = await Promise.all([
-            API.getHistory(asin),
+        const historyData = await API.getHistory(asin);
+
+        const [
+            forecastResult,
+            volatilityResult,
+            bestDayResult,
+            stockHistoryResult,
+            dealIntelligenceResult
+        ] = await Promise.allSettled([
             API.getForecast(asin),
             API.getVolatility(asin),
             API.getBestDay(asin),
-            API.getStockHistory(asin)
+            API.getStockHistory(asin),
+            API.getDealIntelligence(asin, false)
         ]);
 
-        UI.showProductHistory(historyData, asin, { forecast, volatility, bestDay, stockHistory });
+        const forecast = forecastResult.status === 'fulfilled' ? forecastResult.value : null;
+        const volatility = volatilityResult.status === 'fulfilled' ? volatilityResult.value : null;
+        const bestDay = bestDayResult.status === 'fulfilled' ? bestDayResult.value : null;
+        const stockHistory = stockHistoryResult.status === 'fulfilled' ? stockHistoryResult.value : [];
+        const dealIntelligence = dealIntelligenceResult.status === 'fulfilled' ? dealIntelligenceResult.value : null;
+
+        UI.showProductHistory(historyData, asin, { forecast, volatility, bestDay, stockHistory, dealIntelligence });
     } catch (e) { console.error('Error loading history:', e); }
 }
 

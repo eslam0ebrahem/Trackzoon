@@ -174,6 +174,46 @@ export const UI = {
         `).join('');
     },
 
+    renderDealOpportunities(data) {
+        const container = document.getElementById('aiOpportunitiesList');
+        if (!container) return;
+
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="p-4 text-center">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">No AI opportunities available yet</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = items.map((item, index) => {
+            const recommendation = item?.intelligence?.recommendation || 'monitor';
+            const recommendationBadge = recommendation === 'buy_now'
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                : recommendation === 'wait'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+            const savings = Number(item?.intelligence?.expectedSavingsPercent || 0).toFixed(1);
+
+            return `
+                <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer flex items-start justify-between gap-3" onclick="window.loadHistory('${item.asin}')">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-medium text-gray-900 dark:text-white truncate">${index + 1}. ${item.name}</p>
+                        <div class="mt-1 flex items-center gap-2">
+                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${recommendationBadge}">${recommendation.replace('_', ' ')}</span>
+                            <span class="text-[10px] text-gray-500 dark:text-gray-400">Score ${item.priorityScore}</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-bold text-gray-700 dark:text-gray-200">${formatPrice(item.currentPrice)}</p>
+                        <p class="text-[10px] text-blue-500">Save ${savings}%</p>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
     renderTrendOverview(data) {
         const container = document.getElementById('trendOverview');
         if (!container) return;
@@ -312,9 +352,65 @@ export const UI = {
 
         if (analytics.forecast) {
             const trendEl = document.getElementById('forecastTrend');
-            trendEl.textContent = analytics.forecast.trend === 'UP' ? '📈 Rising' : analytics.forecast.trend === 'DOWN' ? '📉 Falling' : '➡️ Stable';
-            trendEl.className = `text-sm font-medium ${analytics.forecast.trend === 'DOWN' ? 'text-green-600' : analytics.forecast.trend === 'UP' ? 'text-red-600' : 'text-gray-600'}`;
+            const trendValue = String(analytics.forecast.trend || '').toUpperCase();
+            const isDown = trendValue === 'DOWN' || trendValue === 'DROP' || trendValue === 'FALL';
+            const isUp = trendValue === 'UP' || trendValue === 'RISE';
+            trendEl.textContent = isUp ? '📈 Rising' : isDown ? '📉 Falling' : '➡️ Stable';
+            trendEl.className = `text-sm font-medium ${isDown ? 'text-green-600' : isUp ? 'text-red-600' : 'text-gray-600'}`;
             document.getElementById('forecastConfidence').textContent = `Conf: ${(analytics.forecast.confidence * 100).toFixed(0)}%`;
+        }
+
+        const intelligence = analytics.dealIntelligence?.intelligence || null;
+        const recommendationEl = document.getElementById('aiDealRecommendation');
+        const confidenceEl = document.getElementById('aiDealConfidence');
+        const dropEl = document.getElementById('aiDropProbability');
+        const bestEl = document.getElementById('aiExpectedBest');
+        const saveEl = document.getElementById('aiExpectedSavings');
+        const waitEl = document.getElementById('aiWaitDays');
+        const riskEl = document.getElementById('aiRiskLevel');
+        const narrativeEl = document.getElementById('aiDealNarrative');
+        const seasonalityEl = document.getElementById('aiSeasonality');
+
+        if (
+            recommendationEl && confidenceEl && dropEl && bestEl && saveEl &&
+            waitEl && riskEl && narrativeEl && seasonalityEl && intelligence
+        ) {
+            const recommendation = intelligence.recommendation || 'monitor';
+            recommendationEl.textContent = recommendation.replace('_', ' ').toUpperCase();
+            recommendationEl.className = recommendation === 'buy_now'
+                ? 'text-[11px] px-2 py-1 rounded-full font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                : recommendation === 'wait'
+                    ? 'text-[11px] px-2 py-1 rounded-full font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                    : 'text-[11px] px-2 py-1 rounded-full font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+
+            confidenceEl.textContent = `${Math.round(Number(intelligence.confidence || 0) * 100)}%`;
+            dropEl.textContent = `${Math.round(Number(intelligence.dropProbability7d || 0))}%`;
+            bestEl.textContent = formatPrice(Number(intelligence.expectedBestPrice7d || 0));
+            saveEl.textContent = `${Number(intelligence.expectedSavingsPercent || 0).toFixed(1)}%`;
+            waitEl.textContent = Number(intelligence.suggestedWaitDays || 0) > 0
+                ? `${intelligence.suggestedWaitDays} day(s)`
+                : 'No wait';
+            riskEl.textContent = String(intelligence.riskLevel || 'low').toUpperCase();
+
+            const seasonalHint = intelligence?.signals?.seasonality;
+            seasonalityEl.textContent = seasonalHint
+                ? `Seasonality low window: ${seasonalHint.monthName}`
+                : 'No clear seasonality signal';
+
+            narrativeEl.textContent = intelligence.llmNarrative || intelligence.narrative || 'No AI narrative available.';
+        } else if (
+            recommendationEl && confidenceEl && dropEl && bestEl && saveEl &&
+            waitEl && riskEl && narrativeEl && seasonalityEl
+        ) {
+            recommendationEl.textContent = '-';
+            confidenceEl.textContent = '-';
+            dropEl.textContent = '-';
+            bestEl.textContent = '-';
+            saveEl.textContent = '-';
+            waitEl.textContent = '-';
+            riskEl.textContent = '-';
+            seasonalityEl.textContent = 'No seasonality signal';
+            narrativeEl.textContent = 'Deal intelligence unavailable.';
         }
 
         // Render Stock History

@@ -113,6 +113,17 @@ export const API = {
         return res.json();
     },
 
+    async getDealIntelligence(asin, narrative = false) {
+        const query = narrative ? '?narrative=1' : '';
+        const res = await fetch(`/api/analytics/deal-intelligence/${asin}${query}`, { headers: this.getHeaders() });
+        return res.json();
+    },
+
+    async getDealOpportunities(limit = 8) {
+        const res = await fetch(`/api/analytics/deal-opportunities?limit=${limit}`, { headers: this.getHeaders() });
+        return res.json();
+    },
+
     async getBestDrops(limit = 5, hours = 24) {
         const res = await fetch(`/api/analytics/best-drops?limit=${limit}&hours=${hours}`, { headers: this.getHeaders() });
         return res.json();

@@ -1,12 +1,14 @@
 import AnalyticsService from '../services/analyticsService.js';
 
+const getStatusCode = (error, fallback = 500) => error?.statusCode || fallback;
+
 export const getForecast = async (req, res) => {
     try {
         const { asin } = req.params;
         const data = await AnalyticsService.getPriceForecast(asin);
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(getStatusCode(error)).json({ error: error.message });
     }
 };
 
@@ -16,7 +18,7 @@ export const getVolatility = async (req, res) => {
         const data = await AnalyticsService.getVolatility(asin);
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(getStatusCode(error)).json({ error: error.message });
     }
 };
 
@@ -26,7 +28,7 @@ export const getBestDay = async (req, res) => {
         const data = await AnalyticsService.getBestDayToBuy(asin);
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(getStatusCode(error)).json({ error: error.message });
     }
 };
 
@@ -36,7 +38,7 @@ export const getStockHistory = async (req, res) => {
         const data = await AnalyticsService.getStockHistory(asin);
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(getStatusCode(error)).json({ error: error.message });
     }
 };
 
@@ -47,7 +49,7 @@ export const getBestDrops = async (req, res) => {
         const data = await AnalyticsService.getBestDrops({ limit, hours });
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(getStatusCode(error)).json({ error: error.message });
     }
 };
 
@@ -57,7 +59,7 @@ export const getTrendOverview = async (req, res) => {
         const data = await AnalyticsService.getTrendOverview({ days });
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(getStatusCode(error)).json({ error: error.message });
     }
 };
 
@@ -68,6 +70,27 @@ export const getTopCategories = async (req, res) => {
         const data = await AnalyticsService.getTopCategories({ limit, sort });
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(getStatusCode(error)).json({ error: error.message });
+    }
+};
+
+export const getDealIntelligence = async (req, res) => {
+    try {
+        const { asin } = req.params;
+        const includeNarrative = ['1', 'true', 'yes'].includes(String(req.query?.narrative || '').toLowerCase());
+        const data = await AnalyticsService.getDealIntelligence(asin, { includeNarrative });
+        res.json(data);
+    } catch (error) {
+        res.status(getStatusCode(error)).json({ error: error.message });
+    }
+};
+
+export const getDealOpportunities = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit, 10) || 8;
+        const data = await AnalyticsService.getDealOpportunities({ limit });
+        res.json(data);
+    } catch (error) {
+        res.status(getStatusCode(error)).json({ error: error.message });
     }
 };

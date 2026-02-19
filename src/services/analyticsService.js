@@ -1,7 +1,246 @@
 import Product from '../models/Product.js';
-import { calculateVolatility, predictPriceTrend } from '../utils/priceUtils.js';
+import { calculateVolatility, predictPriceTrend, calculatePriceStats, calculateDropProbability, calculateSeasonalityHint } from '../utils/priceUtils.js';
 import { aiService } from './aiService.js';
 import { logger } from '../utils/logger.js';
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const toNumber = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+
+const normalizeHistory = (priceHistory = []) => {
+    return [...(priceHistory || [])]
+        .filter((entry) => entry && Number.isFinite(Number(entry.price)))
+        .map((entry) => ({
+            price: Number(entry.price),
+            date: new Date(entry.date)
+        }))
+        .filter((entry) => !Number.isNaN(entry.date.getTime()))
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
+};
+
+const computeConfidence = (history, trend, stats30d) => {
+    const historyStrength = clamp(history.length / 30, 0, 1);
+    const trendStrength = clamp(toNumber(trend?.confidence, 0), 0, 1);
+    const densityStrength = clamp((stats30d?.count || 0) / 20, 0, 1);
+    const combined = (historyStrength * 0.45) + (trendStrength * 0.35) + (densityStrength * 0.2);
+    return Number(clamp(combined, 0.1, 0.98).toFixed(2));
+};
+
+const computeExpectedBestPrice7d = ({
+    currentPrice,
+    stats30d,
+    trend,
+    volatilityScore,
+    dropProbability
+}) => {
+    if (!stats30d || currentPrice <= 0) return currentPrice;
+
+    const range = Math.max(0, (stats30d.max || currentPrice) - (stats30d.min || currentPrice));
+    const slope = Math.abs(toNumber(trend?.slope, 0));
+    const trendDrivenDrop = trend?.trend === 'DOWN'
+        ? slope * (2 + (toNumber(trend?.confidence, 0.2) * 5))
+        : 0;
+
+    const volatilitySwing = (clamp(volatilityScore, 0, 10) / 10) * (range * 0.25);
+    const probabilityComponent = (clamp(dropProbability, 0, 100) / 100) * (range * 0.3);
+
+    const rawBest = currentPrice - trendDrivenDrop - volatilitySwing - probabilityComponent;
+    const floor = Math.max(0, (stats30d.min || 0) * 0.85);
+    const best = clamp(rawBest, floor, currentPrice);
+    return Number(best.toFixed(2));
+};
+
+const buildReasoning = ({
+    recommendation,
+    dropProbability7d,
+    expectedSavingsPercent,
+    trend,
+    volatility,
+    thresholdPrice,
+    currentPrice,
+    seasonality
+}) => {
+    const reasons = [];
+
+    if (recommendation === 'buy_now') {
+        reasons.push('Current pricing is already near your recent lows.');
+    }
+    if (recommendation === 'wait') {
+        reasons.push('Model sees meaningful short-term downside potential.');
+    }
+    if (thresholdPrice && currentPrice <= thresholdPrice) {
+        reasons.push('Price is below your configured target.');
+    }
+    if (dropProbability7d >= 65) {
+        reasons.push('High probability of additional drop in the next 7 days.');
+    } else if (dropProbability7d <= 35) {
+        reasons.push('Low probability of a near-term drop from current level.');
+    }
+    if (expectedSavingsPercent >= 4) {
+        reasons.push(`Estimated additional savings could reach ${expectedSavingsPercent.toFixed(1)}%.`);
+    }
+    if (trend?.trend === 'UP') {
+        reasons.push('Short-term trend is rising, reducing wait attractiveness.');
+    } else if (trend?.trend === 'DOWN') {
+        reasons.push('Short-term trend is falling, which favors waiting.');
+    }
+    if (volatility?.score >= 7) {
+        reasons.push('High volatility adds timing risk.');
+    }
+    if (seasonality && seasonality.nextLowInMonths <= 2) {
+        reasons.push(`Seasonality suggests lower prices around ${seasonality.monthName}.`);
+    }
+
+    return reasons.slice(0, 4);
+};
+
+const getRiskLevel = (volatilityScore, trend, confidence) => {
+    if (volatilityScore >= 8) return 'high';
+    if (trend?.trend === 'UP' && confidence >= 0.7) return 'high';
+    if (volatilityScore >= 5) return 'medium';
+    return 'low';
+};
+
+const getUrgency = ({ recommendation, trend, dropProbability7d, thresholdPrice, currentPrice }) => {
+    if (recommendation === 'buy_now' && (trend?.trend === 'UP' || (thresholdPrice && currentPrice <= thresholdPrice))) {
+        return 'high';
+    }
+    if (recommendation === 'wait' && dropProbability7d >= 65) {
+        return 'low';
+    }
+    return 'medium';
+};
+
+const getWaitDays = ({ recommendation, dropProbability7d, expectedSavingsPercent }) => {
+    if (recommendation !== 'wait') return 0;
+    if (dropProbability7d >= 75 || expectedSavingsPercent >= 6) return 7;
+    if (dropProbability7d >= 60 || expectedSavingsPercent >= 4) return 5;
+    if (dropProbability7d >= 45 || expectedSavingsPercent >= 2) return 3;
+    return 1;
+};
+
+const toDisplayTrend = (trend) => {
+    if (trend === 'UP') return 'RISE';
+    if (trend === 'DOWN') return 'DROP';
+    return 'STABLE';
+};
+
+const buildDealIntelligence = (product) => {
+    const history = normalizeHistory(product.priceHistory || []);
+    const currentPrice = toNumber(product.currentPrice, 0);
+    const stats30d = calculatePriceStats(history, 30) || {
+        average: toNumber(product?.stats?.avg, currentPrice),
+        min: toNumber(product?.stats?.min, currentPrice),
+        max: toNumber(product?.stats?.max, currentPrice),
+        count: history.length
+    };
+    const trend = predictPriceTrend(history);
+    const volatility = calculateVolatility(history);
+    const dropProbability7d = calculateDropProbability(currentPrice, stats30d, trend);
+    const expectedBestPrice7d = computeExpectedBestPrice7d({
+        currentPrice,
+        stats30d,
+        trend,
+        volatilityScore: volatility.score,
+        dropProbability: dropProbability7d
+    });
+    const expectedSavingsAmount = Math.max(0, currentPrice - expectedBestPrice7d);
+    const expectedSavingsPercent = currentPrice > 0
+        ? Number(((expectedSavingsAmount / currentPrice) * 100).toFixed(2))
+        : 0;
+    const confidence = computeConfidence(history, trend, stats30d);
+    const seasonality = calculateSeasonalityHint(history);
+    const thresholdPrice = product.thresholdPrice ? Number(product.thresholdPrice) : null;
+    const smartScore = toNumber(product.smartScore, 50);
+
+    const shouldWait = !product.isOutOfStock && dropProbability7d >= 55 && expectedSavingsPercent >= 2;
+    const strongBuy = !product.isOutOfStock && (
+        smartScore >= 75 ||
+        (thresholdPrice && currentPrice <= thresholdPrice) ||
+        (dropProbability7d <= 30 && expectedSavingsPercent < 2)
+    );
+
+    let recommendation = 'monitor';
+    if (product.isOutOfStock) recommendation = 'monitor';
+    else if (strongBuy) recommendation = 'buy_now';
+    else if (shouldWait) recommendation = 'wait';
+
+    const waitDays = getWaitDays({ recommendation, dropProbability7d, expectedSavingsPercent });
+    const riskLevel = getRiskLevel(volatility.score, trend, confidence);
+    const urgency = getUrgency({
+        recommendation,
+        trend,
+        dropProbability7d,
+        thresholdPrice,
+        currentPrice
+    });
+
+    const buyNowScore = clamp(
+        Math.round(
+            (smartScore * 0.45) +
+            ((100 - dropProbability7d) * 0.3) +
+            ((10 - clamp(volatility.score, 0, 10)) * 2) +
+            (thresholdPrice && currentPrice <= thresholdPrice ? 12 : 0)
+        ),
+        0,
+        100
+    );
+
+    const waitScore = clamp(
+        Math.round(
+            (dropProbability7d * 0.55) +
+            (expectedSavingsPercent * 6) +
+            (clamp(volatility.score, 0, 10) * 2)
+        ),
+        0,
+        100
+    );
+
+    const signals = {
+        trend: toDisplayTrend(trend.trend),
+        trendConfidence: Number(toNumber(trend.confidence, 0).toFixed(2)),
+        volatilityScore: Number(toNumber(volatility.score, 0).toFixed(2)),
+        thirtyDayLow: Number(toNumber(stats30d.min, currentPrice).toFixed(2)),
+        thirtyDayAverage: Number(toNumber(stats30d.average, currentPrice).toFixed(2)),
+        thirtyDayHigh: Number(toNumber(stats30d.max, currentPrice).toFixed(2)),
+        smartScore: Number(toNumber(smartScore, 0).toFixed(0)),
+        targetHit: Boolean(thresholdPrice && currentPrice <= thresholdPrice),
+        seasonality
+    };
+
+    const reasoning = buildReasoning({
+        recommendation,
+        dropProbability7d,
+        expectedSavingsPercent,
+        trend,
+        volatility,
+        thresholdPrice,
+        currentPrice,
+        seasonality
+    });
+
+    const narrative = reasoning.length
+        ? reasoning.join(' ')
+        : 'Price signal is mixed; monitor upcoming moves before making a decision.';
+
+    return {
+        modelVersion: 'deal-intelligence-v1',
+        generatedAt: new Date(),
+        recommendation,
+        urgency,
+        confidence,
+        riskLevel,
+        buyNowScore,
+        waitScore,
+        dropProbability7d,
+        expectedBestPrice7d,
+        expectedSavingsAmount: Number(expectedSavingsAmount.toFixed(2)),
+        expectedSavingsPercent,
+        suggestedWaitDays: waitDays,
+        signals,
+        reasoning,
+        narrative
+    };
+};
 
 class AnalyticsService {
     /**
@@ -271,6 +510,130 @@ class AnalyticsService {
             avgScore: Math.round(r.avgScore || 0),
             avgDiscount: Number((r.avgDiscount || 0).toFixed(1))
         }));
+    }
+
+    /**
+     * Get AI deal intelligence for a single product
+     * @param {string} asin
+     * @param {Object} options
+     * @param {boolean} options.includeNarrative - Optionally request LLM-enhanced narrative
+     */
+    static async getDealIntelligence(asin, { includeNarrative = false } = {}) {
+        const product = await Product.findOne({ asin })
+            .select('asin name url imageUrl currentPrice isOutOfStock thresholdPrice smartScore volatilityScore stats priceHistory dealLabel')
+            .lean();
+
+        if (!product) {
+            const error = new Error('Product not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const intelligence = buildDealIntelligence(product);
+        let llmNarrative = null;
+
+        if (includeNarrative && process.env.GROQ_API_KEY) {
+            try {
+                const aiResult = await aiService.ask({
+                    systemPrompt: 'You are a concise e-commerce deal intelligence analyst. Respond with only one short paragraph.',
+                    userPrompt: `
+Product: ${product.name}
+Current price: ${product.currentPrice}
+Recommendation: ${intelligence.recommendation}
+Drop probability (7d): ${intelligence.dropProbability7d}%
+Expected best price (7d): ${intelligence.expectedBestPrice7d}
+Risk: ${intelligence.riskLevel}
+Reasoning: ${intelligence.reasoning.join(' | ')}
+
+Give one practical buying recommendation for a value-focused user.
+`,
+                    model: 'llama-3.1-8b-instant',
+                    temperature: 0.2,
+                    jsonMode: false,
+                    tokenEstimate: 400
+                });
+                llmNarrative = typeof aiResult === 'string' ? aiResult.trim() : null;
+            } catch (error) {
+                logger.warn(`Deal intelligence narrative AI failed for ${asin}: ${error.message}`);
+            }
+        }
+
+        return {
+            asin: product.asin,
+            name: product.name,
+            url: product.url,
+            imageUrl: product.imageUrl || null,
+            currentPrice: product.currentPrice,
+            isOutOfStock: !!product.isOutOfStock,
+            intelligence: {
+                ...intelligence,
+                llmNarrative
+            }
+        };
+    }
+
+    /**
+     * Get top AI-ranked deal opportunities across products
+     * @param {Object} options
+     * @param {number} options.limit
+     */
+    static async getDealOpportunities({ limit = 8 } = {}) {
+        const safeLimit = clamp(Number(limit) || 8, 1, 30);
+        const sampleSize = clamp(safeLimit * 20, 50, 300);
+
+        const products = await Product.find({
+            isArchived: { $ne: true }
+        })
+            .sort({ smartScore: -1, lastChecked: -1 })
+            .limit(sampleSize)
+            .select('asin name url imageUrl currentPrice isOutOfStock thresholdPrice smartScore volatilityScore stats priceHistory dealLabel')
+            .lean();
+
+        const scored = products
+            .map((product) => {
+                const intelligence = buildDealIntelligence(product);
+                const priorityScore = clamp(
+                    Math.round(
+                        (intelligence.buyNowScore * 0.55) +
+                        (Math.max(0, intelligence.expectedSavingsPercent) * 4) +
+                        (intelligence.confidence * 20) +
+                        (product.isOutOfStock ? -25 : 0)
+                    ),
+                    0,
+                    100
+                );
+
+                return {
+                    asin: product.asin,
+                    name: product.name,
+                    url: product.url,
+                    imageUrl: product.imageUrl || null,
+                    currentPrice: product.currentPrice,
+                    isOutOfStock: !!product.isOutOfStock,
+                    dealLabel: product.dealLabel || 'fair_price',
+                    priorityScore,
+                    intelligence
+                };
+            })
+            .sort((a, b) => {
+                if (b.priorityScore !== a.priorityScore) return b.priorityScore - a.priorityScore;
+                return (b.intelligence.expectedSavingsPercent || 0) - (a.intelligence.expectedSavingsPercent || 0);
+            })
+            .slice(0, safeLimit);
+
+        const recommendationCounts = scored.reduce((acc, item) => {
+            const key = item.intelligence.recommendation || 'monitor';
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, { buy_now: 0, wait: 0, monitor: 0 });
+
+        return {
+            modelVersion: 'deal-intelligence-v1',
+            generatedAt: new Date(),
+            analyzed: products.length,
+            recommendationCounts,
+            items: scored
+        };
     }
 }
 
