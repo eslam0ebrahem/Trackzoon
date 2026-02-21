@@ -12,6 +12,7 @@ let evictionPolicy = null;
 let evictionPolicyCheckedAt = null;
 let policyCheckTimer = null;
 let lastWarnedEvictionPolicy = null;
+let policyCheckDisabled = false;
 
 const POLICY_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -32,8 +33,18 @@ const extractEvictionPolicy = (configResult) => {
   return null;
 };
 
+const isPolicyCheckPermissionError = (error) => {
+  const message = error?.message?.toLowerCase?.() || '';
+  return (
+    message.includes('noperm') ||
+    message.includes('noauth') ||
+    message.includes('config|get') ||
+    message.includes("command 'config'")
+  );
+};
+
 const checkEvictionPolicy = async () => {
-  if (!redisClient) return;
+  if (!redisClient || policyCheckDisabled) return;
   try {
     const rawPolicy = await redisClient.config('GET', 'maxmemory-policy');
     evictionPolicy = extractEvictionPolicy(rawPolicy);
@@ -46,6 +57,17 @@ const checkEvictionPolicy = async () => {
       lastWarnedEvictionPolicy = evictionPolicy;
     }
   } catch (error) {
+    if (isPolicyCheckPermissionError(error)) {
+      policyCheckDisabled = true;
+      const disabledMessage = 'Redis eviction policy check disabled: missing permissions for CONFIG GET.';
+      console.warn(disabledMessage);
+      captureMessage(disabledMessage, 'info', { redisError: error.message });
+      if (policyCheckTimer) {
+        clearInterval(policyCheckTimer);
+        policyCheckTimer = null;
+      }
+      return;
+    }
     console.warn(`Failed to inspect Redis eviction policy: ${error.message}`);
   }
 };
@@ -213,6 +235,7 @@ export const closeCache = async () => {
     evictionPolicy = null;
     evictionPolicyCheckedAt = null;
     lastWarnedEvictionPolicy = null;
+    policyCheckDisabled = false;
     console.log('Redis cache closed');
   }
 };

@@ -12,6 +12,7 @@ import { PriceTrackerService } from '../services/priceTrackerService.js';
 const connection = {
   url: process.env.REDIS_URL || 'redis://localhost:6379'
 };
+const skipVersionCheck = process.env.BULLMQ_SKIP_VERSION_CHECK !== 'false';
 
 const buildDealLabel = (smartScore, volatilityScore, priceChangePercent) => {
   if (smartScore >= 80) return 'hot_deal';
@@ -211,6 +212,7 @@ export const createAiWorker = (bot) => {
     return updatedProduct;
   }, {
     connection,
+    skipVersionCheck,
     concurrency: 1,
     limiter: {
       max: 1,

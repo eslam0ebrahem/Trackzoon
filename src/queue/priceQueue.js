@@ -1,7 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import { logger } from '../utils/logger.js';
 import { PriceTrackerService } from '../services/priceTrackerService.js';
-import cache from '../config/cache.js'; // Use existing Redis connection config if possible, but BullMQ needs connection details
 
 // BullMQ connection settings
 // We should reuse the existing REDIS_URL from env
@@ -9,12 +8,12 @@ const connection = {
     url: process.env.REDIS_URL || 'redis://localhost:6379',
     // BullMQ requires some specific options sometimes, but usually URL is enough if ioredis is used internally
 };
+const skipVersionCheck = process.env.BULLMQ_SKIP_VERSION_CHECK !== 'false';
 
 // Create the Queue (Producer)
 export const priceCheckQueue = new Queue('price-check-queue', {
-    connection: {
-        url: process.env.REDIS_URL || 'redis://localhost:6379'
-    },
+    connection,
+    skipVersionCheck,
     defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -62,9 +61,8 @@ export const createWorker = (bot) => {
             throw error;
         }
     }, {
-        connection: {
-            url: process.env.REDIS_URL || 'redis://localhost:6379'
-        },
+        connection,
+        skipVersionCheck,
         concurrency: 1, // Reduced to 1 to prevent OOM on Render free tier (Pupeteer is heavy)
         limiter: {
             max: 1,      // Strict serial processing

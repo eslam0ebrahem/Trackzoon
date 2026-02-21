@@ -4,9 +4,11 @@ import { logger } from '../utils/logger.js';
 const connection = {
   url: process.env.REDIS_URL || 'redis://localhost:6379'
 };
+const skipVersionCheck = process.env.BULLMQ_SKIP_VERSION_CHECK !== 'false';
 
 export const aiAvailabilityQueue = new Queue('ai-availability-queue', {
   connection,
+  skipVersionCheck,
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: 'exponential', delay: 2000 },
