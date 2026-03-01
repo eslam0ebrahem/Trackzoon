@@ -717,8 +717,10 @@
       checkMobileMenu();
       await checkAuth();
       renderTicker();
-      await loadStats();
-      await loadDeals();
+      if (STATE.token) {
+        await loadStats();
+        await loadDeals();
+      }
     });
 
     async function checkAuth() {
