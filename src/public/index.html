@@ -888,17 +888,25 @@
     }
 
     function generateSparkline(history, isDrop) {
-      if (!history || history.length < 2) {
+      if (!history || !Array.isArray(history) || history.length < 2) {
         return `<svg viewBox="0 0 200 36"><line x1="0" y1="18" x2="200" y2="18" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 4"/></svg>`;
       }
-      const prices = history.slice(-20).map(h => h.price || h);
+
+      const prices = history.slice(-20)
+        .map(h => parseFloat(h && h.price !== undefined ? h.price : h))
+        .filter(n => !isNaN(n));
+
+      if (prices.length < 2) {
+        return `<svg viewBox="0 0 200 36"><line x1="0" y1="18" x2="200" y2="18" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 4"/></svg>`;
+      }
+
       const min = Math.min(...prices), max = Math.max(...prices);
       const range = max - min || 1;
       const w = 200, h = 36;
       const pts = prices.map((v, i) => {
         const x = (i / (prices.length - 1)) * w;
         const y = h - ((v - min) / range) * (h - 6) - 3;
-        return `${x},${y}`;
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
       });
       const color = isDrop ? 'var(--green)' : 'var(--red)';
       const fillColor = isDrop ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)';
