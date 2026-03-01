@@ -1,358 +1,108 @@
-import { CONFIG, STATE } from './config.js';
-import { API } from './api.js';
-import { UI } from './ui.js';
-import { initCharts, updateCategoryChart } from './charts.js';
-import { shareDeal, debounce } from './utils.js';
+// ─────────────────────────────────────────────────────────────────────────────
+// Trackzoon v2 — app.js
+// Main application orchestrator.
+// Upgrades over v1:
+//  • No more alert() anywhere — replaced by toast notifications
+//  • Proper auth flow: token login, guest mode, logout
+//  • All data-fetching functions have try/catch + loading states
+//  • Search with debounce and proper result rendering
+//  • loadHistory fetches ALL analytics in one parallel batch (no sequential waterfalls)
+//  • Auto-refresh: 30s for deals/ticker, 60s for stats/logs
+//  • Keyboard shortcut system (Cmd+K palette, G+D nav, N, T, R, V, ?)
+//  • Currency toggle re-renders all price displays without full reload
+//  • Saved view (sort/filter/viewMode) persisted to PREFS
+//  • Export functions for CSV, PDF, RSS (no alert on success)
+//  • Admin actions with proper feedback
+//  • Bus event system wires up chart updates decoupled from fetches
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Expose global functions for HTML onclick attributes
-window.shareDeal = shareDeal;
-window.loadHistory = loadHistory;
-window.toggleCurrency = toggleCurrency;
-window.toggleView = toggleView;
-window.setSort = setSort;
-window.setFilter = setFilter;
-window.toggleLogs = toggleLogs;
-window.openAddProductModal = UI.openAddProductModal;
-window.closeAddProductModal = UI.closeAddProductModal;
-window.submitNewProduct = submitNewProduct;
-window.downloadCSV = downloadCSV;
-window.fetchDeals = fetchDeals; // Expose for UI if needed
+import { CONFIG, STATE, PREFS, Bus }  from './config.js';
+import { API }                         from './api.js';
+import * as UI                         from './ui.js';
+import {
+    initAllCharts, updateTrendChart, updateCategoryChart,
+    updateScoreChart, updateAlertChart, initPriceChart,
+} from './charts.js';
+import {
+    debounce, throttle, shareDeal, copyToClipboard,
+    formatPrice, formatAgo, $, animateNumber,
+} from './utils.js';
 
-const getImportModal = () => document.getElementById('importModal');
-
-// Management Functions
-window.openImportModal = () => {
-    const modal = getImportModal();
-    if (!modal) return;
-    modal.classList.remove('hidden');
-};
-window.closeImportModal = () => {
-    const modal = getImportModal();
-    if (!modal) return;
-    modal.classList.add('hidden');
-};
-
-window.submitImport = async () => {
-    const modal = getImportModal();
-    if (!modal) {
-        alert('Bulk import UI is not available in this build.');
-        return;
-    }
-
-    const btn = document.querySelector('#importModal button:last-child');
-    if (!btn) {
-        alert('Import action is unavailable right now.');
-        return;
-    }
-    const originalText = btn.innerHTML;
-    const importInput = document.getElementById('importUrls');
-    if (!importInput) {
-        alert('Import input is missing.');
-        return;
-    }
-    const urls = importInput.value.split('\n').map(u => u.trim()).filter(u => u);
-
-    if (urls.length === 0) return alert('Please enter at least one URL');
-
-    btn.innerHTML = 'Importing...';
-    btn.disabled = true;
-
-    try {
-        const res = await API.bulkImport(urls);
-        alert(`Imported: ${res.success}, Failed: ${res.failed}`);
-        window.closeImportModal();
-        importInput.value = '';
-        init(); // Refresh
-    } catch (e) {
-        alert('Error importing products');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-};
-
-window.saveTags = async () => {
-    const tags = document.getElementById('productTags').value.split(',').map(t => t.trim()).filter(t => t);
-    try {
-        await API.updateTags(STATE.currentAsin, tags);
-        alert('Tags updated!');
-    } catch (e) { alert('Error updating tags'); }
-};
-
-window.saveTargetPrice = async () => {
-    const price = parseFloat(document.getElementById('productTargetPrice').value);
-    if (isNaN(price)) return alert('Invalid price');
-    try {
-        await API.updateTargetPrice(STATE.currentAsin, price);
-        alert('Target price updated!');
-    } catch (e) { alert('Error updating target price'); }
+// ── EXPOSE GLOBAL NAMESPACE ───────────────────────────────────────────────────
+// HTML onclick= attributes call window.TZ.xxx
+window.TZ = {
+    loadHistory,
+    handleCardClick,
+    openCtxMenu,
+    shareCard,
+    navigate,
+    openCmd,
+    closeCmd,
+    openQuickAdd,
+    closeQuickAdd,
+    openShortcuts,
+    closeShortcuts,
+    toggleTheme,
+    toggleSidebar,
+    openSidebar,
+    closeSidebar,
+    toggleNotifPanel,
+    clearNotifs,
+    openLogin,
+    closeLogin,
+    tokenLogin,
+    continueAsGuest,
+    telegramLogin,
+    logout,
+    toggleSetting,
+    requestNotifPermission,
+    setDealFilter,
+    setSort,
+    setFilter,
+    fetchDeals,
+    loadMoreDeals,
+    toggleListView,
+    ctxAction,
+    submitQuickAdd,
+    debouncedPreview,
+    onModeChange,
+    adminAction,
+    handleExport,
+    fetchLogs,
+    toggleLogs,
+    saveTags,
+    saveTargetPrice,
+    toggleArchive,
+    openImportModal,
+    closeImportModal,
+    submitImport,
+    saveCurrentView,
+    generateApiKey,
+    toggleCurrency,
 };
 
-window.toggleArchive = async () => {
-    const btn = document.getElementById('archiveBtn');
-    const isArchived = btn.textContent.trim() === 'Unarchive';
-    try {
-        await API.archiveProduct(STATE.currentAsin, !isArchived);
-        btn.textContent = !isArchived ? 'Unarchive' : 'Archive';
-        btn.className = !isArchived
-            ? 'bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg font-medium transition-colors'
-            : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-medium transition-colors';
-        alert(!isArchived ? 'Product archived' : 'Product unarchived');
-    } catch (e) { alert('Error updating archive status'); }
-};
+// Also keep legacy window.* names for any inline handlers in index.html
+Object.assign(window, window.TZ);
+window.loadHistory     = loadHistory;   // Most referenced
+window.shareDeal       = (name, url, price) => shareCard(null, { name, url, currentPrice: price });
 
-window.toggleSystemDashboard = async () => {
-    const dashboard = document.getElementById('systemDashboard');
-    const isHidden = dashboard.classList.contains('hidden');
+// ── REFRESH INTERVALS ─────────────────────────────────────────────────────────
+let _refreshTimer  = null;
+let _slowTimer     = null;
 
-    if (isHidden) {
-        dashboard.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // Prevent background scrolling
-        await updateSystemStats();
-        fetchLogs(); // Fetch logs when dashboard opens
-    } else {
-        dashboard.classList.add('hidden');
-        document.body.style.overflow = '';
-    }
-};
-
-window.triggerPriceCheck = async () => {
-    const btn = document.getElementById('checkPricesBtn');
-    const originalText = btn.innerHTML;
-
-    if (!confirm('Start manual price check for all products? This may take a while.')) return;
-
-    btn.disabled = true;
-    btn.innerHTML = `<svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Checking...`;
-
-    try {
-        const res = await API.triggerPriceCheck();
-        if (res.error) throw new Error(res.error);
-        alert('Price check started! Monitor the "Job Queue" or "System Logs" for progress.');
-    } catch (e) {
-        alert('Error starting price check: ' + e.message);
-    } finally {
-        // Re-enable after 5 seconds to prevent spam
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }, 5000);
-    }
-};
-
-async function updateSystemStats() {
-    try {
-        const [health, dbStats, aiBudget, extensionStats, queueStatus] = await Promise.all([
-            API.getSystemHealth(),
-            API.getDbStats(),
-            API.getAiBudget(),
-            API.getExtensionStats(24),
-            API.getQueueStatus()
-        ]);
-
-        // Update Server Health
-        document.getElementById('sysUptime').textContent = `${(health.uptime / 3600).toFixed(1)} hrs`;
-        document.getElementById('sysMemory').textContent = `${health.memory.heapUsed} MB`;
-        const redisPolicyEl = document.getElementById('sysRedisPolicy');
-        if (redisPolicyEl) {
-            const policy = health?.cache?.evictionPolicy;
-            if (!health?.cache?.enabled) {
-                redisPolicyEl.textContent = 'disabled';
-                redisPolicyEl.className = 'font-mono text-yellow-500';
-            } else if (!policy) {
-                redisPolicyEl.textContent = 'unknown';
-                redisPolicyEl.className = 'font-mono text-gray-500';
-            } else {
-                redisPolicyEl.textContent = policy;
-                redisPolicyEl.className = policy === 'noeviction'
-                    ? 'font-mono text-green-500'
-                    : 'font-mono text-red-500';
-            }
-        }
-
-        // Update DB Stats
-        document.getElementById('dbSize').textContent = dbStats.storageSize;
-        document.getElementById('dbProducts').textContent = dbStats.collections.products;
-        document.getElementById('dbMetrics').textContent = dbStats.collections.metrics;
-
-        // Update Scraper Stats
-        if (health.scraper) {
-            document.getElementById('scrapeSuccess').textContent = health.scraper.succeeded;
-            document.getElementById('scrapeFailed').textContent = health.scraper.failed;
-            document.getElementById('scrapeUnchanged').textContent = health.scraper.unchanged;
-        }
-
-        // Update AI Budget
-        const aiStatusEl = document.getElementById('aiBudgetStatus');
-        const aiTokensEl = document.getElementById('aiTokensUsage');
-        const aiRequestsEl = document.getElementById('aiRequestsUsage');
-        const aiPauseEl = document.getElementById('aiPauseStatus');
-
-        if (aiStatusEl && aiTokensEl && aiRequestsEl && aiPauseEl && aiBudget && !aiBudget.error) {
-            const formatNumber = (value) => Number(value || 0).toLocaleString();
-            const tokenLimit = aiBudget?.limits?.tokens;
-            const requestLimit = aiBudget?.limits?.requests;
-            const tokenPercent = typeof aiBudget?.usagePercent?.tokens === 'number' ? `${aiBudget.usagePercent.tokens}%` : 'n/a';
-            const requestPercent = typeof aiBudget?.usagePercent?.requests === 'number' ? `${aiBudget.usagePercent.requests}%` : 'n/a';
-
-            aiStatusEl.textContent = aiBudget.paused ? 'Paused' : 'Active';
-            aiTokensEl.textContent = tokenLimit
-                ? `${formatNumber(aiBudget.usage.tokens)} / ${formatNumber(tokenLimit)} (${tokenPercent})`
-                : `${formatNumber(aiBudget.usage.tokens)} / unlimited`;
-            aiRequestsEl.textContent = requestLimit
-                ? `${formatNumber(aiBudget.usage.requests)} / ${formatNumber(requestLimit)} (${requestPercent})`
-                : `${formatNumber(aiBudget.usage.requests)} / unlimited`;
-            aiPauseEl.textContent = aiBudget.paused
-                ? `${Math.max(0, aiBudget.pauseRemainingSeconds || 0)}s remaining`
-                : 'None';
-        }
-
-        // Update Extension Pipeline
-        const extTotalEl = document.getElementById('extSyncTotal');
-        const extSuccessEl = document.getElementById('extSyncSuccess');
-        const extFailEl = document.getElementById('extSyncFailed');
-        const extCorrectedEl = document.getElementById('extAiCorrected');
-        const extDurationEl = document.getElementById('extAvgDuration');
-        const extLastSyncEl = document.getElementById('extLastSync');
-        const extTopReasonEl = document.getElementById('extTopReason');
-
-        if (
-            extTotalEl && extSuccessEl && extFailEl && extCorrectedEl &&
-            extDurationEl && extLastSyncEl && extTopReasonEl &&
-            extensionStats && !extensionStats.error
-        ) {
-            extTotalEl.textContent = String(extensionStats.total ?? 0);
-            extSuccessEl.textContent = String(extensionStats.successes ?? 0);
-            extFailEl.textContent = String(extensionStats.failures ?? 0);
-            extCorrectedEl.textContent = String(extensionStats.aiCorrected ?? 0);
-            extDurationEl.textContent = `${extensionStats.avgDurationMs ?? 0} ms`;
-
-            if (extensionStats.lastSyncAt) {
-                const lastSyncDate = new Date(extensionStats.lastSyncAt);
-                extLastSyncEl.textContent = Number.isNaN(lastSyncDate.getTime())
-                    ? '-'
-                    : lastSyncDate.toLocaleString();
-            } else {
-                extLastSyncEl.textContent = '-';
-            }
-
-            const topReason = Array.isArray(extensionStats.topAvailabilityReasons) && extensionStats.topAvailabilityReasons.length > 0
-                ? extensionStats.topAvailabilityReasons[0]
-                : null;
-            extTopReasonEl.textContent = topReason
-                ? `${topReason.reason} (${topReason.count})`
-                : 'None';
-        }
-
-        // Update Queue Stats
-        const queueActiveEl = document.getElementById('queueActive');
-        const queueWaitingEl = document.getElementById('queueWaiting');
-        const queueCompletedEl = document.getElementById('queueCompleted');
-        const queueFailedEl = document.getElementById('queueFailed');
-        if (
-            queueActiveEl && queueWaitingEl && queueCompletedEl && queueFailedEl &&
-            queueStatus && !queueStatus.error
-        ) {
-            queueActiveEl.textContent = String(queueStatus.active ?? 0);
-            queueWaitingEl.textContent = String(queueStatus.waiting ?? queueStatus.pending ?? 0);
-            queueCompletedEl.textContent = String(queueStatus.completed ?? 0);
-            queueFailedEl.textContent = String(queueStatus.failed ?? 0);
-        }
-    } catch (e) { console.error('Error updating system stats:', e); }
-}
-
-// Settings Functions
-window.openSettingsModal = async () => {
-    document.getElementById('settingsModal').classList.remove('hidden');
-    try {
-        const settings = await API.getSettings();
-        document.getElementById('webhookUrl').value = settings.webhookUrl || '';
-        document.getElementById('apiKey').value = settings.apiKey || '';
-    } catch (e) { console.error('Error loading settings:', e); }
-};
-
-window.closeSettingsModal = () => document.getElementById('settingsModal').classList.add('hidden');
-
-window.saveSettings = async () => {
-    const webhookUrl = document.getElementById('webhookUrl').value;
-    try {
-        await API.updateSettings(webhookUrl);
-        alert('Settings saved!');
-        window.closeSettingsModal();
-    } catch (e) { alert('Error saving settings'); }
-};
-
-window.generateApiKey = async () => {
-    if (!confirm('Generate new API Key? This will invalidate the old one.')) return;
-    try {
-        const res = await API.generateApiKey();
-        document.getElementById('apiKey').value = res.apiKey;
-    } catch (e) { alert('Error generating API Key'); }
-};
-
-// Feature 16: Keyboard Shortcuts
-document.addEventListener('keydown', (e) => {
-    // '/' to focus search
-    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        document.getElementById('searchInput').focus();
-    }
-    // 'Esc' to close modals
-    if (e.key === 'Escape') {
-        UI.closeAddProductModal();
-        window.closeImportModal();
-        window.toggleSystemDashboard(); // Close if open
-    }
-    // 'n' to open Add Product (if not typing)
-    if (e.key === 'n' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        UI.openAddProductModal();
-    }
-});
-
-// Feature 14: Saved Filters
-window.saveCurrentView = () => {
-    const view = {
-        sort: document.getElementById('sortSelect').value,
-        filter: STATE.currentFilter, // Use state instead of DOM
-        viewMode: STATE.currentView // Use state
-    };
-    try {
-        localStorage.setItem('trackzoon_saved_view', JSON.stringify(view));
-    } catch (e) { console.warn('Storage access denied', e); }
-    alert('View settings saved!');
-};
-
-window.loadSavedView = () => {
-    let saved = null;
-    try { saved = localStorage.getItem('trackzoon_saved_view'); } catch (e) { }
-    if (saved) {
-        const view = JSON.parse(saved);
-        if (view.sort) {
-            document.getElementById('sortSelect').value = view.sort;
-            STATE.currentSort = view.sort;
-        }
-        if (view.filter !== undefined) {
-            setFilter(view.filter);
-        }
-        if (view.viewMode) {
-            toggleView(view.viewMode);
-        }
-        // init() will be called after this in the main flow, so we don't need to call it here if called from init
-        // But if called manually, we might want to refresh. 
-        // The original code called init(), but loadSavedView is called INSIDE init().
-        // Calling init() here would cause infinite recursion if not careful, 
-        // but since it's just setting state, it should be fine as long as we don't re-trigger loadSavedView.
-        // Actually, init() calls loadSavedView() first.
-        // So we should NOT call init() here.
-    }
-};
-
-// Initialize
+// ── BOOT ──────────────────────────────────────────────────────────────────────
 export async function init() {
-    initCharts();
-    loadSavedView(); // Load saved view on startup
+    PREFS.load().applyToState();
+    applyInitialPrefs();
+    setupKeyboard();
+    setupBusListeners();
+    setupSearch();
+    checkMobileNav();
+    initAllCharts();
 
+    await checkAuth();
+
+    // Parallel initial data load
     await Promise.all([
         fetchDeals(),
         fetchRecent(),
@@ -362,499 +112,1070 @@ export async function init() {
         fetchDealOpportunities(),
         fetchBestDrops(),
         fetchTrendOverview(),
-        fetchLogs(), // Initial logs fetch
-        fetchStats() // Fetch dashboard stats
+        fetchStats(),
     ]);
 
-    // Refresh every 30s
-    setInterval(refreshData, 30000);
-
-    // Theme Toggle
-    const themeToggle = document.getElementById('themeToggle');
-    themeToggle.addEventListener('click', () => {
-        if (document.documentElement.classList.contains('dark')) {
-            document.documentElement.classList.remove('dark');
-            try { localStorage.theme = 'light'; } catch (e) { }
-        } else {
-            document.documentElement.classList.add('dark');
-            try { localStorage.theme = 'dark'; } catch (e) { }
-        }
-    });
-
-    // Search
-    const searchInput = document.getElementById('searchInput');
-    const searchResults = document.getElementById('searchResults');
-
-    searchInput.addEventListener('input', debounce(async (e) => {
-        const query = e.target.value;
-
-        // The original API.search(query) call and subsequent logic
-        if (query.length < 2) {
-            searchResults.classList.add('hidden');
-            return;
-        }
-        try {
-            const results = await API.search(query);
-            if (results.length > 0) {
-                searchResults.innerHTML = results.map(p => `
-                    <div class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center justify-between" onclick="window.loadHistory('${p.asin}'); document.getElementById('searchResults').classList.add('hidden');">
-                        <span class="text-sm text-gray-700 dark:text-gray-200 truncate w-64">${p.name}</span>
-                        <span class="text-xs font-bold text-gray-500 dark:text-gray-400">EGP ${p.currentPrice}</span>
-                    </div>
-                `).join('');
-                searchResults.classList.remove('hidden');
-            } else {
-                searchResults.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">No results found</div>';
-                searchResults.classList.remove('hidden');
-            }
-        } catch (e) { console.error('Search error:', e); }
-    }, 300));
-
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-            searchResults.classList.add('hidden');
-        }
-    });
-
-    // Auto-refresh full init every 5 mins just in case, but use refreshData for frequent updates
-    setInterval(refreshData, 60000);
+    // Start auto-refresh
+    _refreshTimer = setInterval(refreshFast, CONFIG.REFRESH_INTERVAL_MS);
+    _slowTimer    = setInterval(refreshSlow, CONFIG.SLOW_REFRESH_MS);
 }
 
-async function refreshData() {
-    await Promise.all([
-        fetchRecent(),
-        fetchLogs(),
-        fetchStats(),
-        fetchDealOpportunities(),
-        fetchBestDrops(),
-        fetchTrendOverview()
-    ]);
-    if (STATE.currentPage === 1) {
-        fetchDeals(1);
+document.addEventListener('DOMContentLoaded', init);
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+async function checkAuth() {
+    if (!API.hasToken()) {
+        showLoginModal();
+        return;
+    }
+    try {
+        const d     = await API.getUserMe();
+        STATE.user  = d.user;
+        STATE.isAdmin = d.isAdmin;
+        updateUserUI();
+    } catch {
+        API.clearToken();
+        showLoginModal();
     }
 }
 
+function updateUserUI() {
+    const u = STATE.user;
+    const name = u ? (u.firstName || u.username || `User ${u.chatId || ''}`) : 'Guest';
+
+    UI.applyTheme(PREFS.get('theme'));
+    $('sidebarUserName') && ($('sidebarUserName').textContent = name);
+    $('sidebarUserRole') && ($('sidebarUserRole').textContent = STATE.isAdmin ? 'Admin' : 'Shopper');
+    $('avatarInitials')  && ($('avatarInitials').textContent  = name.charAt(0).toUpperCase());
+    $('loginBtn')        && ($('loginBtn').textContent        = u ? '✓ Me' : '👤');
+
+    if (STATE.isAdmin && $('adminNavSection')) {
+        $('adminNavSection').style.display = '';
+    }
+    if (u && $('tab-my')) {
+        $('tab-my')?.classList.remove('hidden');
+    }
+}
+
+// ── APPLY INITIAL PREFS ───────────────────────────────────────────────────────
+function applyInitialPrefs() {
+    UI.applyTheme(PREFS.get('theme'));
+    UI.updateCurrencyDisplay();
+
+    const sidebarCollapsed = PREFS.get('sidebarCollapsed');
+    if (sidebarCollapsed) {
+        STATE.isSidebarCollapsed = true;
+        $('sidebar')?.classList.add('collapsed');
+        $('sidebarToggle') && ($('sidebarToggle').textContent = '▶');
+    }
+
+    if (!PREFS.get('ticker') && $('tickerBar')) {
+        $('tickerBar').style.display = 'none';
+    }
+
+    // Sync settings toggles
+    ['ticker','compact','desktopNotifs','sound'].forEach(key => {
+        const el = $(key + 'Toggle');
+        if (el) el.classList.toggle('on', PREFS.get(key));
+    });
+    $('darkModeToggle')?.classList.toggle('on', PREFS.get('theme') === 'dark');
+}
+
+// ── BUS LISTENERS ─────────────────────────────────────────────────────────────
+function setupBusListeners() {
+    Bus.on('toast', ({ msg, type }) => _showToast(msg, type));
+    Bus.on('score:update', dist => updateScoreChart(dist));
+}
+
+// ── FAST REFRESH (every 30s) ──────────────────────────────────────────────────
+async function refreshFast() {
+    await Promise.all([
+        fetchRecent().catch(() => {}),
+        fetchBestDrops().catch(() => {}),
+        fetchDealOpportunities().catch(() => {}),
+    ]);
+    if (STATE.currentPage <= 1) fetchDeals(1).catch(() => {});
+}
+
+// ── SLOW REFRESH (every 60s) ──────────────────────────────────────────────────
+async function refreshSlow() {
+    await Promise.all([
+        fetchStats().catch(() => {}),
+        fetchLogs().catch(() => {}),
+        fetchTrendOverview().catch(() => {}),
+    ]);
+    if (STATE.isAdmin) fetchAdminStats().catch(() => {});
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
 async function fetchStats() {
     try {
         const data = await API.getStats();
         UI.renderStats(data);
-    } catch (e) { console.error('Error fetching stats:', e); }
+    } catch (e) { console.error('fetchStats', e); }
 }
 
-async function fetchCategoryStats() {
-    try {
-        const data = await API.getCategoryStats();
-        updateCategoryChart(data.labels, data.data);
-    } catch (e) { console.error('Error fetching category stats:', e); }
-}
-
-async function fetchTopCategories() {
-    try {
-        const data = await API.getTopCategories(5, 'count');
-        UI.renderTopCategories(data);
-    } catch (e) { console.error('Error fetching top categories:', e); }
-}
-
-async function fetchBestDrops() {
-    try {
-        const data = await API.getBestDrops(5, 24);
-        UI.renderBestDrops(data);
-    } catch (e) { console.error('Error fetching best drops:', e); }
-}
-
-async function fetchDealOpportunities() {
-    try {
-        const data = await API.getDealOpportunities(6);
-        UI.renderDealOpportunities(data);
-    } catch (e) { console.error('Error fetching deal opportunities:', e); }
-}
-
-async function fetchTrendOverview() {
-    try {
-        const data = await API.getTrendOverview(7);
-        UI.renderTrendOverview(data);
-    } catch (e) { console.error('Error fetching trend overview:', e); }
-}
-
-async function fetchMerchantStats() {
-    // Placeholder if not implemented
-}
-
-export async function fetchDeals(page = 1) {
+// ── DEALS ─────────────────────────────────────────────────────────────────────
+async function fetchDeals(page = 1) {
     if (STATE.isLoadingDeals) return;
     STATE.isLoadingDeals = true;
-    STATE.currentPage = page;
+    STATE.dealsPage = page;
+
+    const container = $('dealsList');
+    if (container && page === 1) {
+        container.innerHTML = _skeletonCards(3);
+    }
 
     try {
-        // Pass filter and sort to API
-        const data = await API.getDeals(page, 10, STATE.currentFilter, STATE.currentSort);
+        const data = await API.getDeals({
+            page,
+            sort:        STATE.currentSort,
+            minDiscount: STATE.currentFilter,
+            chatId:      STATE.user?.chatId || '',
+        });
 
-        if (data.error) throw new Error(data.error);
-        if (!data.items) throw new Error('No items returned');
-
-        let deals = data.items;
-        const container = document.getElementById('dealsList');
-        const loadMoreBtn = document.getElementById('loadMoreBtn');
-
-        // Client-side sorting removed to rely on server-side sorting
-        // which now handles Smart Score, Discount, and Date correctly.
-
-        // Only apply client-side sort if strictly necessary or for fallbacks, 
-        // but for now we trust the API.
-
-        /* 
-        Legacy Client-Side Sort (Removed):
-        if (STATE.currentSort === 'smart') { ... } 
-        */
+        const deals = data.deals || data.data || [];
 
         if (page === 1) {
-            UI.renderDeals(deals, container, false);
-            if (deals.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full flex flex-col items-center justify-center py-12 text-center">
-                        <div class="bg-gray-100 dark:bg-gray-700 rounded-full p-4 mb-4">
-                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">No deals found</h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-sm">Try adjusting your filters or tracking more products.</p>
-                    </div>
-                `;
-            }
-            // Initial chart load
-            if (deals.length > 0 && !STATE.currentAsin) {
-                loadHistory(deals[0].product.asin);
-            }
+            STATE.allDeals      = deals;
+            STATE.filteredDeals = deals;
         } else {
-            UI.renderDeals(deals, container, true);
+            STATE.allDeals      = [...STATE.allDeals, ...deals];
+            STATE.filteredDeals = [...STATE.filteredDeals, ...deals];
         }
 
-        // Handle Load More Button
-        if (!loadMoreBtn) {
-            if (page < data.totalPages) {
-                const btnHtml = `
-                    <div class="p-6 text-center col-span-full">
-                        <button id="loadMoreBtn" onclick="fetchDeals(${page + 1})" class="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all duration-200 flex items-center justify-center mx-auto space-x-2 group">
-                            <span>Load More Deals</span>
-                            <svg class="w-4 h-4 text-gray-400 group-hover:translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </button>
-                    </div>`;
-                container.parentElement.insertAdjacentHTML('beforeend', btnHtml);
-            }
-        } else {
-            if (deals.length === 0 || page >= data.totalPages) {
-                loadMoreBtn.parentElement.style.display = 'none';
-            } else {
-                loadMoreBtn.parentElement.style.display = 'block';
-                loadMoreBtn.onclick = () => fetchDeals(page + 1);
-            }
+        STATE.dealsTotalPages = data.totalPages || 1;
+
+        UI.renderDeals(STATE.filteredDeals, container, false);
+        UI.updateTicker(STATE.allDeals);
+        UI.renderScoreDistribution(STATE.allDeals);
+
+        // Show/hide load-more button
+        const lmBtn = $('loadMoreBtn');
+        if (lmBtn) {
+            lmBtn.style.display = (data.hasMore || page < STATE.dealsTotalPages) ? '' : 'none';
         }
 
-    } catch (e) { console.error('Error fetching deals:', e); } finally {
+        // Auto-load history for first deal on first page if none selected
+        if (page === 1 && deals.length && !STATE.currentAsin) {
+            const first = deals[0].product || deals[0];
+            if (first.asin) loadHistory(first.asin);
+        }
+    } catch (e) {
+        console.error('fetchDeals', e);
+        if (container && page === 1) {
+            container.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+              <div class="icon">⚠️</div><h3>Failed to load deals</h3><p>${e.message}</p>
+            </div>`;
+        }
+    } finally {
         STATE.isLoadingDeals = false;
     }
 }
 
-async function fetchRecent() {
-    try {
-        const products = await API.getRecent();
-        UI.renderRecent(products);
-        UI.updateTicker(products);
-    } catch (e) { console.error('Error fetching recent:', e); }
+function setFilter(minDiscount) {
+    STATE.currentFilter = minDiscount;
+    STATE.dealsPage     = 1;
+    PREFS.set('filter', minDiscount);
+
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    $(`filter-${minDiscount}`)?.classList.add('active');
+
+    fetchDeals(1);
 }
 
-async function fetchTopTracked() {
-    try {
-        const products = await API.getTopTracked();
-        UI.renderTopTracked(products);
-    } catch (e) { console.error('Error fetching top tracked:', e); }
-}
+function setSort(sortValue, label) {
+    STATE.currentSort = sortValue;
+    STATE.dealsPage   = 1;
+    PREFS.set('sort', sortValue);
 
-async function fetchHealth() {
-    try {
-        const data = await API.getHealth();
-        UI.updateHealth(data);
-    } catch (e) {
-        console.error('Error fetching health:', e);
-        UI.updateHealthError();
+    setText('currentSortLabel', label || sortValue);
+    $('sortDropdownMenu')?.classList.add('hidden');
+
+    fetchDeals(1);
+}
+window.selectSort = setSort;
+
+function setDealFilter(f, btn) { setFilter(f); }
+
+function loadMoreDeals() {
+    if (STATE.dealsPage < STATE.dealsTotalPages) {
+        fetchDeals(STATE.dealsPage + 1);
     }
 }
 
-async function loadHistory(asin) {
-    try {
-        const historyData = await API.getHistory(asin);
+function toggleListView() {
+    const next = STATE.currentView === 'grid' ? 'list' : 'grid';
+    STATE.currentView = next;
+    PREFS.set('view', next);
 
-        const [
-            forecastResult,
-            volatilityResult,
-            bestDayResult,
-            stockHistoryResult,
-            dealIntelligenceResult
-        ] = await Promise.allSettled([
-            API.getForecast(asin),
-            API.getVolatility(asin),
-            API.getBestDay(asin),
-            API.getStockHistory(asin),
-            API.getDealIntelligence(asin, false)
-        ]);
+    const container = $('dealsList');
+    if (container) container.classList.toggle('list-view', next === 'list');
 
-        const forecast = forecastResult.status === 'fulfilled' ? forecastResult.value : null;
-        const volatility = volatilityResult.status === 'fulfilled' ? volatilityResult.value : null;
-        const bestDay = bestDayResult.status === 'fulfilled' ? bestDayResult.value : null;
-        const stockHistory = stockHistoryResult.status === 'fulfilled' ? stockHistoryResult.value : [];
-        const dealIntelligence = dealIntelligenceResult.status === 'fulfilled' ? dealIntelligenceResult.value : null;
-
-        UI.showProductHistory(historyData, asin, { forecast, volatility, bestDay, stockHistory, dealIntelligence });
-    } catch (e) { console.error('Error loading history:', e); }
-}
-
-function toggleCurrency() {
-    STATE.currentCurrency = STATE.currentCurrency === 'EGP' ? 'USD' : 'EGP';
-    document.getElementById('currencyToggle').textContent = STATE.currentCurrency;
-    fetchDeals(STATE.currentPage);
-    if (STATE.currentAsin) loadHistory(STATE.currentAsin);
-    fetchRecent();
-    fetchTopTracked();
+    const btn = $('viewToggleBtn');
+    if (btn) btn.textContent = next === 'list' ? '⊟' : '⊞';
 }
 
 function toggleView(view) {
     STATE.currentView = view;
-
-    // Update UI classes manually or via UI helper
-    const listBtn = document.getElementById('view-list');
-    const gridBtn = document.getElementById('view-grid');
-    const listContainer = document.getElementById('dealsList');
-
-    if (view === 'list') {
-        listBtn.classList.replace('text-gray-500', 'bg-white'); // Simplified logic, better to use full class swap
-        // Re-using logic from original file for simplicity of porting
-        listBtn.className = "p-1 rounded bg-white dark:bg-gray-600 shadow-sm text-gray-700 dark:text-gray-200";
-        gridBtn.className = "p-1 rounded text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 transition";
-
-        listContainer.classList.add('divide-y', 'divide-gray-100', 'dark:divide-gray-700');
-        listContainer.classList.remove('grid', 'grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3', 'gap-4');
-    } else {
-        gridBtn.className = "p-1 rounded bg-white dark:bg-gray-600 shadow-sm text-gray-700 dark:text-gray-200";
-        listBtn.className = "p-1 rounded text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 transition";
-
-        listContainer.classList.remove('divide-y', 'divide-gray-100', 'dark:divide-gray-700');
-        listContainer.classList.add('grid', 'grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3', 'gap-4');
-    }
-
-    fetchDeals(STATE.currentPage);
+    PREFS.set('view', view);
+    const container = $('dealsList');
+    if (container) container.classList.toggle('list-view', view === 'list');
 }
 
-window.toggleSortDropdown = () => {
-    const menu = document.getElementById('sortDropdownMenu');
-    menu.classList.toggle('hidden');
-
-    // Close on click outside
-    if (!menu.classList.contains('hidden')) {
-        const closeMenu = (e) => {
-            if (!e.target.closest('#sortDropdownMenu') && !e.target.closest('#sortButton')) {
-                menu.classList.add('hidden');
-                document.removeEventListener('click', closeMenu);
-            }
-        };
-        setTimeout(() => document.addEventListener('click', closeMenu), 0);
-    }
-};
-
-window.selectSort = (sortValue, label) => {
-    STATE.currentSort = sortValue;
-    STATE.currentPage = 1;
-
-    // Update UI
-    document.getElementById('currentSortLabel').textContent = label;
-    document.getElementById('sortDropdownMenu').classList.add('hidden');
-
-    fetchDeals(1);
-};
-
-function setSort(sortValue) {
-    // Legacy support or internal use if needed
-    selectSort(sortValue, 'Sort');
-}
-
-function setFilter(minDiscount) {
-    STATE.currentFilter = minDiscount;
-    STATE.currentPage = 1;
-
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.className = "filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition";
-    });
-    const activeBtn = document.getElementById(`filter-${minDiscount}`);
-    activeBtn.className = "filter-btn px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 shadow-sm transition";
-
-    fetchDeals(1);
-}
-
-function toggleLogs() {
-    if (UI.toggleLogs()) {
-        fetchLogs();
-    }
-}
-
-async function fetchLogs() {
+// ── PRODUCT HISTORY ───────────────────────────────────────────────────────────
+async function loadHistory(asin, titleEnc) {
+    if (!asin) return;
     try {
-        const levelEl = document.getElementById('logLevelFilter');
-        const searchEl = document.getElementById('logSearch');
-        const level = levelEl ? levelEl.value : 'all';
-        const search = searchEl ? searchEl.value : '';
-        const data = await API.getLogs(level, search, 400);
-        UI.renderLogs(data);
-    } catch (e) {
-        document.getElementById('logsList').innerHTML = '<div class="text-red-400">Failed to load logs</div>';
-    }
-}
-window.fetchLogs = fetchLogs;
+        const title = titleEnc ? decodeURIComponent(titleEnc) : asin;
 
-let searchTimeout;
+        // Show loading state in panel
+        const panel = $('historyPanel');
+        if (panel) {
+            panel.classList.add('visible');
+            const titleEl = $('chartTitle');
+            if (titleEl) titleEl.textContent = title;
+            const statsEl = $('historyStats');
+            if (statsEl) statsEl.innerHTML = '<div style="color:var(--text3);font-size:13px">Loading analytics…</div>';
+        }
 
-window.handleUrlInput = (url) => {
-    const validationIcon = document.getElementById('urlValidationIcon');
-    const preview = document.getElementById('productPreview');
-    const loading = document.getElementById('previewLoading');
-    const submitBtn = document.getElementById('submitProductBtn');
-
-    // Reset UI
-    preview.classList.add('hidden');
-    validationIcon.classList.add('hidden');
-    submitBtn.disabled = true;
-
-    if (!url || url.length < 10) return;
-
-    // Basic URL validation
-    if (!url.includes('amazon') && !url.includes('amzn')) {
-        validationIcon.innerHTML = `<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
-        validationIcon.classList.remove('hidden');
-        return;
-    }
-
-    // Debounce API call
-    clearTimeout(searchTimeout);
-    loading.classList.remove('hidden');
-
-    searchTimeout = setTimeout(async () => {
-        const hasAuthHeader = Boolean(API.getHeaders()?.Authorization);
-        if (!hasAuthHeader) {
-            loading.classList.add('hidden');
-            validationIcon.innerHTML = `<svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 .28-.11.53-.29.71A1 1 0 1112 11zm0 0V7m0 8h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2h-3.17A3 3 0 0013 4h-2a3 3 0 00-2.83 2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>`;
-            validationIcon.classList.remove('hidden');
-            submitBtn.disabled = true;
+        // Check cache
+        const cached = STATE.historyCache.get(asin);
+        if (cached && Date.now() - cached.timestamp < CONFIG.HISTORY_CACHE_TTL_MS) {
+            UI.showProductHistory(cached.data.history, asin, cached.data.analytics);
             return;
         }
 
-        try {
-            const data = await API.previewProduct(url);
+        // Fetch all analytics in parallel
+        const analytics = await API.getAllProductAnalytics(asin);
 
-            loading.classList.add('hidden');
+        // Store in cache
+        STATE.historyCache.set(asin, {
+            data:      { history: analytics.history || { name: title, currentPrice: 0, priceHistory: [] }, analytics },
+            timestamp: Date.now(),
+        });
 
-            if (data.error) throw new Error(data.error);
-
-            // Show Success Icon
-            validationIcon.innerHTML = `<svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
-            validationIcon.classList.remove('hidden');
-
-            // Populate Preview
-            const placeholder = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZzRkNGQ0IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMiIgcnk9IjIiPjwvcmVjdD48Y2lyY2xlIGN4PSI4LjUiIGN5PSI4LjUiIHI9IjEuNSI+PC9jaXJjbGU+PHBvbHlsaW5lIHBvaW50cz0iMjEgMTUgMTYgMTAgNSAyMSI+PC9wb2x5bGluZT48L3N2Zz4=';
-
-            const img = document.getElementById('previewImage');
-            img.src = data.imageUrl || placeholder;
-            img.onerror = () => { img.src = placeholder; };
-
-            document.getElementById('previewTitle').textContent = data.name;
-            document.getElementById('previewPrice').textContent = `EGP ${data.currentPrice}`;
-
-            // Smart Target: Default to 10% off
-            const target = Math.floor(data.currentPrice * 0.9);
-            document.getElementById('targetPriceInput').value = target;
-
-            // Show Preview
-            preview.classList.remove('hidden');
-            submitBtn.disabled = false;
-
-        } catch (e) {
-            loading.classList.add('hidden');
-            validationIcon.innerHTML = `<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
-            validationIcon.classList.remove('hidden');
-            if (!String(e?.message || '').toLowerCase().includes('access denied')) {
-                console.error(e);
-            }
-        }
-    }, 800);
-};
-
-window.setSmartTarget = (percent) => {
-    const priceText = document.getElementById('previewPrice').textContent;
-    const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
-    if (price) {
-        document.getElementById('targetPriceInput').value = Math.floor(price * (1 - percent));
-    }
-};
-
-async function submitNewProduct() {
-    const url = document.getElementById('newProductUrl').value;
-    const targetPrice = document.getElementById('targetPriceInput').value;
-    const btn = document.getElementById('submitProductBtn');
-
-    if (!url) return;
-
-    btn.disabled = true;
-    btn.innerHTML = 'Adding...';
-
-    try {
-        await API.addProduct(url, targetPrice || 0);
-
-        UI.closeAddProductModal();
-        // Reset Modal
-        document.getElementById('newProductUrl').value = '';
-        document.getElementById('targetPriceInput').value = '';
-        document.getElementById('productPreview').classList.add('hidden');
-        document.getElementById('urlValidationIcon').classList.add('hidden');
-
-        alert('Product added successfully!');
-        fetchStats();
-        fetchRecent();
-        fetchDeals();
+        UI.showProductHistory(
+            analytics.history || { name: title, currentPrice: 0, priceHistory: [] },
+            asin,
+            analytics,
+        );
     } catch (e) {
-        console.error('Error adding product:', e);
-        alert('Error: ' + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Track';
+        console.error('loadHistory', e);
+        _showToast('Failed to load history: ' + e.message, 'error');
     }
 }
 
-async function downloadCSV() {
-    if (!STATE.currentAsin) return;
-    try {
-        const data = await API.getHistory(STATE.currentAsin);
-        if (!data.history || data.history.length === 0) return;
-
-        const headers = ['Date', 'Price (EGP)'];
-        const rows = data.history.map(h => [
-            new Date(h.date).toISOString(),
-            h.price
-        ]);
-
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `price_history_${STATE.currentAsin}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } catch (e) { console.error('Error downloading CSV:', e); }
+function handleCardClick(event, asin, titleEnc) {
+    // Don't open history if clicking a button or link inside the card
+    if (event.target.closest('button, a')) return;
+    loadHistory(asin, titleEnc);
 }
 
-// Start App
-// init(); // Removed auto-init to allow auth check first
+function closeHistory() {
+    $('historyPanel')?.classList.remove('visible');
+}
+window.closeHistory = closeHistory;
+
+// ── TAGS & TARGET ─────────────────────────────────────────────────────────────
+async function saveTags() {
+    const tags = $('productTags')?.value.split(',').map(t => t.trim()).filter(Boolean);
+    if (!tags) return;
+    try {
+        await API.updateTags(STATE.currentAsin, tags);
+        _showToast('Tags saved!', 'success');
+    } catch (e) { _showToast('Error saving tags: ' + e.message, 'error'); }
+}
+
+async function saveTargetPrice() {
+    const price = parseFloat($('productTargetPrice')?.value);
+    if (isNaN(price)) return _showToast('Invalid price', 'warn');
+    try {
+        await API.updateTargetPrice(STATE.currentAsin, price);
+        _showToast('Target price updated!', 'success');
+    } catch (e) { _showToast('Error: ' + e.message, 'error'); }
+}
+
+async function toggleArchive() {
+    const asin = STATE.currentAsin;
+    if (!asin) return;
+    try {
+        const data = await API.archiveProduct(asin);
+        _showToast(data.archived ? 'Product archived' : 'Product unarchived', 'success');
+        fetchDeals(1);
+    } catch (e) { _showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── RECENT / TOP TRACKED ──────────────────────────────────────────────────────
+async function fetchRecent() {
+    try {
+        const data = await API.getRecent();
+        UI.renderRecent(data);
+        UI.updateTicker(data);
+    } catch (e) { console.error('fetchRecent', e); }
+}
+
+async function fetchTopTracked() {
+    try {
+        const data = await API.getTopTracked();
+        UI.renderTopTracked(data);
+    } catch (e) { console.error('fetchTopTracked', e); }
+}
+
+async function fetchDealOpportunities() {
+    try {
+        const data = await API.getDealOpportunities();
+        UI.renderDealOpportunities(data?.items || data || []);
+    } catch (e) { console.error('fetchDealOpportunities', e); }
+}
+
+async function fetchBestDrops() {
+    try {
+        const data = await API.getBestDrops();
+        UI.renderBestDrops(data?.items || data || []);
+    } catch (e) { console.error('fetchBestDrops', e); }
+}
+
+// ── ANALYTICS ─────────────────────────────────────────────────────────────────
+async function fetchCategoryStats() {
+    try {
+        const data = await API.getCategoryStats();
+        updateCategoryChart(data.labels || [], data.data || []);
+    } catch (e) { console.error('fetchCategoryStats', e); }
+}
+
+async function fetchTopCategories() {
+    try {
+        const data = await API.getTopCategories();
+        UI.renderTopCategories(data?.categories || data || []);
+    } catch (e) { console.error('fetchTopCategories', e); }
+}
+
+async function fetchTrendOverview() {
+    try {
+        const data = await API.getTrendOverview();
+        updateTrendChart(data);
+
+        // Forecast widget in the sidebar
+        const trend  = String(data?.trend || '').toUpperCase();
+        const isDown = trend === 'DOWN' || trend === 'DROP';
+        const isUp   = trend === 'UP'   || trend === 'RISE';
+        const trendEl = $('forecastTrend');
+        if (trendEl) {
+            trendEl.textContent = isDown ? '📉 Falling' : isUp ? '📈 Rising' : '➡️ Stable';
+            trendEl.style.color = isDown ? 'var(--green)' : isUp ? 'var(--red)' : 'var(--text2)';
+        }
+        const confEl = $('forecastConfidence');
+        if (confEl && data?.confidence != null) {
+            confEl.textContent = `Confidence: ${(data.confidence * 100).toFixed(0)}%`;
+        }
+    } catch (e) { console.error('fetchTrendOverview', e); }
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+function setupSearch() {
+    const input   = $('searchInput');
+    const results = $('searchResults');
+    if (!input || !results) return;
+
+    input.addEventListener('input', debounce(async e => {
+        const q = e.target.value.trim();
+        if (q.length < 2) { results.classList.add('hidden'); return; }
+        try {
+            const data = await API.search(q);
+            UI.renderSearchResults(data, results);
+        } catch { results.classList.add('hidden'); }
+    }, CONFIG.SEARCH_DEBOUNCE_MS));
+
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !results.contains(e.target)) {
+            results.classList.add('hidden');
+        }
+    });
+}
+
+// ── LOGS ──────────────────────────────────────────────────────────────────────
+async function fetchLogs() {
+    try {
+        const level  = $('logLevelFilter')?.value  || 'all';
+        const search = $('logSearch')?.value       || '';
+        const data   = await API.getLogs({ level, search, limit: 400 });
+        UI.renderLogs(data);
+    } catch (e) {
+        const el = $('logsList');
+        if (el) el.innerHTML = `<div style="color:var(--red);font-size:12px">Failed to load logs: ${e.message}</div>`;
+    }
+}
+
+function toggleLogs() {
+    const visible = UI.toggleLogs();
+    if (visible) fetchLogs();
+}
+
+// ── HEALTH ────────────────────────────────────────────────────────────────────
+async function fetchHealth() {
+    try {
+        const data = await API.getHealth();
+        UI.updateHealth(data);
+    } catch { UI.updateHealthError(); }
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────────
+async function fetchAdminStats() {
+    if (!STATE.isAdmin) return;
+    try {
+        const [health, dbStats, extStats] = await Promise.allSettled([
+            API.getHealth(),
+            API.getDbStats(),
+            API.getExtensionStats(),
+        ]);
+        UI.renderAdminStats(
+            health.status   === 'fulfilled' ? health.value   : null,
+            dbStats.status  === 'fulfilled' ? dbStats.value  : null,
+            extStats.status === 'fulfilled' ? extStats.value : null,
+        );
+    } catch (e) { console.error('fetchAdminStats', e); }
+}
+
+async function adminAction(action) {
+    try {
+        if (action === 'health') {
+            await fetchAdminStats();
+            _showToast('Health data refreshed', 'success');
+        } else if (action === 'check-prices') {
+            await API.triggerPriceCheck();
+            _showToast('Price check triggered ⚡', 'success');
+        } else if (action === 'scrape-all') {
+            await API.triggerScrapeAll();
+            _showToast('Scrape job queued 🕷️', 'success');
+        } else if (action === 'broadcast') {
+            const msg = window.prompt('Enter broadcast message for all users:');
+            if (!msg) return;
+            const res = await API.broadcastMessage(msg);
+            _showToast(`Broadcast sent to ${res.sent || '?'} users`, 'success');
+        }
+    } catch (e) { _showToast('Action failed: ' + e.message, 'error'); }
+}
+
+// ── QUICK ADD ─────────────────────────────────────────────────────────────────
+let _previewTimer;
+
+function openQuickAdd() { UI.openAddProductModal(); }
+function closeQuickAdd() { UI.closeAddProductModal(); }
+
+function onModeChange() {
+    const mode = $('qaMode')?.value;
+    const lbl  = $('qaThreshLabel');
+    const inp  = $('qaThreshold');
+    if (!lbl || !inp) return;
+    if (mode === 'price')   { lbl.textContent = 'Target Price'; inp.placeholder = '0.00'; inp.style.display = ''; }
+    else if (mode === 'percent') { lbl.textContent = '% Drop'; inp.placeholder = '10'; inp.style.display = ''; }
+    else { lbl.textContent = 'N/A'; inp.style.display = 'none'; }
+}
+
+function debouncedPreview() {
+    clearTimeout(_previewTimer);
+    _previewTimer = setTimeout(doPreview, CONFIG.PREVIEW_DEBOUNCE_MS);
+}
+
+async function doPreview() {
+    const url = $('qaUrl')?.value.trim();
+    if (!url || url.length < 10) return;
+
+    const box = $('previewBox');
+    if (!box) return;
+    box.innerHTML = '<div class="preview-loading">🔍 Fetching product details…</div>';
+    box.classList.add('visible');
+
+    try {
+        const d  = await API.previewProduct(url);
+        const p  = d.product || d;
+        box.innerHTML = `
+          <div style="display:flex;gap:12px;align-items:center">
+            ${p.imageUrl
+                ? `<img src="${p.imageUrl}" style="width:52px;height:52px;border-radius:7px;object-fit:cover">`
+                : '<div style="width:52px;height:52px;border-radius:7px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:22px">📦</div>'}
+            <div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px;line-height:1.3">
+                ${(p.title || 'Product').substring(0, 72)}${(p.title || '').length > 72 ? '…' : ''}
+              </div>
+              <div style="font-family:var(--font-mono);font-size:16px;color:var(--amber)">
+                ${p.currentPrice ? formatPrice(p.currentPrice) : 'Price unavailable'}
+              </div>
+              ${p.asin ? `<div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:3px">ASIN: ${p.asin}</div>` : ''}
+            </div>
+          </div>`;
+
+        // Auto-fill ASIN hint
+        if (p.currentPrice) {
+            const inp = $('qaThreshold');
+            if (inp && !inp.value) inp.placeholder = (p.currentPrice * 0.9).toFixed(2);
+        }
+    } catch (e) {
+        box.innerHTML = `<div style="color:var(--red);font-size:13px">⚠️ ${e.message}</div>`;
+    }
+}
+
+async function submitQuickAdd() {
+    const url       = $('qaUrl')?.value.trim();
+    if (!url) return _showToast('Please enter a product URL or ASIN', 'warn');
+
+    const mode      = $('qaMode')?.value       || 'price';
+    const threshold = parseFloat($('qaThreshold')?.value) || 0;
+    const chatId    = $('qaChatId')?.value.trim() || STATE.user?.chatId;
+
+    try {
+        await API.addProduct({ url, threshold, mode, chatId });
+        _showToast('Product added to tracking! 🎉', 'success');
+        closeQuickAdd();
+        STATE.dealsPage = 1;
+        fetchDeals(1);
+        fetchStats();
+    } catch (e) {
+        _showToast('Error: ' + e.message, 'error');
+    }
+}
+
+// ── IMPORT ────────────────────────────────────────────────────────────────────
+function openImportModal()  { $('importModal')?.classList.remove('hidden'); }
+function closeImportModal() { $('importModal')?.classList.add('hidden'); }
+
+async function submitImport() {
+    const input = $('importUrls');
+    if (!input) return _showToast('Import input not found', 'error');
+
+    const urls = input.value.split('\n').map(u => u.trim()).filter(Boolean);
+    if (!urls.length) return _showToast('Enter at least one URL', 'warn');
+
+    const btn = document.querySelector('#importModal button:last-child');
+    if (btn) { btn.textContent = 'Importing…'; btn.disabled = true; }
+
+    try {
+        const res = await API.bulkImport(urls);
+        _showToast(`Imported: ${res.success || 0} · Failed: ${res.failed || 0}`, 'success');
+        closeImportModal();
+        input.value = '';
+        fetchDeals(1);
+    } catch (e) {
+        _showToast('Import error: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.textContent = 'Import'; btn.disabled = false; }
+    }
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+async function handleExport(type) {
+    try {
+        if (type === 'csv') {
+            await API.downloadCSV();
+            _showToast('CSV download started 📄', 'success');
+        } else if (type === 'pdf') {
+            API.openPDFReport();
+            _showToast('PDF opening in new tab 📑', 'success');
+        } else if (type === 'rss') {
+            const url = API.getRSSUrl();
+            await copyToClipboard(url);
+            _showToast('RSS URL copied to clipboard! 📡', 'success');
+        }
+    } catch (e) { _showToast('Export failed: ' + e.message, 'error'); }
+}
+
+// ── CURRENCY ──────────────────────────────────────────────────────────────────
+function toggleCurrency() {
+    const currencies = ['EGP', 'USD', 'EUR'];
+    const idx = currencies.indexOf(STATE.currentCurrency);
+    const next = currencies[(idx + 1) % currencies.length];
+    STATE.currentCurrency = next;
+    PREFS.set('currency', next);
+    UI.updateCurrencyDisplay();
+    // Re-render deals with new currency
+    UI.renderDeals(STATE.filteredDeals, $('dealsList'), false);
+    if (STATE.currentAsin) loadHistory(STATE.currentAsin);
+}
+
+// ── CONTEXT MENU ──────────────────────────────────────────────────────────────
+let _ctxAsin = null;
+
+function openCtxMenu(e, asin) {
+    e.preventDefault();
+    e.stopPropagation();
+    _ctxAsin = asin;
+    const m = $('contextMenu');
+    if (!m) return;
+    m.style.display = 'block';
+    m.style.left    = Math.min(e.clientX, window.innerWidth  - 200) + 'px';
+    m.style.top     = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+}
+
+document.addEventListener('click', () => {
+    const m = $('contextMenu');
+    if (m) m.style.display = 'none';
+});
+
+async function ctxAction(action) {
+    const asin = _ctxAsin;
+    if (!asin) return;
+    const deal = STATE.allDeals.find(d => (d.product || d).asin === asin);
+    const p    = deal ? (deal.product || deal) : {};
+
+    switch (action) {
+        case 'history':
+            loadHistory(asin, encodeURIComponent(p.title || p.name || asin));
+            break;
+        case 'copy':
+            await copyToClipboard(`https://www.amazon.com/dp/${asin}`);
+            _showToast('Link copied!', 'success');
+            break;
+        case 'share':
+            shareCard(asin);
+            break;
+        case 'setTarget': {
+            const val = window.prompt(`Set target price for:\n${p.title || asin}`);
+            if (val && !isNaN(parseFloat(val))) {
+                try {
+                    await API.updateTargetPrice(asin, parseFloat(val));
+                    _showToast('Target price set!', 'success');
+                } catch (e) { _showToast('Error: ' + e.message, 'error'); }
+            }
+            break;
+        }
+        case 'untrack':
+            if (window.confirm(`Stop tracking "${p.title || asin}"?`)) {
+                try {
+                    await API.deleteProduct(asin);
+                    _showToast('Product removed from tracking', 'success');
+                    fetchDeals(1);
+                } catch (e) { _showToast('Error: ' + e.message, 'error'); }
+            }
+            break;
+    }
+
+    $('contextMenu') && ($('contextMenu').style.display = 'none');
+}
+
+function shareCard(asin) {
+    const deal = STATE.allDeals.find(d => (d.product || d).asin === asin);
+    const p    = deal ? (deal.product || deal) : { asin };
+    shareDeal(p, copied => {
+        if (copied) _showToast('Deal link copied!', 'success');
+    });
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+const PAGE_TITLES = {
+    deals: 'Live Deals', watchlist: 'My Watchlist', analytics: 'Analytics',
+    alerts: 'Alert Rules', exports: 'Export', admin: 'System Admin', settings: 'Settings',
+};
+
+function navigate(page) {
+    STATE.previousPage = STATE.currentPage;
+    STATE.currentPage  = page;
+
+    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+    $(`page-${page}`)?.classList.add('active');
+
+    document.querySelectorAll('.nav-item[data-page]').forEach(n => {
+        n.classList.toggle('active', n.dataset.page === page);
+    });
+    document.querySelectorAll('.mob-nav-item[id]').forEach(n => {
+        n.classList.toggle('active', n.id === `mob-${page}`);
+    });
+
+    const titleEl = $('topbarTitle');
+    if (titleEl) titleEl.textContent = PAGE_TITLES[page] || page;
+
+    if (page === 'analytics' && !STATE.analyticsLoaded) {
+        STATE.analyticsLoaded = true;
+        fetchCategoryStats();
+        fetchTrendOverview();
+    }
+    if (page === 'watchlist' && STATE.user) {
+        loadWatchlist();
+    }
+    if (page === 'admin' && STATE.isAdmin) {
+        fetchAdminStats();
+    }
+    closeSidebar();
+}
+
+async function loadWatchlist() {
+    const c = $('watchlistContent');
+    if (!c) return;
+    c.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text2)">Loading…</div>';
+    try {
+        const data  = await API.getUserProducts();
+        const items = Array.isArray(data) ? data : (data.products || []);
+        if (!items.length) {
+            c.innerHTML = '<div class="empty-state"><div class="icon">📦</div><h3>Nothing tracked yet</h3><p>Add your first product to get started</p></div>';
+            return;
+        }
+        c.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
+          ${items.map(UI.renderWatchlistCard ? UI.renderWatchlistCard : renderWatchlistCard).join('')}
+        </div>`;
+    } catch (e) {
+        c.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>Error</h3><p>${e.message}</p></div>`;
+    }
+}
+
+function renderWatchlistCard(p) {
+    return `<div class="deal-card">
+      <div class="deal-card-header">
+        <div class="deal-img">${p.imageUrl ? `<img src="${p.imageUrl}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='📦'">` : '📦'}</div>
+        <div class="deal-info">
+          <div class="deal-title">${p.title || p.name || p.asin}</div>
+          <div class="deal-badges">
+            <span class="badge" style="background:var(--bg3);color:var(--text3);border:1px solid var(--border)">${p.asin}</span>
+          </div>
+        </div>
+      </div>
+      <div class="deal-card-footer">
+        <button class="deal-action" onclick="window.TZ.loadHistory('${p.asin}','${encodeURIComponent(p.title||p.asin)}')">📈 History</button>
+        ${p.asin ? `<a class="deal-action primary" href="https://www.amazon.com/dp/${p.asin}" target="_blank">View ↗</a>` : ''}
+      </div>
+    </div>`;
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────────────
+function toggleSidebar() {
+    STATE.isSidebarCollapsed = !STATE.isSidebarCollapsed;
+    PREFS.set('sidebarCollapsed', STATE.isSidebarCollapsed);
+    $('sidebar')?.classList.toggle('collapsed', STATE.isSidebarCollapsed);
+    const btn = $('sidebarToggle');
+    if (btn) btn.textContent = STATE.isSidebarCollapsed ? '▶' : '◀';
+}
+
+function openSidebar() {
+    $('sidebar')?.classList.add('open');
+    $('sidebarOverlay')?.classList.add('visible');
+}
+
+function closeSidebar() {
+    $('sidebar')?.classList.remove('open');
+    $('sidebarOverlay')?.classList.remove('visible');
+}
+
+function checkMobileNav() {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    const update = () => {
+        const btn = $('mobileMenuBtn');
+        if (btn) btn.style.display = mq.matches ? 'flex' : 'none';
+    };
+    mq.addEventListener('change', update);
+    update();
+}
+
+// ── THEME ─────────────────────────────────────────────────────────────────────
+function toggleTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const next   = isDark ? 'light' : 'dark';
+    PREFS.set('theme', next);
+    UI.applyTheme(next);
+}
+
+function toggleSetting(key) {
+    PREFS.toggle(key);
+    const el = $(key + 'Toggle');
+    if (el) el.classList.toggle('on', PREFS.get(key));
+    if (key === 'ticker') {
+        const ticker = $('tickerBar');
+        if (ticker) ticker.style.display = PREFS.get('ticker') ? '' : 'none';
+    }
+    if (key === 'compact') {
+        $('dealsList')?.classList.toggle('compact', PREFS.get('compact'));
+    }
+}
+
+function requestNotifPermission() {
+    if (!('Notification' in window)) return _showToast('Notifications not supported', 'warn');
+    Notification.requestPermission().then(p => {
+        const granted = p === 'granted';
+        PREFS.set('desktopNotifs', granted);
+        $('desktopNotifToggle')?.classList.toggle('on', granted);
+        _showToast(granted ? 'Notifications enabled!' : 'Permission denied', granted ? 'success' : 'warn');
+    });
+}
+
+// ── NOTIFICATIONS PANEL ───────────────────────────────────────────────────────
+function toggleNotifPanel() {
+    $('notifPanel')?.classList.toggle('open');
+}
+
+function clearNotifs() {
+    const list = $('notifList');
+    if (list) list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">All caught up! 🎉</div>';
+    $('notifCount') && ($('notifCount').style.display = 'none');
+    $('notifPanel')?.classList.remove('open');
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+function showLoginModal() { $('loginModal')?.classList.add('open'); }
+function openLogin()      { showLoginModal(); }
+function closeLogin()     { $('loginModal')?.classList.remove('open'); }
+
+function continueAsGuest() {
+    closeLogin();
+    _showToast('Browsing as guest — some features require login', 'info');
+}
+
+function telegramLogin() {
+    _showToast('Use /dashboard in your Telegram bot to get a login link', 'info');
+}
+
+async function tokenLogin() {
+    const token = $('tokenInput')?.value.trim();
+    if (!token) return _showToast('Please enter a token', 'warn');
+    try {
+        const d = await API.loginWithToken(token);
+        STATE.user    = d.user;
+        STATE.isAdmin = d.isAdmin;
+        updateUserUI();
+        closeLogin();
+        _showToast('Logged in successfully!', 'success');
+        fetchStats();
+        fetchDeals(1);
+        if (STATE.isAdmin) fetchAdminStats();
+    } catch (e) {
+        _showToast('Invalid token: ' + e.message, 'error');
+    }
+}
+
+async function logout() {
+    API.logout();
+    STATE.user    = null;
+    STATE.isAdmin = false;
+    updateUserUI();
+    $('adminNavSection') && ($('adminNavSection').style.display = 'none');
+    $('tab-my')?.classList.add('hidden');
+    _showToast('Logged out', 'info');
+    showLoginModal();
+}
+
+// ── GENERATE API KEY ──────────────────────────────────────────────────────────
+async function generateApiKey() {
+    if (!window.confirm('Generate new API Key? This will invalidate the old one.')) return;
+    try {
+        const res = await API.generateApiKey();
+        const el  = $('apiKey');
+        if (el) el.value = res.apiKey;
+        _showToast('New API key generated!', 'success');
+    } catch (e) { _showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── SAVE / LOAD VIEW ──────────────────────────────────────────────────────────
+function saveCurrentView() {
+    PREFS.set('sort',   STATE.currentSort);
+    PREFS.set('filter', STATE.currentFilter);
+    PREFS.set('view',   STATE.currentView);
+    _showToast('View settings saved!', 'success');
+}
+
+// loadSavedView is now handled by PREFS.applyToState() in init()
+function loadSavedView() { PREFS.load().applyToState(); }
+window.loadSavedView = loadSavedView;
+
+// ── COMMAND PALETTE ───────────────────────────────────────────────────────────
+const CMD_ACTIONS = [
+    { icon: '🔥', label: 'Live Deals',          sub: 'G D',  action: () => navigate('deals')     },
+    { icon: '📦', label: 'My Watchlist',         sub: '',     action: () => navigate('watchlist')  },
+    { icon: '📊', label: 'Analytics',            sub: 'G A',  action: () => navigate('analytics')  },
+    { icon: '🔔', label: 'Alert Rules',          sub: '',     action: () => navigate('alerts')     },
+    { icon: '📤', label: 'Export CSV',           sub: '',     action: () => handleExport('csv')    },
+    { icon: '📑', label: 'Export PDF',           sub: '',     action: () => handleExport('pdf')    },
+    { icon: '📡', label: 'Copy RSS Feed URL',    sub: '',     action: () => handleExport('rss')    },
+    { icon: '⚡', label: 'Track New Product',    sub: 'N',    action: openQuickAdd                 },
+    { icon: '🔄', label: 'Refresh Deals',        sub: 'R',    action: () => { STATE.dealsPage=1; fetchDeals(1); } },
+    { icon: '🌙', label: 'Toggle Dark Mode',     sub: 'T',    action: toggleTheme                  },
+    { icon: '⊞',  label: 'Toggle Grid/List',     sub: 'V',    action: toggleListView               },
+    { icon: '💱', label: 'Toggle Currency',      sub: 'C',    action: toggleCurrency               },
+    { icon: '⌨️', label: 'Keyboard Shortcuts',   sub: '?',    action: openShortcuts                },
+    { icon: '⚙️', label: 'Settings',             sub: '',     action: () => navigate('settings')   },
+    { icon: '🚪', label: 'Logout',               sub: '',     action: logout                       },
+];
+
+function openCmd() {
+    STATE.cmdPaletteOpen = true;
+    STATE.cmdItems       = CMD_ACTIONS;
+    STATE.cmdSelectedIdx = 0;
+    $('cmdOverlay')?.classList.add('open');
+    const inp = $('cmdInput');
+    if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 30); }
+    renderCmdResults(CMD_ACTIONS);
+}
+
+function closeCmd() {
+    STATE.cmdPaletteOpen = false;
+    $('cmdOverlay')?.classList.remove('open');
+}
+
+function filterCmd(q) {
+    const lower = (q || '').toLowerCase();
+    const items = lower ? CMD_ACTIONS.filter(a => a.label.toLowerCase().includes(lower)) : CMD_ACTIONS;
+    STATE.cmdItems       = items;
+    STATE.cmdSelectedIdx = items.length ? 0 : -1;
+    renderCmdResults(items);
+}
+window.filterCmd = filterCmd;
+
+function renderCmdResults(items) {
+    const el = $('cmdResults');
+    if (!el) return;
+    el.innerHTML = items.map((a, i) => `
+      <div class="cmd-result-item ${i === STATE.cmdSelectedIdx ? 'selected' : ''}"
+           onclick="window.TZ.runCmdItem(${i})">
+        <span class="cmd-result-icon">${a.icon}</span>
+        <span>${a.label}</span>
+        ${a.sub ? `<span class="cmd-result-sub">${a.sub}</span>` : ''}
+      </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No matches</div>';
+}
+
+function runCmdItem(i) {
+    const item = STATE.cmdItems[i];
+    if (item) { item.action(); closeCmd(); }
+}
+window.TZ.runCmdItem = runCmdItem;
+
+function cmdKey(e) {
+    const items = STATE.cmdItems || CMD_ACTIONS;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        STATE.cmdSelectedIdx = (STATE.cmdSelectedIdx + 1) % items.length;
+        renderCmdResults(items);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        STATE.cmdSelectedIdx = (STATE.cmdSelectedIdx - 1 + items.length) % items.length;
+        renderCmdResults(items);
+    } else if (e.key === 'Enter' && STATE.cmdSelectedIdx >= 0) {
+        runCmdItem(STATE.cmdSelectedIdx);
+    } else if (e.key === 'Escape') {
+        closeCmd();
+    }
+}
+window.cmdKey = cmdKey;
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
+function openShortcuts()  { $('shortcutsOverlay')?.classList.add('open'); }
+function closeShortcuts() { $('shortcutsOverlay')?.classList.remove('open'); }
+
+function setupKeyboard() {
+    document.addEventListener('keydown', e => {
+        const tag    = document.activeElement.tagName;
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+        // Always-on: Cmd/Ctrl+K
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            openCmd();
+            return;
+        }
+
+        // / to focus search (unless typing)
+        if (e.key === '/' && !typing) {
+            e.preventDefault();
+            $('searchInput')?.focus();
+            return;
+        }
+
+        // If command palette is open, delegate to its handler
+        if (STATE.cmdPaletteOpen) return;
+
+        if (typing) return;
+
+        switch (e.key) {
+            case '?':         openShortcuts();  break;
+            case 'Escape':    closeCmd(); closeShortcuts(); closeQuickAdd(); closeHistory(); break;
+            case 'n': case 'N': openQuickAdd(); break;
+            case 't': case 'T': toggleTheme();  break;
+            case 'v': case 'V': toggleListView(); break;
+            case 'c': case 'C': toggleCurrency(); break;
+            case 'r': case 'R':
+                STATE.dealsPage = 1;
+                fetchDeals(1);
+                _showToast('Deals refreshed', 'info');
+                break;
+            case 'g': case 'G':
+                STATE.gSequence = 'g';
+                setTimeout(() => { STATE.gSequence = ''; }, 1000);
+                break;
+            default:
+                if (STATE.gSequence === 'g') {
+                    if (e.key === 'd') navigate('deals');
+                    else if (e.key === 'a') navigate('analytics');
+                    else if (e.key === 'w') navigate('watchlist');
+                    else if (e.key === 's') navigate('settings');
+                    STATE.gSequence = '';
+                }
+        }
+    });
+}
+
+// ── SORT DROPDOWN ─────────────────────────────────────────────────────────────
+window.toggleSortDropdown = () => {
+    const menu = $('sortDropdownMenu');
+    if (!menu) return;
+    menu.classList.toggle('hidden');
+    if (!menu.classList.contains('hidden')) {
+        const close = e => {
+            if (!e.target.closest('#sortDropdownMenu') && !e.target.closest('#sortButton')) {
+                menu.classList.add('hidden');
+                document.removeEventListener('click', close);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', close), 0);
+    }
+};
+
+// ── SAVE USER SETTINGS ────────────────────────────────────────────────────────
+window.saveUserSettings = async () => {
+    const settings = {
+        notifications: $('notificationsToggle')?.checked ?? true,
+        quietMode:     $('quietModeToggle')?.checked     ?? false,
+        minDiscount:   parseFloat($('minDiscountInput')?.value) || 0,
+        sensitivity:   $('sensitivitySelect')?.value || 'medium',
+    };
+    try {
+        await API.saveUserSettings(settings);
+        _showToast('Settings saved!', 'success');
+        $('settingsModal')?.classList.add('hidden');
+    } catch (e) { _showToast('Error saving settings: ' + e.message, 'error'); }
+};
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function _showToast(msg, type = 'info') {
+    const container = $('toastContainer');
+    if (!container) return;
+
+    const icons = { success: '✅', error: '❌', info: 'ℹ️', warn: '⚠️' };
+    const t     = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
+    container.prepend(t);
+
+    setTimeout(() => {
+        t.classList.add('hide');
+        setTimeout(() => t.remove(), 350);
+    }, CONFIG.TOAST_DURATION_MS);
+}
+
+// ── SKELETON CARDS ────────────────────────────────────────────────────────────
+function _skeletonCards(n = 3) {
+    const card = `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+      <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
+        <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div class="skeleton" style="height:13px;margin-bottom:8px;border-radius:4px"></div>
+          <div class="skeleton" style="height:13px;width:60%;border-radius:4px"></div>
+        </div>
+      </div>
+      <div style="padding:14px 16px">
+        <div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div>
+        <div class="skeleton" style="height:36px;border-radius:6px"></div>
+      </div>
+    </div>`;
+    return Array(n).fill(card).join('');
+}
+
+// ── setText (local helper for legacy inline references) ───────────────────────
+function setText(id, text) {
+    const el = $(id);
+    if (el) el.textContent = text;
+}

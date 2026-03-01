@@ -1,516 +1,620 @@
-import { STATE } from './config.js';
-import { formatPrice, shareDeal } from './utils.js';
-import { API } from './api.js';
-import { updatePriceChart } from './charts.js';
-// Removed circular dependency import { fetchDeals } from './app.js'
+// ─────────────────────────────────────────────────────────────────────────────
+// Trackzoon v2 — ui.js
+// Complete rewrite of all UI rendering functions.
+// Upgrades over v1:
+//  • No more alert() — all feedback via toast (Bus events)
+//  • All deal/product renders use the v2 card design
+//  • showProductHistory is fully rebuilt with all analytics widgets
+//  • renderLogs with filtering, level coloring, live reload
+//  • renderStockHistory delegates to charts.js
+//  • openAddProductModal / closeAddProductModal now manage the slide panel
+//  • All elements referenced via $ (safe null-check helper from utils)
+// ─────────────────────────────────────────────────────────────────────────────
 
-export const UI = {
-    renderStats(data) {
-        document.getElementById('totalProducts').textContent = data.totalProducts;
-        document.getElementById('totalUsers').textContent = data.totalUsers;
-        document.getElementById('totalTracked').textContent = data.totalTrackedItems;
-    },
+import { STATE, CONFIG, Bus }              from './config.js';
+import { API }                              from './api.js';
+import {
+    formatPrice, formatPercent, formatAgo,
+    generateSparklineSVG, scoreSemantics, dealLabelBadge,
+    $, setText, animateNumber, copyToClipboard,
+} from './utils.js';
+import {
+    updatePriceChart, initPriceChart, renderStockHistoryBar,
+    reapplyTheme,
+} from './charts.js';
 
-    renderDeals(deals, container, append = false) {
-        if (!append) container.innerHTML = '';
+// ── STATS ─────────────────────────────────────────────────────────────────────
+export function renderStats(data) {
+    if (!data) return;
+    animateNumber($('stat-products'),  data.totalProducts     || 0);
+    animateNumber($('stat-deals'),     data.activeDeals       || data.totalTrackedItems || 0);
+    animateNumber($('stat-users'),     data.totalUsers        || 0);
+    const avgDrop = $('stat-avgdrop');
+    if (avgDrop) avgDrop.textContent = data.avgDiscount ? `${data.avgDiscount.toFixed(1)}%` : '—';
+    const navBadge = $('navDealsCount');
+    if (navBadge) navBadge.textContent = data.hotDeals || 0;
+}
 
-        const html = deals.map(deal => {
-            const p = deal.product;
-            const isDrop = deal.percentChange < 0;
-            const isHike = deal.percentChange > 0;
+// ── DEALS LIST ────────────────────────────────────────────────────────────────
+export function renderDeals(deals, container, append = false) {
+    if (!container) return;
+    if (!append) container.innerHTML = '';
 
-            // Label Badge Logic
-            let labelBadge = '';
-            if (deal.dealLabel === 'hot_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">🔥 Hot Deal</span>';
-            else if (deal.dealLabel === 'good_deal') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">✅ Good Deal</span>';
-            else if (deal.dealLabel === 'fair_price') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">🙂 Fair</span>';
-            else if (deal.dealLabel === 'stable') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">➡️ Stable</span>';
-            else if (deal.dealLabel === 'price_hike') labelBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">⚠️ Hike</span>';
-
-            // Score Badge Logic
-            const score = Math.round(deal.smartScore || 0);
-            let scoreColor = 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
-            let scoreIcon = '😐';
-
-            if (score >= 70) {
-                scoreColor = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-                scoreIcon = '🔥';
-            } else if (score >= 40) {
-                scoreColor = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
-                scoreIcon = '🙂';
-            }
-
-            const scoreBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold ${scoreColor} flex items-center gap-1" title="Smart Score: ${score}/100">${scoreIcon} ${score}</span>`;
-
-            // Price Color
-            const priceColor = isDrop ? 'text-green-600 dark:text-green-400' : (isHike ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white');
-            const arrow = isDrop ? '↓' : (isHike ? '↑' : '');
-
-            return `
-            <div class="group bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-200 cursor-pointer flex items-center gap-4" onclick="window.loadHistory('${p.asin}')">
-                
-                <!-- 1. Icon (Replaced Image) -->
-                <div class="w-16 h-16 flex-shrink-0 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-1 flex items-center justify-center overflow-hidden">
-                    ${p.imageUrl ?
-                    `<img src="${p.imageUrl}" alt="${p.name}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-                         <svg class="w-8 h-8 text-blue-500 dark:text-blue-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                         </svg>` :
-                    `<svg class="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                        </svg>`
-                }
-                </div>
-
-                <!-- 2. Main Info -->
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                        ${labelBadge}
-                        ${scoreBadge}
-                    </div>
-                    <h3 class="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">${p.name}</h3>
-                    <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
-                        <span>${p.merchant || 'Amazon'}</span>
-                        <span>•</span>
-                        <span>${new Date(p.lastChecked).toLocaleDateString()}</span>
-                    </div>
-                </div>
-
-                <!-- 3. Price & Action -->
-                <div class="text-right">
-                    <div class="text-lg font-bold ${priceColor} flex items-center justify-end gap-1">
-                        <span>${formatPrice(deal.currentPrice)}</span>
-                        ${(() => {
-                    const pct = Math.abs(deal.discountPercentage || deal.percentChange || 0);
-                    if (pct < 0.1) return '';
-                    // Show decimals for small changes (< 1%), otherwise integer
-                    const pctDisplay = pct < 1 ? pct.toFixed(1) : pct.toFixed(0);
-                    return `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">${arrow} ${pctDisplay}%</span>`;
-                })()}
-                    </div>
-                    ${(deal.oldPrice && deal.oldPrice !== deal.currentPrice) ? `<div class="text-xs text-gray-400 line-through">${formatPrice(deal.oldPrice)}</div>` : ''}
-                </div>
-
-                <!-- 4. Quick Actions (Hover) -->
-                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
-                    <a href="${p.url}" target="_blank" onclick="event.stopPropagation()" class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                    </a>
-                </div>
-            </div>`;
-        }).join('');
-
-        if (append) container.insertAdjacentHTML('beforeend', html);
-        else container.innerHTML = html;
-    },
-
-    renderRecent(products) {
-        const container = document.getElementById('recentActivity');
-        if (!products || products.length === 0) {
+    if (!deals?.length) {
+        if (!append) {
             container.innerHTML = `
-                <div class="p-8 text-center">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">No recent activity</p>
-                </div>`;
-            return;
+              <div class="empty-state" style="grid-column:1/-1">
+                <div class="icon">🔍</div>
+                <h3>No deals found</h3>
+                <p>Try adjusting your filters or track more products.</p>
+              </div>`;
         }
-        container.innerHTML = products.map(p => `
-            <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer flex items-center justify-between" onclick="window.loadHistory('${p.asin}')">
-                <div class="flex items-center min-w-0">
-                    <div class="w-2 h-2 rounded-full ${p.isOutOfStock ? 'bg-red-400' : 'bg-green-400'} mr-3"></div>
-                    <div class="min-w-0">
-                        <p class="text-xs font-medium text-gray-900 dark:text-white truncate w-32">${p.name}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">${new Date(p.lastChecked).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                </div>
-                <span class="text-xs font-bold text-gray-700 dark:text-gray-300">EGP ${p.currentPrice}</span>
+        return;
+    }
+
+    const html = deals.map(renderDealCard).join('');
+    if (append) container.insertAdjacentHTML('beforeend', html);
+    else container.innerHTML = html;
+}
+
+function renderDealCard(deal) {
+    const p       = deal.product || deal;
+    const pct     = deal.percentChange ?? deal.discountPercentage ?? 0;
+    const isDrop  = pct < 0;
+    const isHike  = pct > 0;
+    const dir     = isDrop ? 'drop' : isHike ? 'hike' : 'stable';
+    const score   = Math.round(deal.smartScore || p.smartScore || 0);
+    const sem     = scoreSemantics(score);
+    const curFmt  = formatPrice(p.currentPrice);
+    const oldFmt  = p.previousPrice || p.oldPrice;
+    const asin    = p.asin || '';
+    const title   = p.title || p.name || 'Amazon Product';
+    const img     = p.imageUrl || p.image || '';
+    const oos     = p.isOutOfStock || p.outOfStock;
+    const timeAgo = formatAgo(deal.lastChecked || p.lastChecked);
+    const badge   = dealLabelBadge(deal.dealLabel || p.dealLabel);
+    const sparkSVG = generateSparklineSVG(p.priceHistory || [], dir);
+
+    // Score gauge
+    const circum = 2 * Math.PI * 18;
+    const dash   = (score / 100) * circum;
+
+    return `
+    <div class="deal-card"
+         data-asin="${asin}"
+         oncontextmenu="window.TZ.openCtxMenu(event,'${asin}')"
+         onclick="window.TZ.handleCardClick(event,'${asin}','${encodeURIComponent(title)}')"
+    >
+      ${oos ? '<div class="out-of-stock-overlay">⊗ OUT OF STOCK</div>' : ''}
+
+      <div class="deal-card-header">
+        <div class="deal-img">
+          ${img
+            ? `<img src="${img}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='📦'">`
+            : '📦'}
+        </div>
+        <div class="deal-info">
+          <div class="deal-title" title="${title.replace(/"/g,"'")}">${title}</div>
+          <div class="deal-badges">
+            ${badge}
+            ${asin ? `<span class="badge" style="background:var(--bg3);color:var(--text3);border:1px solid var(--border)">${asin}</span>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <div class="deal-card-body">
+        <div class="deal-price-row">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span class="deal-price ${dir}">${curFmt}</span>
+            ${oldFmt ? `<span class="deal-old-price">${formatPrice(oldFmt)}</span>` : ''}
+          </div>
+          <span class="deal-change-badge ${dir}">
+            ${pct !== 0 ? formatPercent(pct) : '→ stable'}
+          </span>
+        </div>
+        <div class="sparkline-wrap">${sparkSVG}</div>
+        <div class="score-section">
+          <div class="score-gauge">
+            <svg viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="18" fill="none" stroke="var(--border2)" stroke-width="4"/>
+              <circle cx="24" cy="24" r="18" fill="none"
+                stroke="${sem.color}" stroke-width="4"
+                stroke-dasharray="${dash.toFixed(1)} ${circum.toFixed(1)}"
+                stroke-linecap="round"
+                style="transition:stroke-dasharray 1s ease"/>
+            </svg>
+            <span class="score-num" style="color:${sem.color}">${score}</span>
+          </div>
+          <div class="score-details">
+            <div class="score-label">Deal Score ${sem.emoji}</div>
+            <div class="confidence-bar-wrap">
+              <div class="confidence-bar" style="width:${score}%;background:${sem.color}"></div>
             </div>
-        `).join('');
-    },
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--font-mono)">${sem.label}</div>
+          </div>
+        </div>
+      </div>
 
-    renderTopTracked(products) {
-        const container = document.getElementById('topTracked');
-        if (!products || products.length === 0) {
-            container.innerHTML = `
-                <div class="p-8 text-center">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">No tracked items yet</p>
-                </div>`;
-            return;
-        }
-        container.innerHTML = products.map((p, i) => `
-            <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer flex items-center justify-between" onclick="window.loadHistory('${p.asin}')">
-                <div class="flex items-center min-w-0">
-                    <span class="text-xs font-bold text-gray-400 mr-3 w-4">#${i + 1}</span>
-                    <div class="min-w-0">
-                        <p class="text-xs font-medium text-gray-900 dark:text-white truncate w-32">${p.name}</p>
-                        <p class="text-xs text-blue-500">${p.trackerCount} trackers</p>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    },
+      <div class="deal-card-footer">
+        <button class="deal-action"
+          onclick="event.stopPropagation();window.TZ.loadHistory('${asin}','${encodeURIComponent(title)}')">
+          📈 History
+        </button>
+        <button class="deal-action"
+          onclick="event.stopPropagation();window.TZ.shareCard('${asin}')">
+          📤
+        </button>
+        ${asin
+            ? `<a class="deal-action primary"
+                 href="https://www.amazon.com/dp/${asin}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 onclick="event.stopPropagation()">
+                 View on Amazon ↗
+               </a>`
+            : ''}
+        <span class="deal-time">${timeAgo}</span>
+      </div>
+    </div>`;
+}
 
-    renderBestDrops(items) {
-        const container = document.getElementById('bestDropsList');
-        if (!container) return;
-        if (!items || items.length === 0) {
-            container.innerHTML = `
-                <div class="p-4 text-center">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">No major drops recently</p>
-                </div>`;
-            return;
-        }
+// ── RECENT ACTIVITY ───────────────────────────────────────────────────────────
+export function renderRecent(products) {
+    const container = $('recentActivity');
+    if (!container) return;
+    if (!products?.length) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2);font-size:13px">No recent activity</div>';
+        return;
+    }
+    container.innerHTML = products.map(p => `
+      <div class="notif-item" onclick="window.TZ.loadHistory('${p.asin}','${encodeURIComponent(p.name||p.title||p.asin)}')">
+        <div class="notif-dot" style="background:${p.isOutOfStock ? 'var(--red)' : 'var(--green)'}"></div>
+        <div>
+          <div class="notif-msg">${(p.name || p.title || p.asin).substring(0, 48)}</div>
+          <div class="notif-time">${formatAgo(p.lastChecked)} · ${formatPrice(p.currentPrice)}</div>
+        </div>
+      </div>`).join('');
+}
 
-        container.innerHTML = items.map((p, i) => `
-            <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer flex items-center justify-between" onclick="window.loadHistory('${p.asin}')">
-                <div class="flex items-center min-w-0">
-                    <span class="text-xs font-bold text-gray-400 mr-3 w-4">#${i + 1}</span>
-                    <div class="min-w-0">
-                        <p class="text-xs font-medium text-gray-900 dark:text-white truncate w-32">${p.name}</p>
-                        <p class="text-xs text-green-600 dark:text-green-400">↓ ${p.discountPercent.toFixed(1)}%</p>
-                    </div>
-                </div>
-                <span class="text-xs font-bold text-gray-700 dark:text-gray-300">${formatPrice(p.currentPrice)}</span>
-            </div>
-        `).join('');
-    },
+// ── TOP TRACKED ───────────────────────────────────────────────────────────────
+export function renderTopTracked(products) {
+    const container = $('topTracked');
+    if (!container) return;
+    if (!products?.length) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2);font-size:13px">No tracked items yet</div>';
+        return;
+    }
+    container.innerHTML = products.map((p, i) => `
+      <div class="notif-item" onclick="window.TZ.loadHistory('${p.asin}','${encodeURIComponent(p.name||p.asin)}')">
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);min-width:20px">#${i + 1}</span>
+        <div style="flex:1;min-width:0">
+          <div class="notif-msg">${(p.name || p.asin).substring(0, 40)}</div>
+          <div class="notif-time" style="color:var(--blue)">${p.trackerCount} tracker${p.trackerCount !== 1 ? 's' : ''}</div>
+        </div>
+        <span style="font-family:var(--font-mono);font-size:12px;font-weight:600">${formatPrice(p.currentPrice)}</span>
+      </div>`).join('');
+}
 
-    renderDealOpportunities(data) {
-        const container = document.getElementById('aiOpportunitiesList');
-        if (!container) return;
+// ── BEST DROPS ────────────────────────────────────────────────────────────────
+export function renderBestDrops(items) {
+    const container = $('bestDropsList');
+    if (!container) return;
+    if (!items?.length) {
+        container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-size:12px">No major drops recently</div>';
+        return;
+    }
+    container.innerHTML = items.map(item => {
+        const pct = item.percentChange || item.dropPercent || 0;
+        return `
+        <div class="notif-item" onclick="window.TZ.loadHistory('${item.asin}','${encodeURIComponent(item.name||item.asin)}')">
+          <span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--green);min-width:50px">
+            ↓ ${Math.abs(pct).toFixed(0)}%
+          </span>
+          <div style="flex:1;min-width:0">
+            <div class="notif-msg">${(item.name || item.asin).substring(0, 40)}</div>
+            <div class="notif-time">${formatAgo(item.checkedAt || item.date)}</div>
+          </div>
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--green)">
+            ${formatPrice(item.newPrice || item.currentPrice)}
+          </span>
+        </div>`;
+    }).join('');
+}
 
-        const items = Array.isArray(data?.items) ? data.items : [];
-        if (items.length === 0) {
-            container.innerHTML = `
-                <div class="p-4 text-center">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">No AI opportunities available yet</p>
-                </div>`;
-            return;
-        }
+// ── DEAL OPPORTUNITIES ────────────────────────────────────────────────────────
+export function renderDealOpportunities(items) {
+    const container = $('dealOpportunitiesList');
+    if (!container) return;
+    if (!items?.length) {
+        container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-size:12px">No opportunities found</div>';
+        return;
+    }
+    container.innerHTML = items.map(item => {
+        const score = Math.round(item.smartScore || 0);
+        const sem   = scoreSemantics(score);
+        return `
+        <div class="notif-item" onclick="window.TZ.loadHistory('${item.asin}','${encodeURIComponent(item.name||item.asin)}')">
+          <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;
+            color:${sem.color};background:var(--bg3);border:1px solid var(--border);
+            padding:2px 6px;border-radius:5px;flex-shrink:0">${score}</span>
+          <div style="flex:1;min-width:0">
+            <div class="notif-msg">${(item.name || item.asin).substring(0, 40)}</div>
+            <div class="notif-time">${sem.label}</div>
+          </div>
+          <span style="font-family:var(--font-mono);font-size:12px;font-weight:600">
+            ${formatPrice(item.currentPrice)}
+          </span>
+        </div>`;
+    }).join('');
+}
 
-        container.innerHTML = items.map((item, index) => {
-            const recommendation = item?.intelligence?.recommendation || 'monitor';
-            const recommendationBadge = recommendation === 'buy_now'
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                : recommendation === 'wait'
-                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-            const savings = Number(item?.intelligence?.expectedSavingsPercent || 0).toFixed(1);
+// ── TICKER ────────────────────────────────────────────────────────────────────
+export function updateTicker(products) {
+    const ticker = $('tickerTrack');
+    if (!ticker || !products?.length) return;
 
-            return `
-                <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer flex items-start justify-between gap-3" onclick="window.loadHistory('${item.asin}')">
-                    <div class="min-w-0 flex-1">
-                        <p class="text-xs font-medium text-gray-900 dark:text-white truncate">${index + 1}. ${item.name}</p>
-                        <div class="mt-1 flex items-center gap-2">
-                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${recommendationBadge}">${recommendation.replace('_', ' ')}</span>
-                            <span class="text-[10px] text-gray-500 dark:text-gray-400">Score ${item.priorityScore}</span>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-xs font-bold text-gray-700 dark:text-gray-200">${formatPrice(item.currentPrice)}</p>
-                        <p class="text-[10px] text-blue-500">Save ${savings}%</p>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    },
+    const makeItem = p => {
+        const pct  = p.percentChange || p.lastPriceChange?.percent || 0;
+        const dir  = pct < 0 ? 't-drop' : pct > 0 ? 't-hike' : '';
+        const arrow = pct < 0 ? '▼' : pct > 0 ? '▲' : '—';
+        const name  = (p.name || p.title || p.asin || '').split(' ').slice(0, 4).join(' ');
+        const asin  = p.asin || '';
+        return `<span class="ticker-item"
+            onclick="window.TZ.loadHistory('${asin}','${encodeURIComponent(name)}')">
+            ${p.isOutOfStock ? '🔴' : '🟢'} ${name}
+            <span class="t-price">${formatPrice(p.currentPrice)}</span>
+            <span class="${dir}">${arrow}${pct ? Math.abs(pct).toFixed(1) + '%' : ''}</span>
+          </span>`;
+    };
 
-    renderTrendOverview(data) {
-        const container = document.getElementById('trendOverview');
-        if (!container) return;
-        if (!data || !data.counts) {
-            container.innerHTML = '<div class="text-xs text-gray-500">No trend data</div>';
-            return;
-        }
+    // Duplicate for seamless loop
+    const items = products.slice(0, CONFIG.MAX_TICKER_ITEMS);
+    ticker.innerHTML = [...items, ...items].map(makeItem).join('');
+}
 
-        const total = data.total || 0;
-        const rows = [
-            { key: 'DROP', label: 'Falling', emoji: '📉', color: 'bg-green-500' },
-            { key: 'RISE', label: 'Rising', emoji: '📈', color: 'bg-red-500' },
-            { key: 'STABLE', label: 'Stable', emoji: '➡️', color: 'bg-gray-500' }
-        ];
+// ── HEALTH STATUS ─────────────────────────────────────────────────────────────
+export function updateHealth(data) {
+    const el = $('healthStatus');
+    if (!el) return;
+    const dot  = el.querySelector('div');
+    const text = el.querySelector('span');
+    if (!dot || !text) return;
 
-        container.innerHTML = rows.map(row => {
-            const count = data.counts[row.key] || 0;
-            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-            return `
-                <div class="space-y-1">
-                    <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <span>${row.emoji} ${row.label}</span>
-                        <span>${count} (${pct}%)</span>
-                    </div>
-                    <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
-                        <div class="${row.color} h-1.5 rounded-full" style="width: ${pct}%"></div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    },
+    if (data?.status === 'ok') {
+        dot.style.background = 'var(--green)';
+        dot.classList.remove('animate-pulse');
+        text.textContent = 'Online';
+        const h = Math.floor((data.uptime || 0) / 3600);
+        const m = Math.floor(((data.uptime || 0) % 3600) / 60);
+        el.title = `Uptime: ${h}h ${m}m${data.memory ? ` · Heap: ${data.memory.heapUsed}` : ''}`;
+    } else {
+        throw new Error('status not ok');
+    }
+}
 
-    renderTopCategories(categories) {
-        const container = document.getElementById('topCategoriesList');
-        if (!container) return;
-        if (!categories || categories.length === 0) {
-            container.innerHTML = '<div class="text-xs text-gray-500 dark:text-gray-400">No category data</div>';
-            return;
-        }
+export function updateHealthError() {
+    const el = $('healthStatus');
+    if (!el) return;
+    const dot  = el.querySelector('div');
+    const text = el.querySelector('span');
+    if (dot)  dot.style.background  = 'var(--red)';
+    if (text) text.textContent = 'Offline';
+}
 
-        container.innerHTML = categories.map(c => `
-            <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
-                <span class="truncate">${c.category}</span>
-                <span class="text-gray-500 dark:text-gray-400">${c.count} • ${c.avgDiscount.toFixed(1)}% avg</span>
-            </div>
-        `).join('');
-    },
+// ── PRODUCT HISTORY PANEL ─────────────────────────────────────────────────────
+/**
+ * Fully renders the product history panel with all analytics widgets.
+ * @param {object} data          History API response (product info + priceHistory)
+ * @param {string} asin
+ * @param {object} analytics     { forecast, volatility, bestDay, stockHistory, dealIntelligence }
+ */
+export function showProductHistory(data, asin, analytics = {}) {
+    STATE.currentAsin = asin;
 
-    renderLogs(logs) {
-        const html = logs.map(log => `
-            <div class="flex space-x-2">
-                <span class="text-gray-500">[${new Date(log.time).toLocaleTimeString()}]</span>
-                <span class="${log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-yellow-400' : 'text-green-400'} uppercase w-12">${log.level}</span>
-                <span>${log.message}</span>
-            </div>
-        `).join('');
-        document.getElementById('logsList').innerHTML = html;
-    },
+    // ── Basic info ────────────────────────────────────────────────────────────
+    const panel = $('historyPanel');
+    if (panel) {
+        panel.classList.add('visible');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
 
-    updateTicker(products) {
-        const ticker = document.getElementById('priceTicker');
-        if (!products || products.length === 0) return;
+    const nameEl = $('chartTitle');
+    if (nameEl) nameEl.textContent = data.name || data.title || asin;
 
-        ticker.innerHTML = products.map(p => `
-            <span class="ticker-item cursor-pointer hover:underline" onclick="window.loadHistory('${p.asin}')">
-                ${p.isOutOfStock ? '🔴' : '🟢'} ${p.name.substring(0, 30)}...
-                <span class="font-bold">EGP ${p.currentPrice}</span>
-            </span>
-        `).join('');
-    },
+    const priceEl = $('chartPrice');
+    if (priceEl) priceEl.textContent = formatPrice(data.currentPrice);
 
-    updateHealth(data) {
-        const statusEl = document.getElementById('healthStatus');
-        const dotEl = statusEl.querySelector('div');
-        const textEl = statusEl.querySelector('span');
+    const linkEl = $('chartLink');
+    if (linkEl) linkEl.href = `https://www.amazon.com/dp/${asin}`;
 
-        if (data.status === 'ok') {
-            dotEl.classList.remove('bg-gray-400', 'bg-red-500', 'animate-pulse');
-            dotEl.classList.add('bg-green-500');
-            textEl.textContent = 'Online';
+    // Show download button
+    const csvBtn = $('downloadCsvBtn');
+    if (csvBtn) csvBtn.classList.remove('hidden');
 
-            const hours = Math.floor(data.uptime / 3600);
-            const minutes = Math.floor((data.uptime % 3600) / 60);
-            statusEl.title = `Uptime: ${hours}h ${minutes}m | Memory: ${data.memory.heapUsed}`;
-        } else {
-            throw new Error('Status not ok');
-        }
-    },
+    // Show management fields
+    const productInfo = $('productInfo');
+    if (productInfo) productInfo.classList.remove('hidden');
 
-    updateHealthError() {
-        const statusEl = document.getElementById('healthStatus');
-        const dotEl = statusEl.querySelector('div');
-        const textEl = statusEl.querySelector('span');
+    const placeholder = $('chartPlaceholder');
+    if (placeholder) placeholder.classList.add('hidden');
 
-        dotEl.classList.remove('bg-gray-400', 'bg-green-500', 'animate-pulse');
-        dotEl.classList.add('bg-red-500');
-        textEl.textContent = 'Offline';
-    },
+    // Tags & target
+    const tagsEl = $('productTags');
+    if (tagsEl) tagsEl.value = data.tags?.join(', ') || '';
 
-    showProductHistory(data, asin, analytics = {}) {
-        STATE.currentAsin = asin;
-        document.getElementById('productInfo').classList.remove('hidden');
-        document.getElementById('chartPlaceholder').classList.add('hidden'); // Hide placeholder
-        document.getElementById('downloadCsvBtn').classList.remove('hidden');
-        document.getElementById('chartTitle').textContent = data.name;
-        document.getElementById('chartPrice').textContent = `EGP ${data.currentPrice.toFixed(2)}`;
-        document.getElementById('chartLink').href = `https://www.amazon.eg/dp/${asin}`;
+    const targetEl = $('productTargetPrice');
+    if (targetEl) targetEl.value = data.thresholdPrice || '';
 
-        // Populate Management Fields
-        document.getElementById('productTags').value = data.tags ? data.tags.join(', ') : '';
-        document.getElementById('productTargetPrice').value = data.thresholdPrice || '';
-
-        const archiveBtn = document.getElementById('archiveBtn');
+    // Archive button
+    const archiveBtn = $('archiveBtn');
+    if (archiveBtn) {
         if (data.isArchived) {
             archiveBtn.textContent = 'Unarchive';
-            archiveBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg font-medium transition-colors';
+            archiveBtn.className = archiveBtn.className.replace(/bg-\S+/g, 'bg-yellow-600 hover:bg-yellow-700');
         } else {
             archiveBtn.textContent = 'Archive';
-            archiveBtn.className = 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-medium transition-colors';
         }
-
-        // Render Analytics
-        if (analytics.volatility) {
-            document.getElementById('volatilityLabel').textContent = analytics.volatility.label;
-            document.getElementById('volatilityScore').textContent = analytics.volatility.score;
-            document.getElementById('volatilityBar').style.width = `${analytics.volatility.score * 10}%`;
-        }
-
-        if (analytics.bestDay) {
-            document.getElementById('bestDayLabel').textContent = analytics.bestDay.dayName;
-            document.getElementById('bestDayPrice').textContent = formatPrice(analytics.bestDay.averagePrice);
-        } else {
-            document.getElementById('bestDayLabel').textContent = 'N/A';
-            document.getElementById('bestDayPrice').textContent = '-';
-        }
-
-        if (analytics.forecast) {
-            const trendEl = document.getElementById('forecastTrend');
-            const trendValue = String(analytics.forecast.trend || '').toUpperCase();
-            const isDown = trendValue === 'DOWN' || trendValue === 'DROP' || trendValue === 'FALL';
-            const isUp = trendValue === 'UP' || trendValue === 'RISE';
-            trendEl.textContent = isUp ? '📈 Rising' : isDown ? '📉 Falling' : '➡️ Stable';
-            trendEl.className = `text-sm font-medium ${isDown ? 'text-green-600' : isUp ? 'text-red-600' : 'text-gray-600'}`;
-            document.getElementById('forecastConfidence').textContent = `Conf: ${(analytics.forecast.confidence * 100).toFixed(0)}%`;
-        }
-
-        const intelligence = analytics.dealIntelligence?.intelligence || null;
-        const recommendationEl = document.getElementById('aiDealRecommendation');
-        const confidenceEl = document.getElementById('aiDealConfidence');
-        const dropEl = document.getElementById('aiDropProbability');
-        const bestEl = document.getElementById('aiExpectedBest');
-        const saveEl = document.getElementById('aiExpectedSavings');
-        const waitEl = document.getElementById('aiWaitDays');
-        const riskEl = document.getElementById('aiRiskLevel');
-        const narrativeEl = document.getElementById('aiDealNarrative');
-        const seasonalityEl = document.getElementById('aiSeasonality');
-
-        if (
-            recommendationEl && confidenceEl && dropEl && bestEl && saveEl &&
-            waitEl && riskEl && narrativeEl && seasonalityEl && intelligence
-        ) {
-            const recommendation = intelligence.recommendation || 'monitor';
-            recommendationEl.textContent = recommendation.replace('_', ' ').toUpperCase();
-            recommendationEl.className = recommendation === 'buy_now'
-                ? 'text-[11px] px-2 py-1 rounded-full font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                : recommendation === 'wait'
-                    ? 'text-[11px] px-2 py-1 rounded-full font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                    : 'text-[11px] px-2 py-1 rounded-full font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-
-            confidenceEl.textContent = `${Math.round(Number(intelligence.confidence || 0) * 100)}%`;
-            dropEl.textContent = `${Math.round(Number(intelligence.dropProbability7d || 0))}%`;
-            bestEl.textContent = formatPrice(Number(intelligence.expectedBestPrice7d || 0));
-            saveEl.textContent = `${Number(intelligence.expectedSavingsPercent || 0).toFixed(1)}%`;
-            waitEl.textContent = Number(intelligence.suggestedWaitDays || 0) > 0
-                ? `${intelligence.suggestedWaitDays} day(s)`
-                : 'No wait';
-            riskEl.textContent = String(intelligence.riskLevel || 'low').toUpperCase();
-
-            const seasonalHint = intelligence?.signals?.seasonality;
-            seasonalityEl.textContent = seasonalHint
-                ? `Seasonality low window: ${seasonalHint.monthName}`
-                : 'No clear seasonality signal';
-
-            narrativeEl.textContent = intelligence.llmNarrative || intelligence.narrative || 'No AI narrative available.';
-        } else if (
-            recommendationEl && confidenceEl && dropEl && bestEl && saveEl &&
-            waitEl && riskEl && narrativeEl && seasonalityEl
-        ) {
-            recommendationEl.textContent = '-';
-            confidenceEl.textContent = '-';
-            dropEl.textContent = '-';
-            bestEl.textContent = '-';
-            saveEl.textContent = '-';
-            waitEl.textContent = '-';
-            riskEl.textContent = '-';
-            seasonalityEl.textContent = 'No seasonality signal';
-            narrativeEl.textContent = 'Deal intelligence unavailable.';
-        }
-
-        // Render Stock History
-        const stockBar = document.getElementById('stockHistoryBar');
-        if (analytics.stockHistory && analytics.stockHistory.length > 0) {
-            stockBar.innerHTML = '';
-            // Simple visualization: assume history covers last 30 days or so
-            // We'll just show segments based on time duration
-            // This is a bit complex to do perfectly without start/end times for every segment
-            // For now, let's just show the last 10 status changes as equal blocks or something simple
-            // Better: Use the dates to calculate width percentages relative to "now"
-
-            const now = new Date().getTime();
-            const firstDate = new Date(analytics.stockHistory[0].date).getTime();
-            const totalDuration = now - firstDate;
-
-            if (totalDuration > 0) {
-                let lastTime = firstDate;
-                let lastStatus = analytics.stockHistory[0].status;
-
-                // Iterate through history to build segments
-                // We need to handle the time *between* events
-                // Event 1 (In Stock) at T1 -> Event 2 (Out of Stock) at T2
-                // Segment T1-T2 was "In Stock" (assuming status persists until change)
-
-                // Add current time as final point
-                const events = [...analytics.stockHistory, { date: new Date(), status: 'now' }];
-
-                for (let i = 0; i < events.length - 1; i++) {
-                    const currentEvent = events[i];
-                    const nextEvent = events[i + 1];
-                    const duration = new Date(nextEvent.date).getTime() - new Date(currentEvent.date).getTime();
-                    const percent = (duration / totalDuration) * 100;
-
-                    if (percent < 0.5) continue; // Skip tiny segments
-
-                    const colorClass = currentEvent.status === 'in_stock' ? 'bg-green-500' : 'bg-red-500';
-                    const segment = document.createElement('div');
-                    segment.className = `${colorClass} h-full`;
-                    segment.style.width = `${percent}%`;
-                    segment.title = `${currentEvent.status === 'in_stock' ? 'In Stock' : 'Out of Stock'} (${new Date(currentEvent.date).toLocaleDateString()})`;
-                    stockBar.appendChild(segment);
-                }
-            } else {
-                stockBar.innerHTML = `<div class="w-full h-full ${analytics.stockHistory[0].status === 'in_stock' ? 'bg-green-500' : 'bg-red-500'}"></div>`;
-            }
-        } else {
-            stockBar.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs text-gray-500">No stock history available</div>';
-        }
-
-        const labels = data.history.map(h => new Date(h.date).toLocaleDateString());
-        const prices = data.history.map(h => h.price);
-
-        // Prepare forecast data for chart
-        const forecastPoints = analytics.forecast ? analytics.forecast.forecast.map(f => f.price) : [];
-        // Add forecast labels
-        if (analytics.forecast && analytics.forecast.forecast.length > 0) {
-            analytics.forecast.forecast.forEach(f => {
-                labels.push(new Date(f.date).toLocaleDateString());
-            });
-        }
-
-        updatePriceChart(labels, prices, forecastPoints);
-    },
-
-    toggleLogs() {
-        const content = document.getElementById('logsContent');
-        const arrow = document.getElementById('logsArrow');
-
-        if (content.classList.contains('hidden')) {
-            content.classList.remove('hidden');
-            arrow.classList.add('rotate-180');
-            return true; // Should fetch logs
-        } else {
-            content.classList.add('hidden');
-            arrow.classList.remove('rotate-180');
-            return false;
-        }
-    },
-
-    openAddProductModal() {
-        const modal = document.getElementById('addProductModal');
-        const content = document.getElementById('addProductModalContent');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        setTimeout(() => {
-            content.classList.remove('scale-95', 'opacity-0');
-            content.classList.add('scale-100', 'opacity-100');
-        }, 10);
-    },
-
-    closeAddProductModal() {
-        const modal = document.getElementById('addProductModal');
-        const content = document.getElementById('addProductModalContent');
-        content.classList.remove('scale-100', 'opacity-100');
-        content.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => {
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-            document.getElementById('newProductUrl').value = '';
-        }, 200);
     }
-};
+
+    // ── Price chart ───────────────────────────────────────────────────────────
+    const history = data.priceHistory || [];
+    const labels  = history.map(h => formatAgo(h.date));
+    const prices  = history.map(h => h.price);
+
+    const forecastPrices = analytics.forecast?.forecast?.map(f => f.price) || [];
+    const allPrices = [...prices, ...forecastPrices].filter(Boolean);
+    const atl = allPrices.length ? Math.min(...allPrices) : null;
+    const ath = allPrices.length ? Math.max(...allPrices) : null;
+
+    // Ensure chart is initialized
+    if (!$('priceChart')?._chartInstance) initPriceChart();
+    updatePriceChart(labels, prices, forecastPrices, { low: atl, high: ath });
+
+    // ── History stats row ─────────────────────────────────────────────────────
+    const statsEl = $('historyStats');
+    if (statsEl && prices.length) {
+        const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+        statsEl.innerHTML = `
+          <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--green)">${formatPrice(atl)}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">All-time Low</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--amber)">${formatPrice(avg)}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">Average Price</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--red)">${formatPrice(ath)}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">All-time High</div>
+          </div>`;
+    }
+
+    // ── Volatility widget ─────────────────────────────────────────────────────
+    if (analytics.volatility) {
+        setText('volatilityLabel', analytics.volatility.label || '—');
+        setText('volatilityScore', analytics.volatility.score ?? '—');
+        const bar = $('volatilityBar');
+        if (bar) bar.style.width = `${(analytics.volatility.score || 0) * 10}%`;
+    }
+
+    // ── Best day to buy ───────────────────────────────────────────────────────
+    if (analytics.bestDay) {
+        setText('bestDayLabel', analytics.bestDay.dayName || '—');
+        setText('bestDayPrice', formatPrice(analytics.bestDay.averagePrice));
+    } else {
+        setText('bestDayLabel', 'N/A');
+        setText('bestDayPrice', '—');
+    }
+
+    // ── Forecast widget ───────────────────────────────────────────────────────
+    if (analytics.forecast) {
+        const trendEl = $('forecastTrend');
+        const confEl  = $('forecastConfidence');
+        const trend   = String(analytics.forecast.trend || '').toUpperCase();
+        const isDown  = trend === 'DOWN' || trend === 'DROP' || trend === 'FALL';
+        const isUp    = trend === 'UP'   || trend === 'RISE';
+        if (trendEl) {
+            trendEl.textContent  = isDown ? '📉 Falling' : isUp ? '📈 Rising' : '➡️ Stable';
+            trendEl.style.color  = isDown ? 'var(--green)' : isUp ? 'var(--red)' : 'var(--text2)';
+        }
+        if (confEl) {
+            const conf = analytics.forecast.confidence;
+            confEl.textContent = conf != null ? `Confidence: ${(conf * 100).toFixed(0)}%` : '';
+        }
+    }
+
+    // ── Stock history bar ─────────────────────────────────────────────────────
+    if (analytics.stockHistory?.length) {
+        renderStockHistoryBar('stockHistoryBar', analytics.stockHistory);
+    }
+
+    // ── Deal intelligence ─────────────────────────────────────────────────────
+    _renderDealIntelligence(analytics.dealIntelligence);
+}
+
+function _renderDealIntelligence(intel) {
+    if (!intel) return;
+
+    const fields = [
+        ['diRecommendation', intel.recommendation],
+        ['diConfidence',     intel.confidence != null ? `${(intel.confidence * 100).toFixed(0)}%` : null],
+        ['diDropProbability', intel.dropProbability != null ? `${(intel.dropProbability * 100).toFixed(0)}%` : null],
+        ['diBestPrice',      intel.bestPrice != null ? formatPrice(intel.bestPrice) : null],
+        ['diSavings',        intel.potentialSavings != null ? formatPrice(intel.potentialSavings) : null],
+        ['diWaitDays',       intel.recommendedWaitDays != null ? `${intel.recommendedWaitDays} days` : null],
+        ['diRisk',           intel.riskLevel],
+        ['diSeasonality',    intel.seasonalityNote || (intel.hasSeasonality ? 'Seasonal pattern detected' : 'No seasonality signal')],
+        ['diNarrative',      intel.narrative || intel.advice],
+    ];
+
+    fields.forEach(([id, value]) => {
+        if (value != null) setText(id, value);
+    });
+}
+
+// ── TOP CATEGORIES ────────────────────────────────────────────────────────────
+export function renderTopCategories(categories) {
+    const container = $('topCategoriesList');
+    if (!container) return;
+    if (!categories?.length) {
+        container.innerHTML = '<div style="font-size:12px;color:var(--text3)">No category data</div>';
+        return;
+    }
+    container.innerHTML = categories.map(c => `
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text2);padding:3px 0">
+        <span class="truncate">${c.category || c._id || '—'}</span>
+        <span style="color:var(--text3);white-space:nowrap;margin-left:8px;font-family:var(--font-mono)">
+          ${c.count} · ${(c.avgDiscount || 0).toFixed(1)}% avg
+        </span>
+      </div>`).join('');
+}
+
+// ── DEAL SCORE DISTRIBUTION ───────────────────────────────────────────────────
+export function renderScoreDistribution(deals) {
+    // Bucket deal scores into 5 ranges
+    const buckets = [0, 0, 0, 0, 0];
+    (deals || []).forEach(d => {
+        const s = Math.round(d.smartScore || 0);
+        const idx = Math.min(4, Math.floor(s / 20));
+        buckets[idx]++;
+    });
+    Bus.emit('score:update', buckets);
+}
+
+// ── LOGS ──────────────────────────────────────────────────────────────────────
+export function renderLogs(logs) {
+    const container = $('logsList');
+    if (!container) return;
+    if (!logs?.length) {
+        container.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px">No log entries</div>';
+        return;
+    }
+    const levelColor = { error: 'var(--red)', warn: 'var(--amber)', info: 'var(--green)', debug: 'var(--text3)' };
+    container.innerHTML = logs.map(log => `
+      <div style="display:flex;gap:10px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <span style="color:var(--text3);white-space:nowrap;font-family:var(--font-mono)">
+          [${new Date(log.time || log.timestamp || Date.now()).toLocaleTimeString()}]
+        </span>
+        <span style="color:${levelColor[log.level] || 'var(--text2)'};text-transform:uppercase;width:40px;font-family:var(--font-mono);flex-shrink:0">${log.level}</span>
+        <span style="color:var(--text2);word-break:break-word">${log.message}</span>
+      </div>`).join('');
+}
+
+let _logsVisible = false;
+export function toggleLogs() {
+    const el = $('logsSection');
+    if (!el) return false;
+    _logsVisible = !_logsVisible;
+    el.style.display = _logsVisible ? '' : 'none';
+    return _logsVisible;
+}
+
+// ── ADD PRODUCT MODAL ─────────────────────────────────────────────────────────
+/** Open the slide-in Quick Add panel */
+export function openAddProductModal() {
+    const panel = $('quickAddPanel');
+    if (panel) panel.classList.add('open');
+}
+
+/** Close the Quick Add panel and reset form */
+export function closeAddProductModal() {
+    const panel = $('quickAddPanel');
+    if (panel) panel.classList.remove('open');
+    const urlInput = $('qaUrl');
+    if (urlInput) urlInput.value = '';
+    const preview = $('previewBox');
+    if (preview) { preview.classList.remove('visible'); preview.innerHTML = ''; }
+}
+
+// ── SEARCH RESULTS ────────────────────────────────────────────────────────────
+export function renderSearchResults(results, container) {
+    if (!container) return;
+    if (!results?.length) {
+        container.innerHTML = '<div style="padding:10px 16px;font-size:13px;color:var(--text3)">No results found</div>';
+        container.classList.remove('hidden');
+        return;
+    }
+    container.innerHTML = results.map(p => `
+      <div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;
+          cursor:pointer;transition:background 0.1s;border-bottom:1px solid var(--border)"
+          onmouseover="this.style.background='var(--bg3)'"
+          onmouseout="this.style.background=''"
+          onclick="window.TZ.loadHistory('${p.asin}','${encodeURIComponent(p.name||p.asin)}');document.getElementById('searchResults')?.classList.add('hidden')">
+        <span style="font-size:13px;color:var(--text);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${p.name || p.title || p.asin}
+        </span>
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--amber);margin-left:10px">
+          ${formatPrice(p.currentPrice)}
+        </span>
+      </div>`).join('');
+    container.classList.remove('hidden');
+}
+
+// ── ADMIN STATS ───────────────────────────────────────────────────────────────
+export function renderAdminStats(health, dbStats, extStats) {
+    // Health
+    const ok  = v => v === true || v === 'ok' || v === 'connected' || v === 'up';
+    const cls = v => ok(v) ? 'status-ok' : 'status-err';
+
+    const setAdmin = (id, val, statusVal) => {
+        const el = $(id);
+        if (!el) return;
+        el.textContent = val;
+        if (statusVal !== undefined) el.className = `admin-stat-value ${cls(statusVal)}`;
+    };
+
+    if (health) {
+        setAdmin('adm-api',   'Online',                     true);
+        setAdmin('adm-db',    ok(health.db)  ? 'Connected' : 'Error',   health.db);
+        setAdmin('adm-queue', ok(health.redis) ? 'Active' : 'Inactive', health.redis);
+        setAdmin('adm-sched', ok(health.scheduler) ? 'Running' : 'Stopped', health.scheduler);
+
+        if (typeof health.ai === 'object' && health.ai) {
+            const ai = health.ai;
+            setAdmin('adm-aistate', ai.paused ? 'Paused' : 'Active', !ai.paused);
+            setAdmin('adm-tokens',  ai.tokensToday != null ? `${ai.tokensToday.toLocaleString()} / ${(ai.tokenBudget||0).toLocaleString()}` : '—');
+            setAdmin('adm-reqs',    ai.requestsToday ?? '—');
+            setAdmin('adm-pause',   ai.pauseUntil ? formatAgo(ai.pauseUntil) : 'None');
+        } else {
+            setAdmin('adm-ai', ok(health.ai) ? 'Active' : 'Off', health.ai);
+        }
+    }
+
+    if (dbStats) {
+        setAdmin('adm-products', (dbStats.products  || 0).toLocaleString());
+        setAdmin('adm-users',    (dbStats.users      || 0).toLocaleString());
+        setAdmin('adm-metrics',  (dbStats.metrics    || 0).toLocaleString());
+        setAdmin('adm-subs',     (dbStats.subscriptions || 0).toLocaleString());
+        setAdmin('adm-alerts',   (dbStats.alertsSent24h || 0).toLocaleString());
+    }
+
+    if (extStats || health?.extension) {
+        const e = extStats || health.extension;
+        setAdmin('adm-syncs', e.totalSyncs   || '—');
+        setAdmin('adm-newp',  e.newProducts  || '—');
+        setAdmin('adm-upd',   e.updates      || '—');
+        setAdmin('adm-errs',  e.errors       || '0');
+    }
+}
+
+// ── THEME MANAGEMENT ──────────────────────────────────────────────────────────
+export function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const btn = $('themeBtn');
+    if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+    const toggle = $('darkModeToggle');
+    if (toggle) toggle.classList.toggle('on', theme === 'dark');
+    // Refresh charts to match new palette
+    reapplyTheme();
+}
+
+// ── CURRENCY TOGGLE ───────────────────────────────────────────────────────────
+export function updateCurrencyDisplay() {
+    const btn = $('currencyToggle');
+    if (btn) btn.textContent = STATE.currentCurrency;
+}
+
+// ── TOAST (internal use from UI layer) ───────────────────────────────────────
+export function showToast(msg, type = 'info') {
+    Bus.emit('toast', { msg, type });
+}
