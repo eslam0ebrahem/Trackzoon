@@ -689,6 +689,8 @@
       exportPDF: () => window.open(API.base + '/export/pdf', '_blank'),
       exportRSS: () => API.base + '/export/rss',
       userProducts: () => API.req('/products/user'),
+      getNotifications: () => API.req('/user/notifications'),
+      clearNotifications: () => API.req('/user/notifications/clear', { method: 'POST' }),
     };
 
     // ── INIT ──────────────────────────────────────────────────────────────
@@ -969,7 +971,7 @@
     }
 
     function renderHistoryChart(data) {
-      const prices = (data.priceHistory || []).slice(-60);
+      const prices = (data.history || data.priceHistory || []).slice(-60);
       if (!prices.length) return;
       const labels = prices.map(p => new Date(p.date || p.timestamp || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
       const vals = prices.map(p => p.price || p);
@@ -1008,7 +1010,7 @@
     }
 
     function renderHistoryStats(data) {
-      const prices = (data.priceHistory || []).map(p => p.price || p);
+      const prices = (data.history || data.priceHistory || []).map(p => p.price || p);
       if (!prices.length) { document.getElementById('historyStats').innerHTML = ''; return; }
       const min = Math.min(...prices), max = Math.max(...prices), avg = prices.reduce((a, b) => a + b, 0) / prices.length;
       document.getElementById('historyStats').innerHTML = `
