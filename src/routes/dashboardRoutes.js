@@ -9,9 +9,7 @@ const router = express.Router();
 // Public Routes
 router.post('/login', express.json(), validate(schemas.login), authController.login);
 router.get('/health', dashboardController.getHealth);
-router.get('/user/me', authMiddleware, (req, res) => {
-    res.json({ user: req.user, isAdmin: req.user.role === 'admin' });
-});
+// Removed redundant /user/me override
 
 // Protected Routes (Read-Only)
 router.use(authMiddleware); // Apply auth to all subsequent routes
