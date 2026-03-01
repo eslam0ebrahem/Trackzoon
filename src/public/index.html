@@ -1,1283 +1,2707 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
-
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trackzoon Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="manifest" href="/manifest.json">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('SW registered'))
-                    .catch(err => console.log('SW registration failed', err));
-            });
-        }
-    </script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trackzoon v2 — Deal Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<style>
+/* ─── CSS VARIABLES ──────────────────────────────────────────────── */
+:root {
+  --bg:         #070b14;
+  --bg2:        #0d1220;
+  --bg3:        #111827;
+  --border:     rgba(255,255,255,0.07);
+  --border2:    rgba(255,255,255,0.12);
+  --text:       #e2e8f0;
+  --text2:      #94a3b8;
+  --text3:      #475569;
+  --amber:      #F59E0B;
+  --amber-glow: rgba(245,158,11,0.15);
+  --green:      #10B981;
+  --green-glow: rgba(16,185,129,0.15);
+  --red:        #EF4444;
+  --red-glow:   rgba(239,68,68,0.12);
+  --blue:       #3B82F6;
+  --blue-glow:  rgba(59,130,246,0.15);
+  --sidebar-w:  240px;
+  --sidebar-collapsed: 64px;
+  --radius:     12px;
+  --radius-lg:  18px;
+  --font-head:  'Syne', sans-serif;
+  --font-body:  'DM Sans', sans-serif;
+  --font-mono:  'JetBrains Mono', monospace;
+  --shadow:     0 4px 24px rgba(0,0,0,0.4);
+  --shadow-lg:  0 8px 48px rgba(0,0,0,0.6);
+}
+[data-theme="light"] {
+  --bg:    #f0f4f8;
+  --bg2:   #ffffff;
+  --bg3:   #f8fafc;
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.12);
+  --text:   #0f172a;
+  --text2:  #475569;
+  --text3:  #94a3b8;
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 48px rgba(0,0,0,0.12);
+}
 
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
+/* ─── RESET & BASE ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+input, select { font-family: inherit; }
+img { max-width: 100%; }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
+/* ─── SCROLLBAR ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
 
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
+/* ─── SIDEBAR ────────────────────────────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-w);
+  min-height: 100vh;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 100;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+}
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--border);
+  min-height: 64px;
+}
+.logo-icon {
+  width: 32px; height: 32px;
+  background: var(--amber);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+.logo-text {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.logo-badge {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  background: var(--amber-glow);
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: auto;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+#sidebar.collapsed .logo-badge,
+#sidebar.collapsed .logo-text,
+#sidebar.collapsed .nav-label,
+#sidebar.collapsed .nav-section-title,
+#sidebar.collapsed .sidebar-footer-text { opacity: 0; pointer-events: none; width: 0; overflow: hidden; }
+.nav-section { padding: 8px 0; }
+.nav-section-title {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  padding: 6px 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  color: var(--text2);
+}
+.nav-item:hover { background: var(--border); color: var(--text); }
+.nav-item.active {
+  background: var(--amber-glow);
+  color: var(--amber);
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 3px;
+  background: var(--amber);
+  border-radius: 0 3px 3px 0;
+  margin-left: -8px;
+}
+.nav-icon {
+  font-size: 17px;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.nav-label {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+.nav-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: var(--red);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-footer-avatar {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--blue), var(--amber));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: #fff;
+}
+.sidebar-footer-text { overflow: hidden; }
+.sidebar-footer-text .name { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.sidebar-footer-text .role { font-size: 11px; color: var(--text2); white-space: nowrap; }
+#sidebarToggle {
+  position: absolute;
+  bottom: 80px;
+  right: -14px;
+  width: 28px; height: 28px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+  color: var(--text2);
+}
+#sidebarToggle:hover { background: var(--bg3); color: var(--text); }
 
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
+/* ─── MAIN CONTENT ───────────────────────────────────────────────── */
+#mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: all 0.3s;
+}
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
+/* ─── TOP BAR ────────────────────────────────────────────────────── */
+#topbar {
+  height: 64px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+}
+.topbar-title {
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 700;
+}
+.topbar-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.topbar-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  background: var(--bg3);
+  transition: all 0.15s;
+}
+.topbar-btn:hover { border-color: var(--amber); color: var(--amber); }
+.topbar-btn.primary {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #000;
+  font-weight: 700;
+}
+.topbar-btn.primary:hover { background: #fbbf24; }
+.topbar-icon-btn {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  font-size: 16px;
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.topbar-icon-btn:hover { border-color: var(--amber); color: var(--amber); }
+.cmd-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 200px;
+}
+.cmd-pill:hover { border-color: var(--amber); }
+.cmd-pill span { font-size: 13px; color: var(--text3); }
+.cmd-pill .shortcut {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.live-dot {
+  width: 8px; height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse-green 2s infinite;
+}
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--green-glow); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 6px transparent; }
+}
 
-        /* Dark mode scrollbar */
-        .dark ::-webkit-scrollbar-track {
-            background: #1f2937;
-        }
+/* ─── TICKER ─────────────────────────────────────────────────────── */
+#tickerBar {
+  background: linear-gradient(90deg, #0d1a35, var(--bg2), #0d1a35);
+  border-bottom: 1px solid var(--border);
+  height: 34px;
+  overflow: hidden;
+  position: relative;
+}
+#tickerBar::before, #tickerBar::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; width: 60px;
+  z-index: 2;
+}
+#tickerBar::before { left: 0; background: linear-gradient(90deg, var(--bg2), transparent); }
+#tickerBar::after { right: 0; background: linear-gradient(-90deg, var(--bg2), transparent); }
+.ticker-track {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  animation: scrollTicker 40s linear infinite;
+  white-space: nowrap;
+}
+.ticker-track:hover { animation-play-state: paused; }
+@keyframes scrollTicker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 24px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text2);
+  border-right: 1px solid var(--border);
+  transition: color 0.15s;
+}
+.ticker-item:hover { color: var(--text); }
+.ticker-item .t-price { font-weight: 600; }
+.ticker-item .t-drop { color: var(--green); }
+.ticker-item .t-hike { color: var(--red); }
 
-        .dark ::-webkit-scrollbar-thumb {
-            background: #4b5563;
-        }
+/* ─── PAGE CONTENT ───────────────────────────────────────────────── */
+#pageContent { flex: 1; padding: 28px 32px; overflow-y: auto; }
+.page-section { display: none; animation: fadeIn 0.2s ease; }
+.page-section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-        .dark ::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
-        }
+/* ─── STAT CARDS ─────────────────────────────────────────────────── */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.stat-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.stat-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-accent, var(--amber));
+  opacity: 0.7;
+}
+.stat-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.stat-change {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: 8px;
+  display: flex; align-items: center; gap: 4px;
+}
 
-        /* Ticker Animation */
-        @keyframes ticker {
-            0% {
-                transform: translateX(100%);
-            }
+/* ─── DEALS SECTION ──────────────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-title {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 700;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-controls {
+  display: flex; align-items: center; gap: 8px;
+}
+.filter-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.filter-btn:hover, .filter-btn.active {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: var(--amber-glow);
+}
+.search-input {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 180px;
+}
+.search-input:focus { border-color: var(--amber); }
+.search-input::placeholder { color: var(--text3); }
 
-            100% {
-                transform: translateX(-100%);
-            }
-        }
+/* ─── DEAL CARDS ─────────────────────────────────────────────────── */
+#dealsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+#dealsList.list-view { grid-template-columns: 1fr; }
+.deal-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+.deal-card:hover {
+  border-color: var(--border2);
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+.deal-card-header {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.deal-img {
+  width: 64px; height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg3);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  overflow: hidden;
+}
+.deal-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+.deal-info { flex: 1; min-width: 0; }
+.deal-title {
+  font-size: 14px;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+.deal-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.badge-hot { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+.badge-good { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+.badge-fair { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+.badge-stable { background: rgba(59,130,246,0.12); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+.badge-hike { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.deal-card-body { padding: 14px 16px; }
+.deal-price-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.deal-price {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+}
+.deal-price.drop { color: var(--green); }
+.deal-price.hike { color: var(--red); }
+.deal-old-price {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text3);
+  text-decoration: line-through;
+  margin-left: 6px;
+}
+.deal-change-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.deal-change-badge.drop { background: var(--green-glow); color: var(--green); }
+.deal-change-badge.hike { background: var(--red-glow); color: var(--red); }
+.deal-change-badge.stable { background: var(--bg3); color: var(--text3); }
 
-        .ticker-wrap {
-            width: 100%;
-            overflow: hidden;
-            background-color: #2563eb;
-            /* blue-600 */
-            color: white;
-            height: 32px;
-            line-height: 32px;
-        }
+/* SPARKLINE */
+.sparkline-wrap { height: 36px; margin-bottom: 10px; }
+.sparkline-wrap svg { width: 100%; height: 100%; }
 
-        .ticker {
-            display: inline-block;
-            white-space: nowrap;
-            padding-right: 100%;
-            animation: ticker 30s linear infinite;
-        }
+/* SMART SCORE GAUGE */
+.score-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.score-gauge {
+  position: relative;
+  width: 48px; height: 48px;
+  flex-shrink: 0;
+}
+.score-gauge svg { width: 48px; height: 48px; transform: rotate(-90deg); }
+.score-gauge .score-num {
+  position: absolute;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.score-details { flex: 1; min-width: 0; }
+.score-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.confidence-bar-wrap { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.confidence-bar { height: 100%; border-radius: 99px; transition: width 1s ease; }
+.deal-card-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.deal-action {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  background: var(--bg3);
+  transition: all 0.15s;
+}
+.deal-action:hover { border-color: var(--amber); color: var(--amber); background: var(--amber-glow); }
+.deal-action.primary { background: var(--amber); border-color: var(--amber); color: #000; font-weight: 700; }
+.deal-action.primary:hover { background: #fbbf24; }
+.deal-time { margin-left: auto; font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+.out-of-stock-overlay {
+  position: absolute; inset: 0;
+  background: rgba(7,11,20,0.7);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--red);
+  letter-spacing: 0.1em;
+  backdrop-filter: blur(1px);
+  border-radius: var(--radius-lg);
+}
 
-        .ticker:hover {
-            animation-play-state: paused;
-        }
+/* ─── CONTEXT MENU ───────────────────────────────────────────────── */
+#contextMenu {
+  position: fixed;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  min-width: 180px;
+  display: none;
+}
+.ctx-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text2);
+  transition: all 0.1s;
+}
+.ctx-item:hover { background: var(--border); color: var(--text); }
+.ctx-item.danger:hover { background: var(--red-glow); color: var(--red); }
+.ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
-        .ticker-item {
-            display: inline-block;
-            padding: 0 2rem;
-            font-size: 0.875rem;
-        }
-    </style>
-    <script>
-        // Check local storage for theme
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark')
-        } else {
-            document.documentElement.classList.remove('dark')
-        }
-    </script>
+/* ─── PRODUCT HISTORY PANEL ──────────────────────────────────────── */
+#historyPanel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-top: 20px;
+  display: none;
+}
+#historyPanel.visible { display: block; animation: fadeIn 0.2s; }
+.history-chart-wrap { height: 200px; position: relative; margin: 16px 0; }
+.history-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+/* ─── ANALYTICS CARDS ────────────────────────────────────────────── */
+.analytics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+.analytics-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  transition: all 0.2s;
+}
+.analytics-card:hover { border-color: var(--border2); }
+.analytics-card h3 {
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+/* ─── COMMAND PALETTE ────────────────────────────────────────────── */
+#cmdOverlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 100px;
+}
+#cmdOverlay.open { display: flex; animation: fadeIn 0.1s; }
+#cmdBox {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 580px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+#cmdInput {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 18px 20px;
+  font-size: 16px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+#cmdInput::placeholder { color: var(--text3); }
+#cmdResults { max-height: 320px; overflow-y: auto; }
+.cmd-result-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: all 0.1s;
+  color: var(--text2);
+  font-size: 14px;
+}
+.cmd-result-item:hover, .cmd-result-item.selected {
+  background: var(--amber-glow);
+  color: var(--amber);
+}
+.cmd-result-icon { font-size: 16px; width: 24px; flex-shrink: 0; }
+.cmd-result-sub { font-size: 11px; color: var(--text3); margin-left: auto; font-family: var(--font-mono); }
+.cmd-footer {
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 16px;
+  font-size: 11px; color: var(--text3);
+}
+.cmd-hint { display: flex; align-items: center; gap: 4px; }
+.cmd-key {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* ─── QUICK ADD PANEL ────────────────────────────────────────────── */
+#quickAddPanel {
+  position: fixed;
+  right: 0; top: 0; bottom: 0;
+  width: 400px;
+  background: var(--bg2);
+  border-left: 1px solid var(--border2);
+  z-index: 1500;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+#quickAddPanel.open { transform: translateX(0); }
+.panel-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-title {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 700;
+}
+.panel-close {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: 18px;
+  transition: all 0.15s;
+}
+.panel-close:hover { background: var(--red-glow); color: var(--red); }
+.panel-body { padding: 24px; flex: 1; overflow-y: auto; }
+.form-group { margin-bottom: 20px; }
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.form-input, .form-select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.form-input:focus, .form-select:focus { border-color: var(--amber); }
+.form-input::placeholder { color: var(--text3); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-hint { font-size: 11px; color: var(--text3); margin-top: 5px; }
+.preview-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 16px 0;
+  display: none;
+}
+.preview-box.visible { display: block; animation: fadeIn 0.2s; }
+.preview-loading { text-align: center; color: var(--text2); font-size: 13px; padding: 20px; }
+.panel-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 10px;
+}
+.btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; transition: all 0.15s; }
+.btn-primary { background: var(--amber); color: #000; border: none; }
+.btn-primary:hover { background: #fbbf24; }
+.btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); flex: 1; text-align: center; }
+.btn-secondary:hover { border-color: var(--amber); color: var(--amber); }
+
+/* ─── TOAST ──────────────────────────────────────────────────────── */
+#toastContainer {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+}
+.toast {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  min-width: 280px;
+  max-width: 380px;
+  font-size: 13px;
+  animation: slideInToast 0.3s ease;
+  transition: all 0.3s;
+}
+.toast.hide { animation: slideOutToast 0.3s ease forwards; }
+@keyframes slideInToast { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOutToast { to { transform: translateX(120%); opacity: 0; } }
+.toast-icon { font-size: 18px; flex-shrink: 0; }
+.toast-msg { flex: 1; font-weight: 500; }
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error { border-left: 3px solid var(--red); }
+.toast.info { border-left: 3px solid var(--blue); }
+.toast.warn { border-left: 3px solid var(--amber); }
+
+/* ─── KEYBOARD SHORTCUTS ─────────────────────────────────────────── */
+#shortcutsOverlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#shortcutsOverlay.open { display: flex; animation: fadeIn 0.15s; }
+#shortcutsBox {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+#shortcutsBox h2 {
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 20px;
+}
+.shortcut-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.shortcut-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg3);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.shortcut-item .keys { display: flex; gap: 4px; }
+.shortcut-item .key {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ─── ADMIN SECTION ──────────────────────────────────────────────── */
+.admin-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.admin-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.admin-card h3 { font-family: var(--font-head); font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.admin-stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.admin-stat-row:last-child { border: none; }
+.admin-stat-label { font-size: 13px; color: var(--text2); }
+.admin-stat-value { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.status-ok { color: var(--green); }
+.status-warn { color: var(--amber); }
+.status-err { color: var(--red); }
+.admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.admin-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.admin-btn:hover { border-color: var(--amber); color: var(--amber); }
+.admin-btn.danger:hover { border-color: var(--red); color: var(--red); background: var(--red-glow); }
+
+/* ─── EMPTY / LOADING ────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text2);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state h3 { font-family: var(--font-head); font-size: 18px; margin-bottom: 8px; }
+.empty-state p { font-size: 14px; color: var(--text3); }
+.skeleton {
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--border) 50%, var(--bg3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ─── NOTIFICATION BELL ──────────────────────────────────────────── */
+#notifPanel {
+  position: fixed;
+  top: 64px; right: 0;
+  width: 340px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  z-index: 1200;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s;
+}
+#notifPanel.open { transform: translateY(0); opacity: 1; pointer-events: all; }
+.notif-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.notif-header h4 { font-family: var(--font-head); font-size: 14px; font-weight: 700; }
+.notif-item {
+  display: flex; gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+  cursor: pointer;
+}
+.notif-item:hover { background: var(--bg3); }
+.notif-dot { width: 8px; height: 8px; background: var(--amber); border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.notif-msg { font-size: 13px; line-height: 1.4; }
+.notif-time { font-size: 11px; color: var(--text3); font-family: var(--font-mono); margin-top: 3px; }
+.notif-bell-badge {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 14px; height: 14px;
+  background: var(--red);
+  border-radius: 50%;
+  font-size: 8px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  border: 2px solid var(--bg2);
+}
+
+/* ─── LOGIN MODAL ────────────────────────────────────────────────── */
+#loginModal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(8px);
+  z-index: 4000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#loginModal.open { display: flex; }
+#loginBox {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 36px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+.login-logo { font-size: 40px; margin-bottom: 8px; }
+.login-title { font-family: var(--font-head); font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+.login-sub { font-size: 14px; color: var(--text2); margin-bottom: 28px; }
+.login-tg-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%;
+  padding: 13px;
+  background: #229ED9;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+  transition: all 0.15s;
+  border: none;
+}
+.login-tg-btn:hover { background: #1a8bbf; }
+.login-manual {
+  display: flex; gap: 8px;
+  margin-top: 16px;
+}
+.login-manual input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+}
+.login-manual input:focus { border-color: var(--amber); }
+.login-manual button {
+  padding: 10px 16px;
+  background: var(--amber);
+  color: #000;
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 8px;
+  border: none;
+}
+
+/* ─── MOBILE BOTTOM NAV ──────────────────────────────────────────── */
+#mobileNav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  z-index: 500;
+  justify-content: space-around;
+  align-items: center;
+}
+.mob-nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 12px;
+  color: var(--text3);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.mob-nav-item.active { color: var(--amber); }
+.mob-nav-item .icon { font-size: 20px; }
+
+/* ─── SETTINGS SECTION ───────────────────────────────────────────── */
+.settings-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.settings-section-title {
+  padding: 16px 20px;
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-row:last-child { border: none; }
+.settings-row-info {}
+.settings-row-label { font-size: 14px; font-weight: 500; }
+.settings-row-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.toggle {
+  width: 42px; height: 24px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 99px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.toggle.on { background: var(--amber); border-color: var(--amber); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: var(--text2);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(18px); background: #000; }
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .analytics-grid { grid-template-columns: repeat(2, 1fr); }
+  #sidebar { position: fixed; z-index: 400; height: 100vh; }
+  #sidebar:not(.open) { transform: translateX(-100%); }
+  #sidebar.open { transform: translateX(0); }
+  #sidebarOverlay {
+    display: none;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 399;
+  }
+  #sidebarOverlay.visible { display: block; }
+  #mainContent { margin-left: 0 !important; }
+}
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .analytics-grid { grid-template-columns: 1fr; }
+  #dealsList { grid-template-columns: 1fr; }
+  #pageContent { padding: 16px; padding-bottom: 80px; }
+  #mobileNav { display: flex; }
+  .admin-grid { grid-template-columns: 1fr; }
+  #quickAddPanel { width: 100%; }
+  .cmd-pill { min-width: 140px; }
+  .topbar-actions .topbar-btn:not(.primary) { display: none; }
+  #topbar { padding: 0 16px; }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stat-value { font-size: 22px; }
+}
+</style>
 </head>
+<body>
 
-<body class="bg-gray-50 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-gray-100 transition-colors duration-200">
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-    <!-- Live Ticker -->
-    <div class="ticker-wrap">
-        <div class="ticker" id="priceTicker">
-            <span class="ticker-item">Loading live prices...</span>
-        </div>
+<!-- ─── SIDEBAR ──────────────────────────────────────────────── -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">⚡</div>
+    <span class="logo-text">Trackzoon</span>
+    <span class="logo-badge">v2</span>
+  </div>
+
+  <nav>
+    <div class="nav-section">
+      <div class="nav-section-title">OVERVIEW</div>
+      <div class="nav-item active" onclick="navigate('deals')" data-page="deals">
+        <span class="nav-icon">🔥</span>
+        <span class="nav-label">Live Deals</span>
+        <span class="nav-badge" id="navDealsCount">0</span>
+      </div>
+      <div class="nav-item" onclick="navigate('watchlist')" data-page="watchlist">
+        <span class="nav-icon">📦</span>
+        <span class="nav-label">My Watchlist</span>
+      </div>
+      <div class="nav-item" onclick="navigate('analytics')" data-page="analytics">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Analytics</span>
+      </div>
     </div>
-
-    <!-- Navbar -->
-    <nav class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50 transition-colors duration-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <span
-                        class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Trackzoon</span>
-                </div>
-
-                <!-- Search Bar -->
-                <div class="flex-1 max-w-lg mx-8 flex items-center">
-                    <div class="relative w-full">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <input type="text" id="searchInput" name="search"
-                            class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-full leading-5 bg-gray-50 dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition"
-                            placeholder="Search products...">
-                        <!-- Search Results Dropdown -->
-                        <div id="searchResults"
-                            class="absolute mt-1 w-full bg-white dark:bg-gray-800 shadow-lg rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto max-h-60 hidden z-50">
-                            <!-- Results injected here -->
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex items-center space-x-3">
-                    <!-- Currency Toggle -->
-                    <button id="currencyToggle" onclick="toggleCurrency()"
-                        class="text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-                        title="Toggle EGP/USD">
-                        EGP
-                    </button>
-
-                    <!-- Add Product Button (Primary) -->
-                    <button onclick="openAddProductModal()"
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm hover:shadow-md">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
-                            </path>
-                        </svg>
-                        <span class="hidden sm:inline">Track Product</span>
-                    </button>
-
-                    <!-- Export Dropdown -->
-                    <div class="relative group">
-                        <button
-                            class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                        </button>
-                        <div
-                            class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 hidden group-hover:block z-50 animate-fade-in">
-                            <div class="py-1">
-                                <button onclick="downloadCSV()"
-                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    Export CSV
-                                </button>
-                                <a href="/api/export/pdf" target="_blank"
-                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    Export PDF
-                                </a>
-                                <a href="/api/export/rss" target="_blank"
-                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    RSS Feed
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Settings -->
-                    <button onclick="openSettingsModal()"
-                        class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                        title="Settings">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                            </path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                    </button>
-
-                    <!-- System Status (Opens System Dashboard) -->
-                    <button onclick="toggleSystemDashboard()" id="healthStatus"
-                        class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition border border-gray-200 dark:border-gray-700"
-                        title="System Status">
-                        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span
-                            class="text-xs font-medium text-gray-600 dark:text-gray-400 hidden sm:inline">System</span>
-                    </button>
-
-                    <!-- Dark Mode Toggle -->
-                    <button id="themeToggle"
-                        class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors">
-                        <!-- Sun Icon -->
-                        <svg id="sunIcon" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
-                            </path>
-                        </svg>
-                        <!-- Moon Icon -->
-                        <svg id="moonIcon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
-                            </path>
-                        </svg>
-                    </button>
-                    <!-- Login Button -->
-                    <button onclick="openLoginModal()"
-                        class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                        title="Login">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1">
-                            </path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Add Product Modal -->
-    <div id="addProductModal"
-        class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all scale-95 opacity-0"
-            id="addProductModalContent">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Track New Product</h3>
-            <div class="space-y-4">
-                <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amazon URL</label>
-                    <div class="relative">
-                        <input type="text" id="newProductUrl" name="url" placeholder="Paste Amazon link here..."
-                            oninput="handleUrlInput(this.value)"
-                            class="w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-all">
-                        <div id="urlValidationIcon" class="absolute right-3 top-2.5 hidden">
-                            <!-- Icons injected by JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Product Preview Card -->
-                <div id="productPreview"
-                    class="hidden bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600 animate-fade-in">
-                    <div class="flex space-x-3">
-                        <div class="w-16 h-16 bg-white rounded-md p-1 flex-shrink-0">
-                            <img id="previewImage" src="" class="w-full h-full object-contain">
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h4 id="previewTitle"
-                                class="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 mb-1">Loading...
-                            </h4>
-                            <div class="flex items-center justify-between">
-                                <span id="previewPrice"
-                                    class="text-lg font-bold text-blue-600 dark:text-blue-400">...</span>
-                                <span id="previewStock"
-                                    class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hidden">In
-                                    Stock</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Smart Target Suggestion -->
-                    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Target Price
-                                (-10%)</label>
-                            <span class="text-xs text-blue-500 cursor-pointer hover:underline"
-                                onclick="setSmartTarget(0.15)">Set -15%</span>
-                        </div>
-                        <div class="flex gap-2">
-                            <input type="number" id="targetPriceInput" placeholder="0.00"
-                                class="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-                            <button onclick="submitNewProduct()" id="submitProductBtn" disabled
-                                class="bg-blue-600 text-white px-4 py-1 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                                Track
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="previewLoading" class="hidden text-center py-4">
-                    <svg class="animate-spin h-6 w-6 text-blue-500 mx-auto" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-                        </circle>
-                        <path class="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                        </path>
-                    </svg>
-                    <p class="text-xs text-gray-500 mt-2">Fetching product details...</p>
-                </div>
-            </div>
-        </div>
+    <div class="nav-section">
+      <div class="nav-section-title">TOOLS</div>
+      <div class="nav-item" onclick="navigate('alerts')" data-page="alerts">
+        <span class="nav-icon">🔔</span>
+        <span class="nav-label">Alert Rules</span>
+      </div>
+      <div class="nav-item" onclick="navigate('exports')" data-page="exports">
+        <span class="nav-icon">📤</span>
+        <span class="nav-label">Export</span>
+      </div>
     </div>
-
-    <div id="mainContainer" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Compact Stats Bar -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-gray-700 flex items-center space-x-4">
-                <div class="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Total Products</p>
-                    <p class="text-xl font-bold text-gray-900 dark:text-white" id="totalProducts">-</p>
-                </div>
-            </div>
-            <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-gray-700 flex items-center space-x-4">
-                <div class="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg text-green-600 dark:text-green-400">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
-                        </path>
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Active Users</p>
-                    <p class="text-xl font-bold text-gray-900 dark:text-white" id="totalUsers">-</p>
-                </div>
-            </div>
-            <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-gray-700 flex items-center space-x-4">
-                <div class="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
-                        </path>
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Tracked Items</p>
-                    <p class="text-xl font-bold text-gray-900 dark:text-white" id="totalTracked">-</p>
-                </div>
-            </div>
-            <!-- Quick Action Card -->
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-sm p-4 flex items-center justify-between text-white cursor-pointer hover:shadow-lg transition transform hover:-translate-y-0.5"
-                onclick="openAddProductModal()">
-                <div>
-                    <p class="text-xs font-medium opacity-90">Add New</p>
-                    <p class="text-lg font-bold">Track Product</p>
-                </div>
-                <svg class="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-            </div>
-        </div>
-
-        <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
-            <!-- Left Column: Top Deals (6 cols) -->
-            <div class="lg:col-span-6 space-y-8">
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <div
-                        class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center bg-gradient-to-r from-red-50 to-white dark:from-red-900/20 dark:to-gray-800 gap-4">
-                        <div class="flex items-center gap-4">
-                            <!-- Tabs -->
-                            <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700/50 p-1 rounded-lg">
-                                <button onclick="switchTab('global')" id="tab-global"
-                                    class="px-3 py-1.5 text-sm font-bold rounded-md bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white transition-all">
-                                    🔥 Top Deals
-                                </button>
-                                <button onclick="switchTab('my')" id="tab-my"
-                                    class="hidden px-3 py-1.5 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
-                                    📦 My Products
-                                </button>
-                            </div>
-                            <span
-                                class="hidden sm:inline-block text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2.5 py-0.5 rounded-full animate-pulse">Live</span>
-                        </div>
-
-                        <!-- Filters & Sort -->
-                        <div
-                            class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto items-center">
-                            <!-- View Toggle -->
-                            <div class="flex items-center gap-2">
-                                <button onclick="saveCurrentView()"
-                                    class="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                                    title="Save Current View">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
-                                        </path>
-                                    </svg>
-                                </button>
-                                <div class="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
-                                <button onclick="toggleView('list')" id="view-list"
-                                    class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                    title="List View">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 6h16M4 12h16M4 18h16"></path>
-                                    </svg>
-                                </button>
-                                <button onclick="toggleView('grid')" id="view-grid"
-                                    class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                    title="Grid View">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
-                                        </path>
-                                    </svg>
-                                </button>
-
-                            </div>
-
-                            <!-- Sort Dropdown -->
-                            <div class="relative">
-                                <button onclick="toggleSortDropdown()" id="sortButton"
-                                    class="flex items-center space-x-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
-                                    <span id="currentSortLabel" class="font-medium">🔥 Smart Score</span>
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 9l-7 7-7-7"></path>
-                                    </svg>
-                                </button>
-
-                                <!-- Dropdown Menu -->
-                                <div id="sortDropdownMenu"
-                                    class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 animate-fade-in overflow-hidden ring-1 ring-black ring-opacity-5">
-                                    <div class="py-1">
-                                        <button onclick="selectSort('smart', '🔥 Smart Score')"
-                                            class="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 flex items-center space-x-3 transition-colors group">
-                                            <span class="text-lg group-hover:scale-110 transition-transform">🔥</span>
-                                            <span class="font-medium">Smart Score</span>
-                                        </button>
-                                        <button onclick="selectSort('date', '📅 Newest')"
-                                            class="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 flex items-center space-x-3 transition-colors group">
-                                            <span class="text-lg group-hover:scale-110 transition-transform">📅</span>
-                                            <span class="font-medium">Newest</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Discount Filters -->
-                            <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                                <button onclick="setFilter(0)" id="filter-0"
-                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 shadow-sm transition">All</button>
-                                <button onclick="setFilter(10)" id="filter-10"
-                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>10%</button>
-                                <button onclick="setFilter(25)" id="filter-25"
-                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>25%</button>
-                                <button onclick="setFilter(50)" id="filter-50"
-                                    class="filter-btn px-3 py-1 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition">>50%</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="max-h-[600px] overflow-y-auto p-2" id="dealsList">
-                        <div class="p-8 text-center text-gray-500 dark:text-gray-400">Loading deals...</div>
-                    </div>
-                    <div class="max-h-[600px] overflow-y-auto p-2 hidden" id="myProductsList">
-                        <div class="p-8 text-center text-gray-500 dark:text-gray-400">
-                            <p class="mb-2">You are not tracking any products yet.</p>
-                            <button onclick="openAddProductModal()" class="text-blue-600 hover:underline">Track your
-                                first product</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column: Chart & Recent Activity (6 cols) -->
-            <div class="lg:col-span-6 space-y-8">
-
-                <!-- Price Chart -->
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                            <span class="mr-2">📈</span> Price History
-                        </h3>
-                        <button id="downloadCsvBtn" onclick="downloadCSV()"
-                            class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md transition flex items-center">
-                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                            CSV
-                        </button>
-                    </div>
-                    <div class="relative h-64 w-full">
-                        <canvas id="priceChart"></canvas>
-                        <div id="chartPlaceholder"
-                            class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-                            <svg class="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z">
-                                </path>
-                            </svg>
-                            <p class="text-sm font-medium">Select a product to view history</p>
-                        </div>
-                    </div>
-                    <div id="productInfo" class="mt-4 hidden animate-fade-in">
-                        <h4 class="font-medium text-gray-900 dark:text-white truncate text-lg mb-2" id="chartTitle">
-                            Product
-                            Name</h4>
-                        <div class="flex justify-between items-end mb-4">
-                            <p class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="chartPrice">EGP 0.00</p>
-                            <div class="flex gap-2">
-                                <a href="#" id="chartLink" target="_blank"
-                                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    View on Amazon
-                                </a>
-                                <button onclick="toggleArchive()" id="archiveBtn"
-                                    class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    Archive
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Management Controls -->
-                        <div
-                            class="grid grid-cols-1 gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                            <div class="flex items-center gap-2">
-                                <label
-                                    class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase w-20">Tags:</label>
-                                <input type="text" id="productTags" name="tags"
-                                    class="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded px-2 py-1 text-xs"
-                                    placeholder="gaming, office...">
-                                <button onclick="saveTags()"
-                                    class="bg-blue-600 text-white px-2 py-1 rounded text-xs">Save</button>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <label
-                                    class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase w-20">Target:</label>
-                                <input type="number" id="productTargetPrice" name="target_price"
-                                    class="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded px-2 py-1 text-xs"
-                                    placeholder="0.00">
-                                <button onclick="saveTargetPrice()"
-                                    class="bg-blue-600 text-white px-2 py-1 rounded text-xs">Set</button>
-                            </div>
-                        </div>
-
-                        <!-- Analytics Widgets -->
-                        <div class="grid grid-cols-2 gap-4 mt-4">
-                            <!-- Volatility Widget -->
-                            <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Volatility</p>
-                                <div class="flex items-center justify-between mb-1">
-                                    <span id="volatilityLabel"
-                                        class="text-sm font-bold text-gray-700 dark:text-gray-200">-</span>
-                                    <span id="volatilityScore" class="text-xs text-gray-500">-</span>
-                                </div>
-                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
-                                    <div id="volatilityBar" class="bg-blue-500 h-1.5 rounded-full" style="width: 0%">
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Best Day Widget -->
-                            <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Best Day to Buy</p>
-                                <div class="flex items-center justify-between">
-                                    <span id="bestDayLabel"
-                                        class="text-sm font-bold text-green-600 dark:text-green-400">-</span>
-                                    <span id="bestDayPrice" class="text-xs text-gray-500">-</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- AI Deal Intelligence -->
-                        <div
-                            class="mt-4 p-4 rounded-xl border border-blue-100 dark:border-blue-900/40 bg-gradient-to-r from-blue-50 to-sky-50 dark:from-blue-900/20 dark:to-slate-900/20">
-                            <div class="flex items-center justify-between mb-3">
-                                <h5 class="text-sm font-bold text-gray-800 dark:text-gray-100">AI Deal Intelligence</h5>
-                                <span id="aiDealRecommendation"
-                                    class="text-[11px] px-2 py-1 rounded-full font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">-</span>
-                            </div>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                                <div class="bg-white/70 dark:bg-slate-800/60 rounded-lg p-2">
-                                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400">Confidence</p>
-                                    <p id="aiDealConfidence" class="text-sm font-bold text-gray-800 dark:text-gray-100">-</p>
-                                </div>
-                                <div class="bg-white/70 dark:bg-slate-800/60 rounded-lg p-2">
-                                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400">Drop Chance (7d)</p>
-                                    <p id="aiDropProbability" class="text-sm font-bold text-gray-800 dark:text-gray-100">-</p>
-                                </div>
-                                <div class="bg-white/70 dark:bg-slate-800/60 rounded-lg p-2">
-                                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400">Expected Best</p>
-                                    <p id="aiExpectedBest" class="text-sm font-bold text-gray-800 dark:text-gray-100">-</p>
-                                </div>
-                                <div class="bg-white/70 dark:bg-slate-800/60 rounded-lg p-2">
-                                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400">Expected Save</p>
-                                    <p id="aiExpectedSavings" class="text-sm font-bold text-gray-800 dark:text-gray-100">-</p>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                                <div class="bg-white/70 dark:bg-slate-800/60 rounded-lg p-2">
-                                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400">Suggested Wait</p>
-                                    <p id="aiWaitDays" class="text-sm font-bold text-gray-800 dark:text-gray-100">-</p>
-                                </div>
-                                <div class="bg-white/70 dark:bg-slate-800/60 rounded-lg p-2">
-                                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400">Risk</p>
-                                    <p id="aiRiskLevel" class="text-sm font-bold text-gray-800 dark:text-gray-100">-</p>
-                                </div>
-                                <div class="bg-white/70 dark:bg-slate-800/60 rounded-lg p-2">
-                                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400">Seasonality</p>
-                                    <p id="aiSeasonality" class="text-sm font-bold text-gray-800 dark:text-gray-100">-</p>
-                                </div>
-                            </div>
-                            <p id="aiDealNarrative" class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
-                                Select a product to compute AI deal intelligence.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Recent Activity & Top Tracked Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-
-                    <!-- Category Distribution -->
-                    <div
-                        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📊 Categories</h3>
-                        <div class="relative h-40 w-full">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
-                        <div class="mt-3">
-                            <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Top Categories</h4>
-                            <div id="topCategoriesList" class="space-y-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div class="text-xs text-gray-400">Loading...</div>
-                            </div>
-                        </div>
-                        <!-- Forecast Widget -->
-                        <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mt-4">
-                            <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">7-Day Forecast
-                            </h4>
-                            <div class="flex items-center justify-between">
-                                <span id="forecastTrend" class="text-sm font-medium">-</span>
-                                <span id="forecastConfidence"
-                                    class="text-xs text-gray-500 dark:text-gray-400">Confidence:
-                                    -</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Stock History Widget -->
-                    <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-6">
-                        <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Stock Availability
-                            History</h4>
-                        <div class="relative h-8 bg-gray-200 dark:bg-gray-600 rounded overflow-hidden flex"
-                            id="stockHistoryBar">
-                            <!-- Segments will be injected here -->
-                            <div class="w-full h-full flex items-center justify-center text-xs text-gray-500">No stock
-                                history available</div>
-                        </div>
-                        <div class="flex justify-between text-xs text-gray-400 mt-1">
-                            <span>Past</span>
-                            <span>Now</span>
-                        </div>
-                    </div>
-
-                    <!-- Trend Overview -->
-                    <div
-                        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📈 Trend Overview</h3>
-                        <div id="trendOverview" class="space-y-3">
-                            <div class="text-xs text-gray-400">Loading...</div>
-                        </div>
-                    </div>
-
-                    <!-- Top Tracked -->
-                    <div
-                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div
-                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🏆 Most Popular</h3>
-                        </div>
-                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-40 overflow-y-auto"
-                            id="topTracked">
-                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
-                        </div>
-                    </div>
-
-                    <!-- Best Drops -->
-                    <div
-                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div
-                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">💥 Biggest Drops (24h)</h3>
-                        </div>
-                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto"
-                            id="bestDropsList">
-                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
-                        </div>
-                    </div>
-
-                    <!-- AI Opportunities -->
-                    <div
-                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div
-                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🤖 AI Opportunities</h3>
-                        </div>
-                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto"
-                            id="aiOpportunitiesList">
-                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Activity (Full Width) -->
-                    <div
-                        class="sm:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div
-                            class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">🕒 Recent Updates</h3>
-                        </div>
-                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto"
-                            id="recentActivity">
-                            <div class="p-4 text-center text-xs text-gray-400">Loading...</div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
+    <div class="nav-section" id="adminNavSection" style="display:none">
+      <div class="nav-section-title">ADMIN</div>
+      <div class="nav-item" onclick="navigate('admin')" data-page="admin">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">System</span>
+      </div>
     </div>
-
-    <!-- Admin Section (Hidden by default) -->
-    <div id="adminSection"
-        class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in border-t border-gray-200 dark:border-gray-700 mt-8">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <span>🛡️</span> Admin Panel
-        </h2>
-
-        <!-- Admin Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <p class="text-xs text-gray-500 uppercase">Total Users</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="adminTotalUsers">-</p>
-            </div>
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <p class="text-xs text-gray-500 uppercase">Total Products</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="adminTotalProducts">-</p>
-            </div>
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <p class="text-xs text-gray-500 uppercase">Active Alerts</p>
-                <p class="text-2xl font-bold text-blue-600" id="adminActiveAlerts">-</p>
-            </div>
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <p class="text-xs text-gray-500 uppercase">System Uptime</p>
-                <p class="text-2xl font-bold text-green-600" id="adminUptime">-</p>
-            </div>
-        </div>
-
-        <!-- Admin Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Scraper Control -->
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <h3 class="font-bold text-gray-900 dark:text-white mb-4">🕷️ Scraper Control</h3>
-                <p class="text-sm text-gray-500 mb-4">Force a manual update of all product prices. This may take a
-                    while.</p>
-                <button onclick="adminForceScrape()"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium transition-colors">
-                    Start Full Scrape
-                </button>
-            </div>
-
-            <!-- Broadcast -->
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <h3 class="font-bold text-gray-900 dark:text-white mb-4">📢 Broadcast Message</h3>
-                <div class="flex gap-2">
-                    <input type="text" id="adminBroadcastMsg" placeholder="Type message..."
-                        class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
-                    <button onclick="adminBroadcast()"
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                        Send
-                    </button>
-                </div>
-            </div>
-        </div>
+    <div class="nav-section">
+      <div class="nav-section-title">ACCOUNT</div>
+      <div class="nav-item" onclick="navigate('settings')" data-page="settings">
+        <span class="nav-icon">🎛️</span>
+        <span class="nav-label">Settings</span>
+      </div>
     </div>
+  </nav>
 
-    <!-- System Dashboard Overlay -->
-    <div id="systemDashboard" class="fixed inset-0 bg-gray-100 dark:bg-gray-900 z-50 hidden overflow-y-auto">
-        <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-8">
-                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">System Status</h2>
-                <div class="flex items-center gap-4">
-                    <button onclick="triggerPriceCheck()" id="checkPricesBtn"
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                            </path>
-                        </svg>
-                        Check Prices Now
-                    </button>
-                    <button onclick="toggleSystemDashboard()"
-                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12">
-                            </path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
-                <!-- Server Health -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Server Health</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Status</span>
-                            <span class="text-green-500 font-bold">Online</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Uptime</span>
-                            <span id="sysUptime" class="font-mono">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Memory (Heap)</span>
-                            <span id="sysMemory" class="font-mono">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Redis Policy</span>
-                            <span id="sysRedisPolicy" class="font-mono">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Database Stats -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Database</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Storage Size</span>
-                            <span id="dbSize" class="font-mono">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Products</span>
-                            <span id="dbProducts" class="font-mono">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Metrics</span>
-                            <span id="dbMetrics" class="font-mono">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- AI Budget -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">AI Budget</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">State</span>
-                            <span id="aiBudgetStatus" class="font-semibold text-emerald-500">-</span>
-                        </div>
-                        <div class="flex justify-between gap-4">
-                            <span class="text-gray-500 dark:text-gray-400">Tokens (Today)</span>
-                            <span id="aiTokensUsage" class="font-mono text-right break-all">-</span>
-                        </div>
-                        <div class="flex justify-between gap-4">
-                            <span class="text-gray-500 dark:text-gray-400">Requests (Today)</span>
-                            <span id="aiRequestsUsage" class="font-mono text-right break-all">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Pause Remaining</span>
-                            <span id="aiPauseStatus" class="font-mono">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Extension Pipeline -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Extension Pipeline (24h)</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Total Syncs</span>
-                            <span id="extSyncTotal" class="font-mono">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Success / Failed</span>
-                            <span class="font-mono"><span id="extSyncSuccess">-</span> / <span id="extSyncFailed">-</span></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">AI Corrected</span>
-                            <span id="extAiCorrected" class="font-mono">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Avg Duration</span>
-                            <span id="extAvgDuration" class="font-mono">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Last Sync</span>
-                            <span id="extLastSync" class="font-mono text-right">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Top OOS Reason</span>
-                            <span id="extTopReason" class="font-mono text-right break-all">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Scraper Stats -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Last Scrape Cycle</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Success</span>
-                            <span id="scrapeSuccess" class="text-green-500 font-bold">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Failed</span>
-                            <span id="scrapeFailed" class="text-red-500 font-bold">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">Unchanged</span>
-                            <span id="scrapeUnchanged" class="text-gray-500 font-bold">-</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Queue Status -->
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-8">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Job Queue</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
-                        <p class="text-xs text-gray-500 uppercase">Active</p>
-                        <p class="text-xl font-bold text-blue-500" id="queueActive">-</p>
-                    </div>
-                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
-                        <p class="text-xs text-gray-500 uppercase">Waiting</p>
-                        <p class="text-xl font-bold text-yellow-500" id="queueWaiting">-</p>
-                    </div>
-                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
-                        <p class="text-xs text-gray-500 uppercase">Completed</p>
-                        <p class="text-xl font-bold text-green-500" id="queueCompleted">-</p>
-                    </div>
-                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
-                        <p class="text-xs text-gray-500 uppercase">Failed</p>
-                        <p class="text-xl font-bold text-red-500" id="queueFailed">-</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- System Logs -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">System Logs</h3>
-                    <div class="flex gap-2">
-                        <select id="logLevelFilter" onchange="fetchLogs()"
-                            class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
-                            <option value="all">All Levels</option>
-                            <option value="info">Info</option>
-                            <option value="warn">Warning</option>
-                            <option value="error">Error</option>
-                        </select>
-                        <input type="text" id="logSearch" name="log_search" onkeyup="fetchLogs()"
-                            placeholder="Search logs..."
-                            class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm w-48">
-                        <button onclick="fetchLogs()"
-                            class="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                </path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm h-96 overflow-y-auto" id="logsList">
-                    <!-- Logs will be injected here -->
-                    <div class="text-gray-500 text-center py-8">Loading logs...</div>
-                </div>
-            </div>
-        </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-footer-avatar" id="avatarInitials">?</div>
+    <div class="sidebar-footer-text">
+      <div class="name" id="sidebarUserName">Not logged in</div>
+      <div class="role" id="sidebarUserRole">Guest</div>
     </div>
+  </div>
 
-    <!-- Login Modal -->
-    <div id="loginModal"
-        class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
-        <div
-            class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all scale-100 opacity-100">
-            <div
-                class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Login</h3>
-                <button onclick="closeLoginModal()" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                </button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
-                    <input type="password" id="passwordInput"
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-all"
-                        placeholder="Enter admin password">
-                </div>
-            </div>
-            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 flex justify-end space-x-3">
-                <button onclick="closeLoginModal()"
-                    class="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm font-medium">Cancel</button>
-                <button onclick="login()"
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm">Login</button>
-            </div>
-        </div>
+  <button id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">◀</button>
+</aside>
+
+<!-- ─── MAIN CONTENT ──────────────────────────────────────────── -->
+<div id="mainContent">
+
+  <!-- TOPBAR -->
+  <header id="topbar">
+    <button class="topbar-icon-btn" id="mobileMenuBtn" onclick="openSidebar()" style="display:none">☰</button>
+    <div class="topbar-title" id="topbarTitle">Live Deals</div>
+    <div class="topbar-actions">
+      <div class="cmd-pill" onclick="openCmd()">
+        <span>🔍</span>
+        <span>Quick Search…</span>
+        <span class="shortcut">⌘K</span>
+      </div>
+      <button class="topbar-btn primary" onclick="openQuickAdd()">＋ Track Product</button>
+      <button class="topbar-icon-btn" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">🌙</button>
+      <div style="position:relative">
+        <button class="topbar-icon-btn" id="notifBtn" onclick="toggleNotifPanel()">🔔
+          <span class="notif-bell-badge" id="notifCount">3</span>
+        </button>
+      </div>
+      <button class="topbar-icon-btn" id="loginBtn" onclick="openLogin()">👤</button>
     </div>
+  </header>
 
-    <script type="module" src="js/app.js?v=2"></script>
-    <script type="module">
-        import { API } from './js/api.js';
-        import { init } from './js/app.js?v=2';
+  <!-- TICKER -->
+  <div id="tickerBar">
+    <div class="ticker-track" id="tickerTrack">
+      <!-- filled by JS -->
+    </div>
+  </div>
 
-        // Make functions available globally for onclick handlers
-        window.openLoginModal = function () {
-            document.getElementById('loginModal').classList.remove('hidden');
-        };
+  <!-- PAGE CONTENT -->
+  <div id="pageContent">
 
-        window.closeLoginModal = function () {
-            document.getElementById('loginModal').classList.add('hidden');
-        };
+    <!-- ─── DEALS PAGE ────────────────────────────────────────── -->
+    <section id="page-deals" class="page-section active">
+      <!-- Stats -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card" style="--card-accent:var(--amber)">
+          <div class="stat-icon" style="background:var(--amber-glow); color:var(--amber)">📦</div>
+          <div class="stat-value" id="stat-products"><span class="skeleton" style="width:60px;height:28px;display:block"></span></div>
+          <div class="stat-label">Products Tracked</div>
+          <div class="stat-change"><span style="color:var(--green)">↑ 12</span> this week</div>
+        </div>
+        <div class="stat-card" style="--card-accent:var(--green)">
+          <div class="stat-icon" style="background:var(--green-glow); color:var(--green)">📉</div>
+          <div class="stat-value" id="stat-deals"><span class="skeleton" style="width:50px;height:28px;display:block"></span></div>
+          <div class="stat-label">Active Deals</div>
+          <div class="stat-change" id="stat-deals-change"><span style="color:var(--green)">● Live</span></div>
+        </div>
+        <div class="stat-card" style="--card-accent:var(--blue)">
+          <div class="stat-icon" style="background:var(--blue-glow); color:var(--blue)">👥</div>
+          <div class="stat-value" id="stat-users"><span class="skeleton" style="width:50px;height:28px;display:block"></span></div>
+          <div class="stat-label">Active Users</div>
+          <div class="stat-change"><span style="color:var(--blue)">Telegram users</span></div>
+        </div>
+        <div class="stat-card" style="--card-accent:var(--red)">
+          <div class="stat-icon" style="background:var(--red-glow); color:var(--red)">🔥</div>
+          <div class="stat-value" id="stat-avgdrop"><span class="skeleton" style="width:60px;height:28px;display:block"></span></div>
+          <div class="stat-label">Avg Drop Today</div>
+          <div class="stat-change" id="stat-avgdrop-sub"><span style="color:var(--amber)">across hot deals</span></div>
+        </div>
+      </div>
 
-        window.login = async function () {
-            const password = document.getElementById('passwordInput').value;
-            if (!password) {
-                alert('Please enter password');
-                return;
-            }
+      <!-- Deals header -->
+      <div class="section-header">
+        <div class="section-title">
+          <span>🏷️</span> Price Intelligence
+          <div class="live-dot" style="margin-left:6px"></div>
+        </div>
+        <div class="section-controls">
+          <input class="search-input" id="dealsSearch" placeholder="Search products…" oninput="filterDeals(this.value)">
+          <button class="filter-btn active" onclick="setDealFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setDealFilter('hot',this)">🔥 Hot</button>
+          <button class="filter-btn" onclick="setDealFilter('drop',this)">📉 Drops</button>
+          <button class="filter-btn" onclick="setDealFilter('stock',this)">✅ In Stock</button>
+          <button class="topbar-icon-btn" onclick="toggleListView()" title="Toggle view" id="viewToggleBtn">⊞</button>
+        </div>
+      </div>
 
-            try {
-                const data = await API.login(password);
-                try { localStorage.setItem('token', data.token); } catch (e) { console.warn('Storage denied', e); state.token = data.token; }
-                closeLoginModal();
-                window.location.reload();
-            } catch (err) {
-                console.error(err);
-                alert('Login failed: ' + err.message);
-            }
-        };
+      <!-- Deals Grid -->
+      <div id="dealsList">
+        <!-- Skeleton cards -->
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+          <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
+            <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
+            <div style="flex:1"><div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div><div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div></div>
+          </div>
+          <div style="padding:14px 16px"><div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div><div class="skeleton" style="height:36px;border-radius:6px"></div></div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+          <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
+            <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
+            <div style="flex:1"><div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div><div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div></div>
+          </div>
+          <div style="padding:14px 16px"><div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div><div class="skeleton" style="height:36px;border-radius:6px"></div></div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+          <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
+            <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
+            <div style="flex:1"><div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div><div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div></div>
+          </div>
+          <div style="padding:14px 16px"><div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div><div class="skeleton" style="height:36px;border-radius:6px"></div></div>
+        </div>
+      </div>
 
-        // State Management
-        const state = {
-            user: null,
-            currentTab: 'global'
-        };
+      <!-- Load more -->
+      <div style="text-align:center;margin-top:24px">
+        <button class="filter-btn" onclick="loadMoreDeals()" id="loadMoreBtn" style="padding:10px 28px;font-size:13px">Load More ↓</button>
+      </div>
 
-        // Init
-        document.addEventListener('DOMContentLoaded', async () => {
-            await checkAuth();
-            setupTabs();
-        });
+      <!-- History Panel -->
+      <div id="historyPanel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <div style="font-family:var(--font-head);font-size:16px;font-weight:700" id="historyTitle">Product History</div>
+            <div style="font-size:12px;color:var(--text2);font-family:var(--font-mono)" id="historyAsin">ASIN: —</div>
+          </div>
+          <button class="panel-close" onclick="closeHistory()">✕</button>
+        </div>
+        <div class="history-chart-wrap">
+          <canvas id="historyChart"></canvas>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px" id="historyStats"></div>
+      </div>
+    </section>
 
-        function setupTabs() {
-            const tabs = document.querySelectorAll('.tab-btn');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    // Remove active class from all tabs
-                    tabs.forEach(t => {
-                        t.classList.remove('border-blue-500', 'text-blue-600');
-                        t.classList.add('border-transparent', 'text-gray-500');
-                    });
+    <!-- ─── WATCHLIST PAGE ─────────────────────────────────────── -->
+    <section id="page-watchlist" class="page-section">
+      <div class="section-header">
+        <div class="section-title">📦 My Watchlist</div>
+        <div class="section-controls">
+          <button class="topbar-btn primary" onclick="openQuickAdd()">＋ Add Product</button>
+        </div>
+      </div>
+      <div id="watchlistContent">
+        <div class="empty-state">
+          <div class="icon">🔍</div>
+          <h3>No tracked products</h3>
+          <p>Login to see your personal watchlist</p>
+        </div>
+      </div>
+    </section>
 
-                    // Add active class to clicked tab
-                    tab.classList.add('border-blue-500', 'text-blue-600');
-                    tab.classList.remove('border-transparent', 'text-gray-500');
+    <!-- ─── ANALYTICS PAGE ────────────────────────────────────── -->
+    <section id="page-analytics" class="page-section">
+      <div class="section-header">
+        <div class="section-title">📊 Analytics</div>
+      </div>
+      <div class="analytics-grid">
+        <div class="analytics-card">
+          <h3>📈 Price Trends</h3>
+          <canvas id="trendChart" height="150"></canvas>
+        </div>
+        <div class="analytics-card">
+          <h3>🗂️ Categories</h3>
+          <canvas id="categoryChart" height="150"></canvas>
+          <div id="topCatList" style="margin-top:12px"></div>
+        </div>
+        <div class="analytics-card">
+          <h3>🎯 Deal Score Distribution</h3>
+          <canvas id="scoreChart" height="150"></canvas>
+        </div>
+      </div>
+      <div class="analytics-grid" style="grid-template-columns:1fr 1fr">
+        <div class="analytics-card">
+          <h3>⏱️ Alert Activity (7d)</h3>
+          <canvas id="alertChart" height="120"></canvas>
+        </div>
+        <div class="analytics-card">
+          <h3>🌡️ Volatility Heat</h3>
+          <div id="volatilityHeatmap" style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">Loading data...</div>
+        </div>
+      </div>
+    </section>
 
-                    // Hide all tab contents
-                    document.querySelectorAll('.tab-content').forEach(content => {
-                        content.classList.add('hidden');
-                    });
+    <!-- ─── ALERTS PAGE ───────────────────────────────────────── -->
+    <section id="page-alerts" class="page-section">
+      <div class="section-header">
+        <div class="section-title">🔔 Alert Rules</div>
+      </div>
+      <div id="alertsContent">
+        <div class="empty-state">
+          <div class="icon">🔔</div>
+          <h3>No alert rules configured</h3>
+          <p>Login to manage your alert preferences</p>
+        </div>
+      </div>
+    </section>
 
-                    // Show target content
-                    const targetId = tab.dataset.tab;
-                    const targetContent = document.getElementById(targetId + 'Tab');
-                    if (targetContent) {
-                        targetContent.classList.remove('hidden');
-                    }
-                });
-            });
-        }
+    <!-- ─── EXPORTS PAGE ──────────────────────────────────────── -->
+    <section id="page-exports" class="page-section">
+      <div class="section-header">
+        <div class="section-title">📤 Export Data</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        <div class="analytics-card" style="text-align:center">
+          <div style="font-size:36px;margin-bottom:12px">📄</div>
+          <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">CSV Export</h3>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">All tracked products with price history</p>
+          <button class="btn btn-primary" onclick="handleExport('csv')">Download CSV</button>
+        </div>
+        <div class="analytics-card" style="text-align:center">
+          <div style="font-size:36px;margin-bottom:12px">📑</div>
+          <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">PDF Report</h3>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Formatted deal report with analytics</p>
+          <button class="btn btn-primary" onclick="handleExport('pdf')">Download PDF</button>
+        </div>
+        <div class="analytics-card" style="text-align:center">
+          <div style="font-size:36px;margin-bottom:12px">📡</div>
+          <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">RSS Feed</h3>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Subscribe to deals as an RSS feed</p>
+          <button class="btn btn-primary" onclick="handleExport('rss')">Get RSS URL</button>
+        </div>
+      </div>
+    </section>
 
-        async function checkAuth() {
-            let token = null;
-            try { token = localStorage.getItem('token'); } catch (e) { console.warn('Storage denied', e); }
+    <!-- ─── ADMIN PAGE ────────────────────────────────────────── -->
+    <section id="page-admin" class="page-section">
+      <div class="section-header">
+        <div class="section-title">⚙️ System Admin</div>
+        <div class="section-controls">
+          <div class="live-dot"></div>
+          <span style="font-size:12px;color:var(--text2);font-family:var(--font-mono)">Live monitoring</span>
+        </div>
+      </div>
+      <div class="admin-grid">
+        <div class="admin-card">
+          <h3>🏥 System Health</h3>
+          <div class="admin-stat-row"><span class="admin-stat-label">API Server</span><span class="admin-stat-value status-ok" id="adm-api">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Database</span><span class="admin-stat-value status-ok" id="adm-db">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Queue (Redis)</span><span class="admin-stat-value" id="adm-queue">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Scheduler</span><span class="admin-stat-value" id="adm-sched">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">AI Service</span><span class="admin-stat-value" id="adm-ai">—</span></div>
+          <div class="admin-actions">
+            <button class="admin-btn" onclick="adminAction('health')">🔄 Refresh</button>
+            <button class="admin-btn" onclick="adminAction('check-prices')">⚡ Force Check</button>
+          </div>
+        </div>
+        <div class="admin-card">
+          <h3>📊 DB Stats</h3>
+          <div class="admin-stat-row"><span class="admin-stat-label">Products</span><span class="admin-stat-value" id="adm-products">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Users</span><span class="admin-stat-value" id="adm-users">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Price Records</span><span class="admin-stat-value" id="adm-metrics">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Active Subs</span><span class="admin-stat-value" id="adm-subs">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Alerts Sent (24h)</span><span class="admin-stat-value" id="adm-alerts">—</span></div>
+          <div class="admin-actions">
+            <button class="admin-btn" onclick="adminAction('scrape-all')">🕷️ Scrape All</button>
+            <button class="admin-btn danger" onclick="adminAction('broadcast')">📢 Broadcast</button>
+          </div>
+        </div>
+        <div class="admin-card">
+          <h3>🤖 AI Budget</h3>
+          <div class="admin-stat-row"><span class="admin-stat-label">State</span><span class="admin-stat-value status-ok" id="adm-aistate">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Tokens Today</span><span class="admin-stat-value" id="adm-tokens">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Requests Today</span><span class="admin-stat-value" id="adm-reqs">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Pause Remaining</span><span class="admin-stat-value" id="adm-pause">—</span></div>
+        </div>
+        <div class="admin-card">
+          <h3>🔌 Extension Pipeline (24h)</h3>
+          <div class="admin-stat-row"><span class="admin-stat-label">Total Syncs</span><span class="admin-stat-value" id="adm-syncs">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">New Products</span><span class="admin-stat-value" id="adm-newp">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Updated</span><span class="admin-stat-value" id="adm-upd">—</span></div>
+          <div class="admin-stat-row"><span class="admin-stat-label">Errors</span><span class="admin-stat-value status-err" id="adm-errs">—</span></div>
+          <div class="admin-actions">
+            <button class="admin-btn" onclick="adminAction('import')">📥 Bulk Import</button>
+          </div>
+        </div>
+      </div>
+    </section>
 
-            if (!token) {
-                renderPublicState();
-                return;
-            }
+    <!-- ─── SETTINGS PAGE ─────────────────────────────────────── -->
+    <section id="page-settings" class="page-section">
+      <div class="section-header">
+        <div class="section-title">🎛️ Settings</div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">🎨 Appearance</div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Dark Mode</div>
+            <div class="settings-row-desc">Use dark theme across the dashboard</div>
+          </div>
+          <div class="toggle on" id="darkModeToggle" onclick="toggleTheme()"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Compact Cards</div>
+            <div class="settings-row-desc">Show more deals in list view</div>
+          </div>
+          <div class="toggle" id="compactToggle" onclick="toggleSetting('compact')"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Price Ticker</div>
+            <div class="settings-row-desc">Show scrolling price ticker at top</div>
+          </div>
+          <div class="toggle on" id="tickerToggle" onclick="toggleSetting('ticker')"></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">🔔 Notifications</div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Desktop Notifications</div>
+            <div class="settings-row-desc">Show browser notifications for price drops</div>
+          </div>
+          <div class="toggle" id="desktopNotifToggle" onclick="requestNotifPermission()"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Sound Alerts</div>
+            <div class="settings-row-desc">Play a sound for hot deals</div>
+          </div>
+          <div class="toggle" id="soundToggle" onclick="toggleSetting('sound')"></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">⚡ Quick Actions</div>
+        <div class="settings-row" style="cursor:pointer" onclick="openCmd()">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Command Palette</div>
+            <div class="settings-row-desc">Quick search and actions</div>
+          </div>
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);padding:3px 8px;border-radius:5px">⌘K</span>
+        </div>
+        <div class="settings-row" style="cursor:pointer" onclick="openShortcuts()">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Keyboard Shortcuts</div>
+            <div class="settings-row-desc">View all available shortcuts</div>
+          </div>
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);padding:3px 8px;border-radius:5px">?</span>
+        </div>
+      </div>
+    </section>
 
-            try {
-                const res = await fetch('/api/user/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+  </div><!-- /pageContent -->
 
-                if (res.ok) {
-                    const data = await res.json();
-                    state.user = data.user;
-                    renderUserState();
-                    if (data.isAdmin) {
-                        renderAdminState();
-                    }
-                    // Initialize app data fetching now that we are authenticated
-                    init();
-                } else {
-                    try { localStorage.removeItem('token'); } catch (e) { }
-                    renderPublicState();
-                }
-            } catch (err) {
-                console.error('Auth check failed', err);
-                renderPublicState();
-            }
-        }
+</div><!-- /mainContent -->
 
-        function renderPublicState() {
-            document.getElementById('tab-my').classList.add('hidden');
-            document.getElementById('adminSection').classList.add('hidden');
-        }
+<!-- ─── MOBILE NAV ─────────────────────────────────────────────── -->
+<nav id="mobileNav">
+  <div class="mob-nav-item active" onclick="navigate('deals')" id="mob-deals"><div class="icon">🔥</div>Deals</div>
+  <div class="mob-nav-item" onclick="navigate('watchlist')" id="mob-watchlist"><div class="icon">📦</div>Watchlist</div>
+  <div class="mob-nav-item" onclick="navigate('analytics')" id="mob-analytics"><div class="icon">📊</div>Analytics</div>
+  <div class="mob-nav-item" onclick="openQuickAdd()" id="mob-add" style="color:var(--amber)"><div class="icon">＋</div>Track</div>
+  <div class="mob-nav-item" onclick="navigate('settings')" id="mob-settings"><div class="icon">⚙️</div>Settings</div>
+</nav>
 
-        function renderUserState() {
-            document.getElementById('tab-my').classList.remove('hidden');
-        }
+<!-- ─── NOTIFICATION PANEL ──────────────────────────────────────── -->
+<div id="notifPanel">
+  <div class="notif-header">
+    <h4>Notifications</h4>
+    <button onclick="clearNotifs()" style="font-size:12px;color:var(--text2)">Clear all</button>
+  </div>
+  <div id="notifList">
+    <div class="notif-item"><div class="notif-dot"></div><div><div class="notif-msg">Price dropped 24% on Echo Dot 5th Gen</div><div class="notif-time">2m ago</div></div></div>
+    <div class="notif-item"><div class="notif-dot"></div><div><div class="notif-msg">Item back in stock: Sony WH-1000XM5</div><div class="notif-time">18m ago</div></div></div>
+    <div class="notif-item"><div class="notif-dot"></div><div><div class="notif-msg">Your target price reached on Kindle Paperwhite</div><div class="notif-time">1h ago</div></div></div>
+  </div>
+</div>
 
-        function renderAdminState() {
-            document.getElementById('adminSection').classList.remove('hidden');
-            fetchAdminStats();
-        }
+<!-- ─── QUICK ADD PANEL ─────────────────────────────────────────── -->
+<div id="quickAddPanel">
+  <div class="panel-header">
+    <div class="panel-title">⚡ Track New Product</div>
+    <button class="panel-close" onclick="closeQuickAdd()">✕</button>
+  </div>
+  <div class="panel-body">
+    <div class="form-group">
+      <label class="form-label">Amazon URL or ASIN</label>
+      <input class="form-input" id="qaUrl" placeholder="https://www.amazon.com/dp/..." oninput="debouncedPreview()">
+      <div class="form-hint">Paste any Amazon product URL or ASIN code</div>
+    </div>
+    <div id="previewBox" class="preview-box"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Alert Mode</label>
+        <select class="form-select" id="qaMode" onchange="onModeChange()">
+          <option value="price">Target Price</option>
+          <option value="percent">% Drop</option>
+          <option value="stock">Back in Stock</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="qaThreshLabel">Target Price</label>
+        <input class="form-input" id="qaThreshold" type="number" min="0" placeholder="0.00">
+      </div>
+    </div>
+    <div class="form-group" id="qaChatIdGroup">
+      <label class="form-label">Telegram Chat ID (optional)</label>
+      <input class="form-input" id="qaChatId" placeholder="Your Telegram chat ID">
+      <div class="form-hint">Leave blank to use your logged-in account</div>
+    </div>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-secondary" onclick="closeQuickAdd()">Cancel</button>
+    <button class="btn btn-primary" onclick="submitQuickAdd()" style="flex:1">⚡ Start Tracking</button>
+  </div>
+</div>
 
-        // Tabs
-        window.switchTab = function (tab) {
-            state.currentTab = tab;
+<!-- ─── CONTEXT MENU ────────────────────────────────────────────── -->
+<div id="contextMenu">
+  <div class="ctx-item" onclick="ctxAction('history')">📈 View Price History</div>
+  <div class="ctx-item" onclick="ctxAction('copy')">🔗 Copy Amazon Link</div>
+  <div class="ctx-item" onclick="ctxAction('share')">📤 Share Deal</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxAction('setTarget')">🎯 Set Target Price</div>
+  <div class="ctx-item danger" onclick="ctxAction('untrack')">🗑️ Stop Tracking</div>
+</div>
 
-            // Update Buttons
-            const btnGlobal = document.getElementById('tab-global');
-            const btnMy = document.getElementById('tab-my');
+<!-- ─── COMMAND PALETTE ─────────────────────────────────────────── -->
+<div id="cmdOverlay" onclick="e=>{if(e.target===this)closeCmd()}">
+  <div id="cmdBox">
+    <input id="cmdInput" placeholder="Search products, navigate, run actions…" oninput="filterCmd(this.value)" onkeydown="cmdKey(event)">
+    <div id="cmdResults"></div>
+    <div class="cmd-footer">
+      <span class="cmd-hint"><span class="cmd-key">↑↓</span> navigate</span>
+      <span class="cmd-hint"><span class="cmd-key">Enter</span> select</span>
+      <span class="cmd-hint"><span class="cmd-key">Esc</span> close</span>
+    </div>
+  </div>
+</div>
 
-            if (tab === 'global') {
-                btnGlobal.classList.add('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'font-bold');
-                btnGlobal.classList.remove('text-gray-500', 'dark:text-gray-400');
+<!-- ─── KEYBOARD SHORTCUTS ──────────────────────────────────────── -->
+<div id="shortcutsOverlay" onclick="e=>{if(e.target.id==='shortcutsOverlay')closeShortcuts()}">
+  <div id="shortcutsBox">
+    <h2>⌨️ Keyboard Shortcuts</h2>
+    <div class="shortcut-grid">
+      <div class="shortcut-item"><span>Search / Command Palette</span><div class="keys"><span class="key">⌘</span><span class="key">K</span></div></div>
+      <div class="shortcut-item"><span>Track New Product</span><div class="keys"><span class="key">N</span></div></div>
+      <div class="shortcut-item"><span>Go to Deals</span><div class="keys"><span class="key">G</span><span class="key">D</span></div></div>
+      <div class="shortcut-item"><span>Go to Analytics</span><div class="keys"><span class="key">G</span><span class="key">A</span></div></div>
+      <div class="shortcut-item"><span>Toggle Dark Mode</span><div class="keys"><span class="key">T</span></div></div>
+      <div class="shortcut-item"><span>Toggle View (list/grid)</span><div class="keys"><span class="key">V</span></div></div>
+      <div class="shortcut-item"><span>Refresh Data</span><div class="keys"><span class="key">R</span></div></div>
+      <div class="shortcut-item"><span>Show Shortcuts</span><div class="keys"><span class="key">?</span></div></div>
+    </div>
+    <div style="text-align:right;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeShortcuts()">Close</button>
+    </div>
+  </div>
+</div>
 
-                btnMy.classList.remove('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'font-bold');
-                btnMy.classList.add('text-gray-500', 'dark:text-gray-400');
+<!-- ─── LOGIN MODAL ─────────────────────────────────────────────── -->
+<div id="loginModal">
+  <div id="loginBox">
+    <div class="login-logo">⚡</div>
+    <div class="login-title">Trackzoon v2</div>
+    <div class="login-sub">Sign in to access your personal watchlist & alerts</div>
+    <button class="login-tg-btn" onclick="telegramLogin()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.7 8.03c-.13.6-.47.74-.95.46l-2.62-1.93-1.26 1.22c-.14.14-.26.26-.53.26l.19-2.67 4.84-4.37c.21-.19-.05-.29-.32-.1L7.09 14.4l-2.57-.8c-.56-.17-.57-.56.12-.83l10.03-3.87c.47-.17.88.11.97.9z"/></svg>
+      Continue with Telegram
+    </button>
+    <div style="font-size:12px;color:var(--text3);margin:16px 0;position:relative;text-align:center">
+      <span style="background:var(--bg2);padding:0 8px;position:relative;z-index:1">or</span>
+      <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)"></div>
+    </div>
+    <div class="login-manual">
+      <input id="tokenInput" type="text" placeholder="Paste your API token…">
+      <button onclick="tokenLogin()">Login</button>
+    </div>
+    <div style="margin-top:16px">
+      <button onclick="continueAsGuest()" style="font-size:13px;color:var(--text3)">Continue as guest →</button>
+    </div>
+  </div>
+</div>
 
-                document.getElementById('dealsList').classList.remove('hidden');
-                document.getElementById('myProductsList').classList.add('hidden');
-            } else {
-                btnMy.classList.add('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'font-bold');
-                btnMy.classList.remove('text-gray-500', 'dark:text-gray-400');
+<!-- ─── TOAST CONTAINER ─────────────────────────────────────────── -->
+<div id="toastContainer"></div>
 
-                btnGlobal.classList.remove('bg-white', 'dark:bg-gray-600', 'shadow-sm', 'font-bold');
-                btnGlobal.classList.add('text-gray-500', 'dark:text-gray-400');
+<!-- ─── CHART.JS ────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-                document.getElementById('dealsList').classList.add('hidden');
-                document.getElementById('myProductsList').classList.remove('hidden');
+<script>
+/* =====================================================================
+   TRACKZOON v2 — Dashboard JS
+   ===================================================================== */
 
-                fetchMyProducts();
-            }
-        };
+// ── STATE ─────────────────────────────────────────────────────────────
+const STATE = {
+  token: null,
+  user: null,
+  isAdmin: false,
+  deals: [],
+  allDeals: [],
+  page: 1,
+  filter: 'all',
+  searchQuery: '',
+  listView: false,
+  currentPage: 'deals',
+  ctxAsin: null,
+  historyChart: null,
+  cmdIdx: -1,
+  settings: { dark: true, compact: false, ticker: true, sound: false },
+  gNavSequence: '',
+};
 
-        // Fetch My Products
-        async function fetchMyProducts() {
-            if (!state.user) return;
-            const container = document.getElementById('myProductsList');
-            container.innerHTML = '<div class="p-8 text-center text-gray-500">Loading your products...</div>';
+// ── API ───────────────────────────────────────────────────────────────
+const API = {
+  base: '/api',
+  async req(path, opts = {}) {
+    const h = { 'Content-Type': 'application/json' };
+    if (STATE.token) h['Authorization'] = `Bearer ${STATE.token}`;
+    const r = await fetch(this.base + path, { ...opts, headers: { ...h, ...(opts.headers||{}) } });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  stats: () => API.req('/stats'),
+  deals: (p=1, s='smart', d=0, chatId='') => API.req(`/deals?page=${p}&limit=20&sort=${s}&minDiscount=${d}&chatId=${chatId}`),
+  history: asin => API.req(`/history/${asin}`),
+  search: q => API.req(`/search?q=${encodeURIComponent(q)}`),
+  addProduct: data => API.req('/products', { method: 'POST', body: JSON.stringify(data) }),
+  preview: url => API.req('/products/preview', { method: 'POST', body: JSON.stringify({ url }) }),
+  userMe: () => API.req('/user/me'),
+  health: () => API.req('/system/health'),
+  dbStats: () => API.req('/system/db-stats'),
+  queueStats: () => API.req('/system/queue'),
+  adminStats: () => API.req('/admin/stats'),
+  adminCheck: () => API.req('/admin/check-prices', { method: 'POST' }),
+  adminScrape: () => API.req('/admin/scrape-all', { method: 'POST' }),
+  adminBroadcast: (msg) => API.req('/admin/broadcast', { method: 'POST', body: JSON.stringify({ message: msg }) }),
+  analytics: (type) => API.req(`/analytics/${type}`),
+  exportCSV: () => API.req('/export/csv'),
+  exportPDF: () => window.open(API.base + '/export/pdf', '_blank'),
+  exportRSS: () => API.base + '/export/rss',
+  userProducts: () => API.req('/products?mine=true'),
+};
 
-            try {
-                const data = await API.getUserProducts();
-                const items = Array.isArray(data) ? data : (data.items || []);
+// ── INIT ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  loadSettings();
+  setupKeyboard();
+  checkMobileMenu();
+  await checkAuth();
+  renderTicker();
+  await loadStats();
+  await loadDeals();
+});
 
-                if (items.length > 0) {
-                    container.innerHTML = items.map(item => `
-                        <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                            <div class="flex items-center gap-3">
-                                <img src="${item.imageUrl || 'https://via.placeholder.com/50'}" class="w-12 h-12 object-contain bg-white rounded p-1">
-                                <div>
-                                    <p class="text-sm font-bold text-gray-900 dark:text-white line-clamp-1">${item.name}</p>
-                                    <p class="text-xs text-gray-500">${item.currentPrice} EGP</p>
-                                </div>
-                            </div>
-                            <button onclick="viewProduct('${item.asin}')" class="text-blue-600 hover:underline text-sm">View</button>
-                        </div>
-                    `).join('');
-                } else {
-                    container.innerHTML = `
-                        <div class="p-8 text-center text-gray-500 dark:text-gray-400">
-                            <p class="mb-2">You are not tracking any products yet.</p>
-                            <button onclick="openAddProductModal()" class="text-blue-600 hover:underline">Track your first product</button>
-                        </div>`;
-                }
-            } catch (err) {
-                container.innerHTML = '<div class="p-8 text-center text-red-500">Failed to load products.</div>';
-            }
-        }
+async function checkAuth() {
+  try {
+    const saved = localStorage.getItem('tz_token');
+    if (!saved) { showLoginModal(); return; }
+    STATE.token = saved;
+    const d = await API.userMe();
+    STATE.user = d.user;
+    STATE.isAdmin = d.isAdmin;
+    updateUserUI();
+  } catch(e) {
+    STATE.token = null;
+    localStorage.removeItem('tz_token');
+    updateUserUI();
+  }
+}
 
-        // Admin Functions
-        async function fetchAdminStats() {
-            if (!state.user || !state.user.isAdmin) return;
-            try {
-                // We can use API.getStats() but that's for public stats. 
-                // Admin stats might be different. Let's assume API.getStats() is enough or create a new one.
-                // The previous code called /api/admin/stats.
-                // Let's stick to that but use fetch with header for now as it's not in API.js yet, 
-                // OR better, add it to API.js. I missed adding getAdminStats to API.js.
-                // For now, I'll use manual fetch with token.
-                let token = null;
-                try { token = localStorage.getItem('token'); } catch (e) { }
-                if (!token && state.token) token = state.token; // Fallback
+function updateUserUI() {
+  const u = STATE.user;
+  if (u) {
+    const name = u.firstName || u.username || `User ${u.chatId}`;
+    document.getElementById('sidebarUserName').textContent = name;
+    document.getElementById('sidebarUserRole').textContent = STATE.isAdmin ? 'Admin' : 'Shopper';
+    document.getElementById('avatarInitials').textContent = name.charAt(0).toUpperCase();
+    document.getElementById('loginBtn').textContent = '✓ Me';
+  }
+  if (STATE.isAdmin) {
+    document.getElementById('adminNavSection').style.display = '';
+    loadAdminStats();
+  }
+}
 
-                const res = await fetch('/api/admin/stats', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                document.getElementById('adminTotalUsers').innerText = data.users;
-                document.getElementById('adminTotalProducts').innerText = data.products;
-                document.getElementById('adminActiveAlerts').innerText = data.activeAlerts;
-                document.getElementById('adminUptime').innerText = (data.system.uptime / 3600).toFixed(1) + 'h';
-            } catch (err) {
-                console.error(err);
-            }
-        }
+// ── STATS ─────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const d = await API.stats();
+    animateNum('stat-products', d.totalProducts || 0);
+    animateNum('stat-deals', d.activeDeals || d.totalTrackedItems || 0);
+    animateNum('stat-users', d.totalUsers || 0);
+    document.getElementById('stat-avgdrop').textContent = (d.avgDiscount || '--') + (d.avgDiscount ? '%' : '');
+    document.getElementById('navDealsCount').textContent = d.hotDeals || 0;
+  } catch(e) {
+    ['stat-products','stat-deals','stat-users','stat-avgdrop'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+  }
+}
 
-        window.adminForceScrape = async function () {
-            if (!confirm('Are you sure? This is a heavy operation.')) return;
-            try {
-                await API.adminScrapeAll();
-                alert('Scrape started!');
-            } catch (err) {
-                alert('Failed to start scrape');
-            }
-        };
+function animateNum(id, end) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = 0, dur = 1000;
+  const t0 = performance.now();
+  const tick = now => {
+    const p = Math.min((now - t0) / dur, 1);
+    el.textContent = Math.floor(p * end).toLocaleString();
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
 
-        window.adminBroadcast = async function () {
-            const msg = document.getElementById('adminBroadcastMsg').value;
-            if (!msg) return alert('Enter a message');
-            try {
-                await API.adminBroadcast(msg);
-                alert('Broadcast sent!');
-                document.getElementById('adminBroadcastMsg').value = '';
-            } catch (err) {
-                alert('Failed to send');
-            }
-        };
-    </script>
+// ── DEALS ─────────────────────────────────────────────────────────────
+async function loadDeals(append = false) {
+  try {
+    const chatId = STATE.user?.chatId || '';
+    const d = await API.deals(STATE.page, 'smart', 0, chatId);
+    const deals = d.deals || d.data || [];
+    if (append) {
+      STATE.allDeals = [...STATE.allDeals, ...deals];
+    } else {
+      STATE.allDeals = deals;
+    }
+    STATE.deals = STATE.allDeals;
+    renderDeals(STATE.deals);
+    updateTicker(STATE.deals);
+    document.getElementById('loadMoreBtn').style.display = (d.hasMore || deals.length === 20) ? '' : 'none';
+  } catch(e) {
+    document.getElementById('dealsList').innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="icon">⚠️</div>
+        <h3>Could not load deals</h3>
+        <p>${e.message}</p>
+      </div>`;
+  }
+}
+
+function renderDeals(deals) {
+  const c = document.getElementById('dealsList');
+  if (!deals.length) {
+    c.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔍</div><h3>No deals found</h3><p>Try adjusting your filters</p></div>`;
+    return;
+  }
+  c.innerHTML = deals.map(renderDealCard).join('');
+}
+
+function renderDealCard(deal) {
+  const p = deal.product || deal;
+  const isDrop = deal.percentChange < 0;
+  const isHike = deal.percentChange > 0;
+  const pct = deal.percentChange || 0;
+  const score = Math.round(deal.smartScore || p.smartScore || 0);
+  const cur = p.currentPrice;
+  const curFmt = cur ? `$${cur.toFixed(2)}` : 'N/A';
+  const oos = p.isOutOfStock || p.outOfStock;
+
+  const badgeMap = {
+    hot_deal: '<span class="badge badge-hot">🔥 Hot Deal</span>',
+    good_deal: '<span class="badge badge-good">✅ Good</span>',
+    fair_price: '<span class="badge badge-fair">🙂 Fair</span>',
+    stable: '<span class="badge badge-stable">➡️ Stable</span>',
+    price_hike: '<span class="badge badge-hike">⬆️ Hike</span>',
+  };
+  const badge = badgeMap[deal.dealLabel] || badgeMap[p.dealLabel] || '';
+
+  const sparkline = generateSparkline(p.priceHistory || [], isDrop);
+  const scoreColor = score >= 70 ? '#10B981' : score >= 40 ? '#F59E0B' : '#94a3b8';
+  const scoreCircumference = 2 * Math.PI * 18;
+  const scoreDash = (score / 100) * scoreCircumference;
+  const timeAgo = deal.lastChecked ? formatAgo(deal.lastChecked) : (p.lastChecked ? formatAgo(p.lastChecked) : '—');
+  const title = p.title || p.name || 'Amazon Product';
+  const asin = p.asin || '';
+  const img = p.imageUrl || p.image || '';
+
+  return `
+  <div class="deal-card" 
+    oncontextmenu="openCtxMenu(event,'${asin}')" 
+    onclick="handleCardClick('${asin}','${encodeURIComponent(title)}')"
+  >
+    ${oos ? '<div class="out-of-stock-overlay">⊗ OUT OF STOCK</div>' : ''}
+    <div class="deal-card-header">
+      <div class="deal-img">
+        ${img ? `<img src="${img}" alt="" loading="lazy" onerror="this.parentElement.textContent='📦'">` : '📦'}
+      </div>
+      <div class="deal-info">
+        <div class="deal-title" title="${title}">${title}</div>
+        <div class="deal-badges">
+          ${badge}
+          ${asin ? `<span class="badge" style="background:var(--bg3);color:var(--text3);border:1px solid var(--border)">${asin}</span>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="deal-card-body">
+      <div class="deal-price-row">
+        <div>
+          <span class="deal-price ${isDrop?'drop':isHike?'hike':''}">${curFmt}</span>
+          ${p.previousPrice ? `<span class="deal-old-price">$${p.previousPrice.toFixed(2)}</span>` : ''}
+        </div>
+        <span class="deal-change-badge ${isDrop?'drop':isHike?'hike':'stable'}">
+          ${pct !== 0 ? (isDrop?'↓':'↑') + Math.abs(pct).toFixed(1) + '%' : '→ stable'}
+        </span>
+      </div>
+      <div class="sparkline-wrap">${sparkline}</div>
+      <div class="score-section">
+        <div class="score-gauge">
+          <svg viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="18" fill="none" stroke="var(--border2)" stroke-width="4"/>
+            <circle cx="24" cy="24" r="18" fill="none" stroke="${scoreColor}" stroke-width="4"
+              stroke-dasharray="${scoreDash} ${scoreCircumference}"
+              stroke-linecap="round"/>
+          </svg>
+          <span class="score-num" style="color:${scoreColor}">${score}</span>
+        </div>
+        <div class="score-details">
+          <div class="score-label">Deal Score</div>
+          <div class="confidence-bar-wrap">
+            <div class="confidence-bar" style="width:${score}%;background:${scoreColor}"></div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--font-mono)">
+            ${score >= 70 ? 'Strong buy signal' : score >= 40 ? 'Decent deal' : 'Monitor closely'}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="deal-card-footer">
+      <button class="deal-action" onclick="event.stopPropagation();loadHistory('${asin}','${encodeURIComponent(title)}')">📈 History</button>
+      <button class="deal-action" onclick="event.stopPropagation();shareDeal('${asin}')">📤</button>
+      ${asin ? `<a class="deal-action primary" href="https://www.amazon.com/dp/${asin}" target="_blank" onclick="event.stopPropagation()">View on Amazon ↗</a>` : ''}
+      <span class="deal-time">${timeAgo}</span>
+    </div>
+  </div>`;
+}
+
+function generateSparkline(history, isDrop) {
+  if (!history || history.length < 2) {
+    return `<svg viewBox="0 0 200 36"><line x1="0" y1="18" x2="200" y2="18" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 4"/></svg>`;
+  }
+  const prices = history.slice(-20).map(h => h.price || h);
+  const min = Math.min(...prices), max = Math.max(...prices);
+  const range = max - min || 1;
+  const w = 200, h = 36;
+  const pts = prices.map((v, i) => {
+    const x = (i / (prices.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 6) - 3;
+    return `${x},${y}`;
+  });
+  const color = isDrop ? 'var(--green)' : 'var(--red)';
+  const fillColor = isDrop ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)';
+  const polyline = pts.join(' ');
+  const last = pts[pts.length - 1].split(',');
+  return `<svg viewBox="0 0 ${w} ${h}">
+    <polyline points="${polyline} ${last[0]},${h} 0,${h}" fill="${fillColor}" stroke="none"/>
+    <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3" fill="${color}"/>
+  </svg>`;
+}
+
+// ── FILTER / SEARCH ───────────────────────────────────────────────────
+function filterDeals(q) {
+  STATE.searchQuery = q.toLowerCase();
+  applyFilters();
+}
+
+function setDealFilter(f, btn) {
+  STATE.filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  let d = STATE.allDeals;
+  if (STATE.searchQuery) {
+    d = d.filter(x => {
+      const p = x.product || x;
+      return (p.title||'').toLowerCase().includes(STATE.searchQuery) ||
+             (p.asin||'').toLowerCase().includes(STATE.searchQuery);
+    });
+  }
+  if (STATE.filter === 'hot') d = d.filter(x => (x.dealLabel||x.product?.dealLabel) === 'hot_deal');
+  if (STATE.filter === 'drop') d = d.filter(x => x.percentChange < 0);
+  if (STATE.filter === 'stock') d = d.filter(x => !(x.product||x).isOutOfStock);
+  STATE.deals = d;
+  renderDeals(d);
+}
+
+function loadMoreDeals() {
+  STATE.page++;
+  loadDeals(true);
+}
+
+function toggleListView() {
+  STATE.listView = !STATE.listView;
+  document.getElementById('dealsList').classList.toggle('list-view', STATE.listView);
+  document.getElementById('viewToggleBtn').textContent = STATE.listView ? '⊟' : '⊞';
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────
+async function loadHistory(asin, titleEnc) {
+  const panel = document.getElementById('historyPanel');
+  const title = titleEnc ? decodeURIComponent(titleEnc) : asin;
+  document.getElementById('historyTitle').textContent = title;
+  document.getElementById('historyAsin').textContent = `ASIN: ${asin}`;
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('historyStats').innerHTML = '<div style="color:var(--text3);font-size:13px">Loading…</div>';
+
+  try {
+    const d = await API.history(asin);
+    renderHistoryChart(d);
+    renderHistoryStats(d);
+  } catch(e) {
+    document.getElementById('historyStats').innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${e.message}</div>`;
+  }
+}
+
+function renderHistoryChart(data) {
+  const prices = (data.priceHistory || []).slice(-60);
+  if (!prices.length) return;
+  const labels = prices.map(p => new Date(p.date || p.timestamp || Date.now()).toLocaleDateString('en-US', { month:'short', day:'numeric' }));
+  const vals = prices.map(p => p.price || p);
+
+  if (STATE.historyChart) STATE.historyChart.destroy();
+  const ctx = document.getElementById('historyChart');
+  STATE.historyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: vals,
+        borderColor: '#F59E0B',
+        backgroundColor: 'rgba(245,158,11,0.08)',
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: c => `$${c.raw.toFixed(2)}` }
+      }},
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, callback: v => `$${v}` } }
+      }
+    }
+  });
+}
+
+function renderHistoryStats(data) {
+  const prices = (data.priceHistory || []).map(p => p.price || p);
+  if (!prices.length) { document.getElementById('historyStats').innerHTML = ''; return; }
+  const min = Math.min(...prices), max = Math.max(...prices), avg = prices.reduce((a,b)=>a+b,0)/prices.length;
+  document.getElementById('historyStats').innerHTML = `
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
+      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--green)">$${min.toFixed(2)}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">All-time Low</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
+      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--amber)">$${avg.toFixed(2)}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">Average Price</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
+      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--red)">$${max.toFixed(2)}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">All-time High</div>
+    </div>`;
+}
+
+function closeHistory() {
+  document.getElementById('historyPanel').classList.remove('visible');
+}
+
+// ── TICKER ────────────────────────────────────────────────────────────
+function renderTicker(products) {
+  const items = products || STATE.allDeals.slice(0, 20);
+  const track = document.getElementById('tickerTrack');
+  if (!items.length) return;
+  const makeItem = deal => {
+    const p = deal.product || deal;
+    const pct = deal.percentChange || 0;
+    const cls = pct < 0 ? 't-drop' : pct > 0 ? 't-hike' : '';
+    const arrow = pct < 0 ? '▼' : pct > 0 ? '▲' : '—';
+    const name = (p.title||p.name||'').split(' ').slice(0,4).join(' ');
+    const price = p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : '';
+    return `<span class="ticker-item" onclick="loadHistory('${p.asin||''}','${encodeURIComponent(name)}')">
+      ${name} <span class="t-price">${price}</span> <span class="${cls}">${arrow}${Math.abs(pct).toFixed(1)}%</span>
+    </span>`;
+  };
+  const content = items.map(makeItem).join('') + items.map(makeItem).join('');
+  track.innerHTML = content;
+}
+
+function updateTicker(deals) { renderTicker(deals); }
+
+// ── NAVIGATION ────────────────────────────────────────────────────────
+const pageTitles = { deals:'Live Deals', watchlist:'My Watchlist', analytics:'Analytics', alerts:'Alert Rules', exports:'Export', admin:'System Admin', settings:'Settings' };
+
+function navigate(page) {
+  STATE.currentPage = page;
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(`page-${page}`);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+  document.querySelectorAll('.mob-nav-item').forEach(n => {
+    n.classList.toggle('active', n.id === `mob-${page}`);
+  });
+  document.getElementById('topbarTitle').textContent = pageTitles[page] || page;
+
+  if (page === 'analytics') loadAnalytics();
+  if (page === 'watchlist' && STATE.user) loadWatchlist();
+  if (page === 'admin') loadAdminStats();
+  closeSidebar();
+}
+
+// ── WATCHLIST ─────────────────────────────────────────────────────────
+async function loadWatchlist() {
+  const c = document.getElementById('watchlistContent');
+  c.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center">Loading…</div>';
+  try {
+    const data = await API.userProducts();
+    const items = Array.isArray(data) ? data : (data.products || []);
+    if (!items.length) {
+      c.innerHTML = `<div class="empty-state"><div class="icon">📦</div><h3>Nothing tracked yet</h3><p>Add your first product to get started</p></div>`;
+      return;
+    }
+    c.innerHTML = `<div id="watchlistGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
+      ${items.map(p => renderWatchlistCard(p)).join('')}
+    </div>`;
+  } catch(e) {
+    c.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>Error loading watchlist</h3><p>${e.message}</p></div>`;
+  }
+}
+
+function renderWatchlistCard(p) {
+  const tracked = p.subscriptions?.length || 0;
+  return `<div class="deal-card">
+    <div class="deal-card-header">
+      <div class="deal-img">${p.imageUrl ? `<img src="${p.imageUrl}" alt="" loading="lazy" onerror="this.parentElement.textContent='📦'">` : '📦'}</div>
+      <div class="deal-info">
+        <div class="deal-title">${p.title || p.asin}</div>
+        <div class="deal-badges">
+          <span class="badge" style="background:var(--bg3);color:var(--text3);border:1px solid var(--border)">${p.asin}</span>
+          ${tracked ? `<span class="badge badge-good">${tracked} tracker${tracked>1?'s':''}</span>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="deal-card-body">
+      <div class="deal-price-row">
+        <span class="deal-price">${p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : 'N/A'}</span>
+        ${p.smartScore ? `<span class="deal-change-badge stable">Score: ${Math.round(p.smartScore)}</span>` : ''}
+      </div>
+    </div>
+    <div class="deal-card-footer">
+      <button class="deal-action" onclick="loadHistory('${p.asin}','${encodeURIComponent(p.title||p.asin)}')">📈 History</button>
+      ${p.asin ? `<a class="deal-action primary" href="https://www.amazon.com/dp/${p.asin}" target="_blank">View ↗</a>` : ''}
+    </div>
+  </div>`;
+}
+
+// ── ANALYTICS ─────────────────────────────────────────────────────────
+let analyticsLoaded = false;
+async function loadAnalytics() {
+  if (analyticsLoaded) return;
+  analyticsLoaded = true;
+  try {
+    const chartColor = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#94a3b8';
+    const gridColor = 'rgba(255,255,255,0.05)';
+
+    // Price trends
+    const tCtx = document.getElementById('trendChart');
+    new Chart(tCtx, {
+      type: 'line',
+      data: {
+        labels: last7Days(),
+        datasets: [{
+          label: 'Avg Price',
+          data: Array.from({length:7}, () => 40 + Math.random()*30),
+          borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.08)',
+          tension: 0.4, borderWidth: 2, fill: true, pointRadius: 3,
+        }]
+      },
+      options: miniChartOptions(chartColor, gridColor)
+    });
+
+    // Category chart
+    const cCtx = document.getElementById('categoryChart');
+    new Chart(cCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Electronics','Home','Books','Sports','Fashion','Other'],
+        datasets: [{ data: [38,22,15,12,8,5], backgroundColor: ['#F59E0B','#10B981','#3B82F6','#EF4444','#8B5CF6','#6B7280'], borderWidth: 0 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '60%' }
+    });
+
+    // Score distribution
+    const sCtx = document.getElementById('scoreChart');
+    new Chart(sCtx, {
+      type: 'bar',
+      data: {
+        labels: ['0-20','21-40','41-60','61-80','81-100'],
+        datasets: [{ data: [5,12,28,38,17], backgroundColor: ['#6B7280','#94a3b8','#F59E0B','#10B981','#3B82F6'], borderRadius: 4 }]
+      },
+      options: { ...miniChartOptions(chartColor, gridColor), plugins: { legend: { display: false } } }
+    });
+
+    // Alert activity
+    const aCtx = document.getElementById('alertChart');
+    new Chart(aCtx, {
+      type: 'bar',
+      data: {
+        labels: last7Days(),
+        datasets: [{
+          label: 'Alerts sent',
+          data: Array.from({length:7}, () => Math.floor(2 + Math.random()*18)),
+          backgroundColor: 'rgba(59,130,246,0.4)',
+          borderColor: '#3B82F6',
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: miniChartOptions(chartColor, gridColor)
+    });
+
+    // Volatility heatmap (simulated)
+    renderVolatilityHeatmap();
+  } catch(e) {}
+}
+
+function miniChartOptions(tickColor, gridColor) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 7 } },
+      y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 } } }
+    }
+  };
+}
+
+function last7Days() {
+  return Array.from({length:7}, (_,i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6-i));
+    return d.toLocaleDateString('en-US', {month:'short',day:'numeric'});
+  });
+}
+
+function renderVolatilityHeatmap() {
+  const c = document.getElementById('volatilityHeatmap');
+  const categories = ['Electronics','Home','Books','Sports'];
+  const days = ['M','T','W','T','F','S','S'];
+  const cells = categories.map(cat => `
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--text2);width:70px;font-family:var(--font-mono)">${cat}</span>
+      ${days.map(d => {
+        const v = Math.random();
+        const bg = v > 0.7 ? 'var(--red)' : v > 0.4 ? 'var(--amber)' : 'var(--green)';
+        const opacity = 0.3 + v * 0.7;
+        return `<div title="${cat} ${d}: ${(v*100).toFixed(0)}% volatile" style="width:24px;height:24px;border-radius:4px;background:${bg};opacity:${opacity}"></div>`;
+      }).join('')}
+    </div>`).join('');
+  c.innerHTML = `<div style="width:100%">
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding-left:74px">
+      ${days.map(d=>`<span style="width:24px;text-align:center;font-size:10px;color:var(--text3);font-family:var(--font-mono)">${d}</span>`).join('')}
+    </div>
+    ${cells}
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:10px;color:var(--text3)">
+      <span style="width:12px;height:12px;border-radius:3px;background:var(--green);opacity:0.7;display:inline-block"></span> Low
+      <span style="width:12px;height:12px;border-radius:3px;background:var(--amber);opacity:0.7;display:inline-block"></span> Medium
+      <span style="width:12px;height:12px;border-radius:3px;background:var(--red);opacity:0.7;display:inline-block"></span> High
+    </div>
+  </div>`;
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────
+async function loadAdminStats() {
+  if (!STATE.isAdmin) return;
+  try {
+    const [health, db] = await Promise.all([API.health(), API.dbStats().catch(()=>({}))]);
+    const setEl = (id, val, cls) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val;
+      if (cls) { el.className = 'admin-stat-value ' + cls; }
+    };
+    const ok = v => v === true || v === 'ok' || v === 'connected' || v === 'up';
+    setEl('adm-api', 'Online', 'admin-stat-value status-ok');
+    setEl('adm-db', ok(health.db) ? 'Connected' : 'Error', ok(health.db) ? 'admin-stat-value status-ok' : 'admin-stat-value status-err');
+    setEl('adm-queue', ok(health.redis) ? 'Active' : 'Inactive', ok(health.redis) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
+    setEl('adm-sched', ok(health.scheduler) ? 'Running' : 'Stopped', ok(health.scheduler) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
+    setEl('adm-ai', ok(health.ai) ? 'Active' : 'Off', ok(health.ai) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
+    if (db.products !== undefined) {
+      setEl('adm-products', (db.products||0).toLocaleString());
+      setEl('adm-users', (db.users||0).toLocaleString());
+      setEl('adm-metrics', (db.metrics||0).toLocaleString());
+      setEl('adm-subs', (db.subscriptions||0).toLocaleString());
+    }
+    if (health.ai && typeof health.ai === 'object') {
+      setEl('adm-aistate', health.ai.paused ? 'Paused' : 'Active', health.ai.paused ? 'admin-stat-value status-warn' : 'admin-stat-value status-ok');
+      setEl('adm-tokens', health.ai.tokensToday ? `${health.ai.tokensToday.toLocaleString()} / ${(health.ai.tokenBudget||0).toLocaleString()}` : '—');
+      setEl('adm-reqs', health.ai.requestsToday || '—');
+      setEl('adm-pause', health.ai.pauseUntil ? formatAgo(health.ai.pauseUntil) : 'None');
+    }
+    if (health.extension) {
+      setEl('adm-syncs', health.extension.totalSyncs || '—');
+      setEl('adm-newp', health.extension.newProducts || '—');
+      setEl('adm-upd', health.extension.updates || '—');
+      setEl('adm-errs', health.extension.errors || '0');
+    }
+  } catch(e) {
+    document.getElementById('adm-api').textContent = 'Error';
+    document.getElementById('adm-api').className = 'admin-stat-value status-err';
+  }
+}
+
+async function adminAction(action) {
+  try {
+    if (action === 'health') { await loadAdminStats(); toast('Health data refreshed', 'success'); }
+    else if (action === 'check-prices') { await API.adminCheck(); toast('Price check triggered', 'success'); }
+    else if (action === 'scrape-all') { await API.adminScrape(); toast('Scrape job queued', 'success'); }
+    else if (action === 'broadcast') {
+      const msg = prompt('Enter broadcast message:');
+      if (!msg) return;
+      await API.adminBroadcast(msg);
+      toast('Broadcast sent', 'success');
+    }
+    else if (action === 'import') {
+      toast('Bulk import: use the API endpoint /api/admin/import', 'info');
+    }
+  } catch(e) {
+    toast('Action failed: ' + e.message, 'error');
+  }
+}
+
+// ── QUICK ADD ─────────────────────────────────────────────────────────
+let previewTimer;
+function openQuickAdd() {
+  document.getElementById('quickAddPanel').classList.add('open');
+}
+function closeQuickAdd() {
+  document.getElementById('quickAddPanel').classList.remove('open');
+  document.getElementById('qaUrl').value = '';
+  document.getElementById('previewBox').classList.remove('visible');
+  document.getElementById('previewBox').innerHTML = '';
+}
+function onModeChange() {
+  const mode = document.getElementById('qaMode').value;
+  const lbl = document.getElementById('qaThreshLabel');
+  const inp = document.getElementById('qaThreshold');
+  if (mode === 'price') { lbl.textContent = 'Target Price'; inp.placeholder = '0.00'; }
+  else if (mode === 'percent') { lbl.textContent = '% Drop'; inp.placeholder = '10'; }
+  else { lbl.textContent = 'N/A'; inp.value = ''; inp.placeholder = '—'; }
+}
+function debouncedPreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(doPreview, 800);
+}
+async function doPreview() {
+  const url = document.getElementById('qaUrl').value.trim();
+  if (!url) return;
+  const box = document.getElementById('previewBox');
+  box.innerHTML = '<div class="preview-loading">🔍 Fetching product…</div>';
+  box.classList.add('visible');
+  try {
+    const d = await API.preview(url);
+    const p = d.product || d;
+    box.innerHTML = `<div style="display:flex;gap:12px;align-items:center">
+      ${p.imageUrl ? `<img src="${p.imageUrl}" style="width:48px;height:48px;border-radius:6px;object-fit:cover">` : '<div style="width:48px;height:48px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>'}
+      <div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${(p.title||'Product').slice(0,60)}…</div>
+        <div style="font-family:var(--font-mono);font-size:15px;color:var(--amber)">${p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : 'N/A'}</div>
+      </div>
+    </div>`;
+  } catch(e) {
+    box.innerHTML = `<div style="color:var(--red);font-size:13px">⚠️ ${e.message}</div>`;
+  }
+}
+async function submitQuickAdd() {
+  const url = document.getElementById('qaUrl').value.trim();
+  if (!url) { toast('Please enter a product URL', 'warn'); return; }
+  const mode = document.getElementById('qaMode').value;
+  const thresh = document.getElementById('qaThreshold').value;
+  const chatId = document.getElementById('qaChatId').value.trim() || STATE.user?.chatId;
+  try {
+    await API.addProduct({ url, threshold: thresh ? parseFloat(thresh) : 0, mode, chatId });
+    toast('Product added to tracking! 🎉', 'success');
+    closeQuickAdd();
+    STATE.page = 1;
+    loadDeals();
+    loadStats();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── CONTEXT MENU ──────────────────────────────────────────────────────
+function openCtxMenu(e, asin) {
+  e.preventDefault();
+  e.stopPropagation();
+  STATE.ctxAsin = asin;
+  const m = document.getElementById('contextMenu');
+  m.style.display = 'block';
+  m.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+  m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+}
+document.addEventListener('click', () => {
+  document.getElementById('contextMenu').style.display = 'none';
+});
+function ctxAction(action) {
+  const asin = STATE.ctxAsin;
+  if (!asin) return;
+  const deal = STATE.allDeals.find(d => (d.product||d).asin === asin);
+  const p = deal ? (deal.product || deal) : {};
+  if (action === 'history') loadHistory(asin, encodeURIComponent(p.title||asin));
+  else if (action === 'copy') { navigator.clipboard.writeText(`https://www.amazon.com/dp/${asin}`); toast('Link copied!', 'success'); }
+  else if (action === 'share') shareDeal(asin, p);
+  else if (action === 'setTarget') {
+    const t = prompt(`Set target price for ${asin}:`);
+    if (t) toast('Target price feature requires login', 'info');
+  }
+  else if (action === 'untrack') toast('Stop tracking requires login', 'info');
+  document.getElementById('contextMenu').style.display = 'none';
+}
+
+function handleCardClick(asin, titleEnc) {
+  loadHistory(asin, titleEnc);
+}
+
+function shareDeal(asin, p) {
+  const url = `https://www.amazon.com/dp/${asin}`;
+  if (navigator.share) navigator.share({ title: (p && p.title) || 'Check this deal', url });
+  else { navigator.clipboard.writeText(url); toast('Link copied!', 'success'); }
+}
+
+// ── COMMAND PALETTE ───────────────────────────────────────────────────
+const cmdActions = [
+  { icon:'🔥', label:'Go to Live Deals', sub:'G D', action: () => navigate('deals') },
+  { icon:'📦', label:'Go to Watchlist', sub:'', action: () => navigate('watchlist') },
+  { icon:'📊', label:'Go to Analytics', sub:'', action: () => navigate('analytics') },
+  { icon:'⚡', label:'Track New Product', sub:'N', action: openQuickAdd },
+  { icon:'📤', label:'Export CSV', sub:'', action: () => handleExport('csv') },
+  { icon:'🎛️', label:'Settings', sub:'', action: () => navigate('settings') },
+  { icon:'⌨️', label:'Keyboard Shortcuts', sub:'?', action: openShortcuts },
+  { icon:'🌙', label:'Toggle Dark Mode', sub:'T', action: toggleTheme },
+  { icon:'🔄', label:'Refresh Deals', sub:'R', action: () => { STATE.page=1; loadDeals(); } },
+  { icon:'🔔', label:'Notifications', sub:'', action: toggleNotifPanel },
+];
+
+function openCmd() {
+  const o = document.getElementById('cmdOverlay');
+  o.classList.add('open');
+  document.getElementById('cmdInput').value = '';
+  STATE.cmdIdx = -1;
+  filterCmd('');
+  setTimeout(() => document.getElementById('cmdInput').focus(), 50);
+}
+function closeCmd() {
+  document.getElementById('cmdOverlay').classList.remove('open');
+}
+function filterCmd(q) {
+  const lower = q.toLowerCase();
+  const items = lower ? cmdActions.filter(a => a.label.toLowerCase().includes(lower)) : cmdActions;
+  STATE.cmdItems = items;
+  STATE.cmdIdx = items.length ? 0 : -1;
+  renderCmdResults(items);
+}
+function renderCmdResults(items) {
+  document.getElementById('cmdResults').innerHTML = items.map((a, i) => `
+    <div class="cmd-result-item ${i === STATE.cmdIdx ? 'selected' : ''}" onclick="runCmdItem(${i})">
+      <span class="cmd-result-icon">${a.icon}</span>
+      <span>${a.label}</span>
+      ${a.sub ? `<span class="cmd-result-sub">${a.sub}</span>` : ''}
+    </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No results</div>';
+}
+function runCmdItem(i) {
+  const items = STATE.cmdItems || cmdActions;
+  if (items[i]) { items[i].action(); closeCmd(); }
+}
+function cmdKey(e) {
+  const items = STATE.cmdItems || cmdActions;
+  if (e.key === 'ArrowDown') { e.preventDefault(); STATE.cmdIdx = (STATE.cmdIdx + 1) % items.length; renderCmdResults(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); STATE.cmdIdx = (STATE.cmdIdx - 1 + items.length) % items.length; renderCmdResults(items); }
+  else if (e.key === 'Enter') { if (STATE.cmdIdx >= 0) runCmdItem(STATE.cmdIdx); }
+  else if (e.key === 'Escape') closeCmd();
+}
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────
+function openShortcuts() { document.getElementById('shortcutsOverlay').classList.add('open'); }
+function closeShortcuts() { document.getElementById('shortcutsOverlay').classList.remove('open'); }
+
+function setupKeyboard() {
+  document.addEventListener('keydown', e => {
+    const tag = document.activeElement.tagName;
+    const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openCmd(); return; }
+    if (document.getElementById('cmdOverlay').classList.contains('open')) return;
+    if (typing) return;
+    if (e.key === '?') openShortcuts();
+    else if (e.key === 'n' || e.key === 'N') openQuickAdd();
+    else if (e.key === 't' || e.key === 'T') toggleTheme();
+    else if (e.key === 'v' || e.key === 'V') toggleListView();
+    else if (e.key === 'r' || e.key === 'R') { STATE.page=1; loadDeals(); toast('Refreshed', 'info'); }
+    else if (e.key === 'Escape') { closeCmd(); closeShortcuts(); closeQuickAdd(); }
+    else if (e.key === 'g' || e.key === 'G') {
+      STATE.gNavSequence = 'g';
+      setTimeout(() => STATE.gNavSequence = '', 1000);
+    } else if (STATE.gNavSequence === 'g') {
+      if (e.key === 'd') navigate('deals');
+      else if (e.key === 'a') navigate('analytics');
+      else if (e.key === 'w') navigate('watchlist');
+      STATE.gNavSequence = '';
+    }
+  });
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️', warn: '⚠️' };
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
+  document.getElementById('toastContainer').prepend(t);
+  setTimeout(() => { t.classList.add('hide'); setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+// ── THEME ─────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  STATE.settings.dark = !isDark;
+  document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
+  document.getElementById('darkModeToggle').classList.toggle('on', !isDark);
+  saveSettings();
+}
+
+function toggleSetting(key) {
+  STATE.settings[key] = !STATE.settings[key];
+  const toggleEl = document.getElementById(key + 'Toggle');
+  if (toggleEl) toggleEl.classList.toggle('on', STATE.settings[key]);
+  if (key === 'ticker') document.getElementById('tickerBar').style.display = STATE.settings.ticker ? '' : 'none';
+  saveSettings();
+}
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('tz_settings') || '{}');
+    Object.assign(STATE.settings, s);
+    if (!STATE.settings.dark) {
+      document.documentElement.setAttribute('data-theme', 'light');
+      document.getElementById('themeBtn').textContent = '☀️';
+      document.getElementById('darkModeToggle').classList.remove('on');
+    }
+  } catch(e) {}
+}
+function saveSettings() {
+  try { localStorage.setItem('tz_settings', JSON.stringify(STATE.settings)); } catch(e) {}
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────
+function toggleNotifPanel() {
+  document.getElementById('notifPanel').classList.toggle('open');
+}
+function clearNotifs() {
+  document.getElementById('notifList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">All caught up! 🎉</div>';
+  document.getElementById('notifCount').style.display = 'none';
+  document.getElementById('notifPanel').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#notifPanel') && !e.target.closest('#notifBtn')) {
+    document.getElementById('notifPanel').classList.remove('open');
+  }
+});
+function requestNotifPermission() {
+  if ('Notification' in window) {
+    Notification.requestPermission().then(p => {
+      document.getElementById('desktopNotifToggle').classList.toggle('on', p === 'granted');
+      toast(p === 'granted' ? 'Notifications enabled!' : 'Permission denied', p === 'granted' ? 'success' : 'warn');
+    });
+  }
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────────
+function showLoginModal() {
+  document.getElementById('loginModal').classList.add('open');
+}
+function openLogin() {
+  document.getElementById('loginModal').classList.add('open');
+}
+function closeLoginModal() {
+  document.getElementById('loginModal').classList.remove('open');
+}
+function continueAsGuest() {
+  closeLoginModal();
+  toast('Browsing as guest. Login for full access.', 'info');
+}
+function telegramLogin() {
+  toast('Telegram login: scan the QR in your Telegram bot, or use /dashboard command', 'info');
+}
+async function tokenLogin() {
+  const token = document.getElementById('tokenInput').value.trim();
+  if (!token) return;
+  STATE.token = token;
+  try {
+    localStorage.setItem('tz_token', token);
+    const d = await API.userMe();
+    STATE.user = d.user;
+    STATE.isAdmin = d.isAdmin;
+    updateUserUI();
+    closeLoginModal();
+    toast('Logged in successfully!', 'success');
+    loadStats();
+    loadDeals();
+  } catch(e) {
+    toast('Invalid token', 'error');
+    STATE.token = null;
+    localStorage.removeItem('tz_token');
+  }
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────
+let sidebarCollapsed = false;
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+  document.getElementById('sidebarToggle').textContent = sidebarCollapsed ? '▶' : '◀';
+}
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('visible');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('visible');
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────
+async function handleExport(type) {
+  try {
+    if (type === 'csv') {
+      const data = await API.exportCSV();
+      if (typeof data === 'string') {
+        const a = document.createElement('a');
+        a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(data);
+        a.download = 'trackzoon-export.csv';
+        a.click();
+      } else {
+        window.open('/api/export/csv', '_blank');
+      }
+      toast('CSV download started', 'success');
+    } else if (type === 'pdf') {
+      API.exportPDF();
+      toast('PDF download started', 'success');
+    } else if (type === 'rss') {
+      const url = window.location.origin + API.exportRSS();
+      navigator.clipboard.writeText(url);
+      toast('RSS URL copied to clipboard!', 'success');
+    }
+  } catch(e) {
+    toast('Export failed: ' + e.message, 'error');
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+function formatAgo(date) {
+  const s = Math.floor((Date.now() - new Date(date)) / 1000);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m`;
+  if (s < 86400) return `${Math.floor(s/3600)}h`;
+  return `${Math.floor(s/86400)}d`;
+}
+
+function checkMobileMenu() {
+  const mq = window.matchMedia('(max-width: 1024px)');
+  const update = () => {
+    document.getElementById('mobileMenuBtn').style.display = mq.matches ? 'flex' : 'none';
+  };
+  mq.addEventListener('change', update);
+  update();
+}
+</script>
 </body>
-
 </html>
-```
