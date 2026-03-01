@@ -15,6 +15,7 @@ router.get('/health', dashboardController.getHealth);
 router.use(authMiddleware); // Apply auth to all subsequent routes
 
 router.get('/stats', dashboardController.getStats);
+router.get('/analytics-dashboard', dashboardController.getAnalyticsDashboard);
 router.get('/deals', dashboardController.getDeals);
 router.get('/history/:asin', dashboardController.getProductHistory);
 router.get('/stats/categories', dashboardController.getCategoryStats);

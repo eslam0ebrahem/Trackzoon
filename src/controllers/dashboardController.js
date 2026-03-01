@@ -11,6 +11,21 @@ export const getStats = async (req, res) => {
     }
 };
 
+export const getAnalyticsDashboard = async (req, res) => {
+    try {
+        const chatId = req.query.chatId
+            || req.headers['x-chat-id']
+            || req.headers['x-telegram-id']
+            || req.user?.telegramId
+            || DASHBOARD_USER_ID;
+
+        const dashboardData = await DashboardService.getAnalyticsDashboard(chatId);
+        res.json(dashboardData);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 
 
 export const getDeals = async (req, res) => {

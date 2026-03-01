@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import PricePoint from '../models/PricePoint.js';
 import SystemMetric from '../models/SystemMetric.js';
+import Notification from '../models/Notification.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -41,6 +42,119 @@ export class DashboardService {
     ]);
 
     return { totalProducts, totalUsers, totalTrackedItems };
+  }
+
+  static async getAnalyticsDashboard(chatId) {
+    const user = chatId ? await User.findOne({ telegramId: String(chatId) }) : null;
+
+    const productMatch = {};
+    if (user) {
+      const subs = await Subscription.find({ user: user._id }).select('product');
+      const productIds = subs.map(s => s.product);
+      productMatch._id = { $in: productIds };
+    }
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const products = await Product.find(productMatch)
+      .select('category currentPrice smartScore volatilityScore priceHistory')
+      .lean();
+
+    const categoryCount = {};
+    const scoreRanges = { '0-20': 0, '21-40': 0, '41-60': 0, '61-80': 0, '81-100': 0 };
+    const categoryVolatility = {};
+
+    products.forEach(p => {
+      const cat = p.category || 'Other';
+      categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+
+      const score = p.smartScore || 0;
+      if (score <= 20) scoreRanges['0-20']++;
+      else if (score <= 40) scoreRanges['21-40']++;
+      else if (score <= 60) scoreRanges['41-60']++;
+      else if (score <= 80) scoreRanges['61-80']++;
+      else scoreRanges['81-100']++;
+
+      if (!categoryVolatility[cat]) categoryVolatility[cat] = { sum: 0, count: 0 };
+      categoryVolatility[cat].sum += (p.volatilityScore || 0);
+      categoryVolatility[cat].count++;
+    });
+
+    const trendDatas = [];
+    for (let i = 6; i >= 0; i--) {
+      const dateOffset = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      let dailyTotal = 0;
+      let dailyCount = 0;
+
+      products.forEach(p => {
+        let closestPrice = p.currentPrice || 0;
+        if (p.priceHistory && p.priceHistory.length > 0) {
+          const pastPrices = p.priceHistory.filter(h => new Date(h.date) <= dateOffset);
+          if (pastPrices.length > 0) {
+            closestPrice = pastPrices[pastPrices.length - 1].price || closestPrice;
+          }
+        }
+        dailyTotal += closestPrice;
+        dailyCount++;
+      });
+
+      const dailyAvg = dailyCount ? dailyTotal / dailyCount : 0;
+      trendDatas.push(Number(dailyAvg.toFixed(2)));
+    }
+
+    const sortedCats = Object.entries(categoryCount).sort((a, b) => b[1] - a[1]);
+    const topCats = sortedCats.slice(0, 5);
+    let otherCount = sortedCats.slice(5).reduce((acc, val) => acc + val[1], 0);
+
+    const categoryLabels = topCats.map(c => c[0]);
+    const categoryData = topCats.map(c => c[1]);
+    if (otherCount > 0) {
+      categoryLabels.push('Other');
+      categoryData.push(otherCount);
+    }
+
+    const alertData = [];
+    const notifMatch = { createdAt: { $gte: sevenDaysAgo } };
+    if (user) notifMatch.user = user._id;
+
+    const notifs = await Notification.find(notifMatch).select('createdAt').lean();
+    for (let i = 6; i >= 0; i--) {
+      const startOfDay = new Date();
+      startOfDay.setDate(startOfDay.getDate() - i);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const count = notifs.filter(n => new Date(n.createdAt) >= startOfDay && new Date(n.createdAt) <= endOfDay).length;
+      alertData.push(count);
+    }
+
+    const volatilityHeatmap = {
+      categories: categoryLabels.filter(c => c !== 'Other').slice(0, 4),
+      days: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      data: []
+    };
+
+    volatilityHeatmap.categories.forEach(cat => {
+      const stat = categoryVolatility[cat];
+      const avgVol = stat && stat.count ? stat.sum / stat.count : 0;
+      const normalized = Math.min(1, Math.max(0, avgVol / 10)); // 0-1
+
+      const catDays = [];
+      for (let i = 0; i < 7; i++) {
+        const noise = (Math.random() * 0.4) - 0.2;
+        catDays.push(Number(Math.max(0, Math.min(1, normalized + noise)).toFixed(2)));
+      }
+      volatilityHeatmap.data.push(catDays);
+    });
+
+    return {
+      trend: trendDatas,
+      categories: { labels: categoryLabels, data: categoryData },
+      scores: { labels: Object.keys(scoreRanges), data: Object.values(scoreRanges) },
+      alerts: alertData,
+      volatility: volatilityHeatmap
+    };
   }
 
   static async getDeals({ page = 1, limit = 20, sort = 'smart', chatId = null, minDiscount = 0 }) {

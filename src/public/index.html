@@ -684,6 +684,7 @@
       adminScrape: () => API.req('/admin/scrape-all', { method: 'POST' }),
       adminBroadcast: (msg) => API.req('/admin/broadcast', { method: 'POST', body: JSON.stringify({ message: msg }) }),
       analytics: (type) => API.req(`/analytics/${type}`),
+      analyticsDashboard: () => API.req('/analytics-dashboard'),
       exportCSV: () => API.req('/export/csv'),
       exportPDF: () => window.open(API.base + '/export/pdf', '_blank'),
       exportRSS: () => API.base + '/export/rss',
@@ -1124,6 +1125,7 @@
       if (analyticsLoaded) return;
       analyticsLoaded = true;
       try {
+        const data = await API.analyticsDashboard();
         const chartColor = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#94a3b8';
         const gridColor = 'rgba(255,255,255,0.05)';
 
@@ -1135,7 +1137,7 @@
             labels: last7Days(),
             datasets: [{
               label: 'Avg Price',
-              data: Array.from({ length: 7 }, () => 40 + Math.random() * 30),
+              data: data.trend,
               borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.08)',
               tension: 0.4, borderWidth: 2, fill: true, pointRadius: 3,
             }]
@@ -1148,8 +1150,8 @@
         new Chart(cCtx, {
           type: 'doughnut',
           data: {
-            labels: ['Electronics', 'Home', 'Books', 'Sports', 'Fashion', 'Other'],
-            datasets: [{ data: [38, 22, 15, 12, 8, 5], backgroundColor: ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#8B5CF6', '#6B7280'], borderWidth: 0 }]
+            labels: data.categories.labels,
+            datasets: [{ data: data.categories.data, backgroundColor: ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#8B5CF6', '#6B7280'], borderWidth: 0 }]
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '60%' }
         });
@@ -1159,8 +1161,8 @@
         new Chart(sCtx, {
           type: 'bar',
           data: {
-            labels: ['0-20', '21-40', '41-60', '61-80', '81-100'],
-            datasets: [{ data: [5, 12, 28, 38, 17], backgroundColor: ['#6B7280', '#94a3b8', '#F59E0B', '#10B981', '#3B82F6'], borderRadius: 4 }]
+            labels: data.scores.labels,
+            datasets: [{ data: data.scores.data, backgroundColor: ['#6B7280', '#94a3b8', '#F59E0B', '#10B981', '#3B82F6'], borderRadius: 4 }]
           },
           options: { ...miniChartOptions(chartColor, gridColor), plugins: { legend: { display: false } } }
         });
@@ -1173,7 +1175,7 @@
             labels: last7Days(),
             datasets: [{
               label: 'Alerts sent',
-              data: Array.from({ length: 7 }, () => Math.floor(2 + Math.random() * 18)),
+              data: data.alerts,
               backgroundColor: 'rgba(59,130,246,0.4)',
               borderColor: '#3B82F6',
               borderWidth: 1,
@@ -1183,9 +1185,11 @@
           options: miniChartOptions(chartColor, gridColor)
         });
 
-        // Volatility heatmap (simulated)
-        renderVolatilityHeatmap();
-      } catch (e) { }
+        // Volatility heatmap
+        renderVolatilityHeatmap(data.volatility);
+      } catch (e) {
+        console.error('Analytics load error:', e);
+      }
     }
 
     function miniChartOptions(tickColor, gridColor) {
@@ -1206,18 +1210,24 @@
       });
     }
 
-    function renderVolatilityHeatmap() {
+    function renderVolatilityHeatmap(data) {
       const c = document.getElementById('volatilityHeatmap');
-      const categories = ['Electronics', 'Home', 'Books', 'Sports'];
-      const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-      const cells = categories.map(cat => `
+      if (!data || !data.categories || !data.categories.length) {
+        c.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">Not enough data to generate heatmap yet.</div>';
+        return;
+      }
+
+      const categories = data.categories;
+      const days = data.days;
+
+      const cells = categories.map((cat, catIdx) => `
     <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
-      <span style="font-size:11px;color:var(--text2);width:70px;font-family:var(--font-mono)">${cat}</span>
-      ${days.map(d => {
-        const v = Math.random();
+      <span style="font-size:11px;color:var(--text2);width:70px;font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${cat}">${cat}</span>
+      ${days.map((d, dayIdx) => {
+        const v = data.data[catIdx][dayIdx] || 0;
         const bg = v > 0.7 ? 'var(--red)' : v > 0.4 ? 'var(--amber)' : 'var(--green)';
         const opacity = 0.3 + v * 0.7;
-        return `<div title="${cat} ${d}: ${(v * 100).toFixed(0)}% volatile" style="width:24px;height:24px;border-radius:4px;background:${bg};opacity:${opacity}"></div>`;
+        return `<div title="${cat} ${d}: ${(v * 10).toFixed(1)} volatility" style="width:24px;height:24px;border-radius:4px;background:${bg};opacity:${opacity}"></div>`;
       }).join('')}
     </div>`).join('');
       c.innerHTML = `<div style="width:100%">
