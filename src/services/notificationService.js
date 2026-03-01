@@ -6,6 +6,8 @@ import { generatePriceHistoryChart } from '../utils/chartGenerator.js';
 import { calculatePriceStats } from '../utils/priceUtils.js';
 import { DASHBOARD_USER_ID } from '../config/constants.js';
 import AlertDigestService from './alertDigestService.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 
 const getDealQuality = (product = {}) => {
     const label = product.dealLabel;
@@ -62,6 +64,20 @@ export class NotificationService {
             let header = '📉 *Price Drop Alert\\!*';
             if (isAllTimeLow) header = '🔥 *ALL TIME LOW\\!*';
             else if (Number(percentDrop) > 20) header = '⚡ *HUGE DROP\\!*';
+
+            // Create App Notification
+            try {
+                const user = await User.findOne({ telegramId: String(tracker.chatId) });
+                if (user) {
+                    await Notification.create({
+                        user: user._id,
+                        title: isAllTimeLow ? '🔥 ALL TIME LOW!' : (Number(percentDrop) > 20 ? '⚡ HUGE DROP!' : '📉 Price Drop Alert!'),
+                        message: `Price dropped to EGP ${newPrice.toFixed(2)} (-${percentDrop}%) for ${product.name}`,
+                        type: 'price_drop',
+                        productUrl: product.url
+                    });
+                }
+            } catch (ignore) { }
 
             // AI Analysis (Responsive Fallback)
             let aiInsight = '';
@@ -173,6 +189,20 @@ export class NotificationService {
             const savings = thresholdPrice - currentPrice;
             const percentSavings = ((savings / thresholdPrice) * 100).toFixed(1);
 
+            // Create App Notification
+            try {
+                const user = await User.findOne({ telegramId: String(chatId) });
+                if (user) {
+                    await Notification.create({
+                        user: user._id,
+                        title: '🎉 Back in Stock',
+                        message: `${product.name} is back in stock at EGP ${currentPrice.toFixed(2)}!`,
+                        type: 'back_in_stock',
+                        productUrl: product.url
+                    });
+                }
+            } catch (ignore) { }
+
             const message = [
                 '🎉 *Back in Stock at Great Price\\!*',
                 '',
@@ -209,6 +239,20 @@ export class NotificationService {
             const statsLine = stats30d
                 ? `📊 *30d Low:* EGP ${escapeMarkdownV2(stats30d.min.toFixed(0))} | *Avg:* EGP ${escapeMarkdownV2(stats30d.average.toFixed(0))}`
                 : '';
+
+            // Create App Notification
+            try {
+                const user = await User.findOne({ telegramId: String(tracker.chatId) });
+                if (user) {
+                    await Notification.create({
+                        user: user._id,
+                        title: '🎲 Drop Likelihood Alert',
+                        message: `${product.name} has a ${probability}% chance of seeing a price drop soon.`,
+                        type: 'drop_probability',
+                        productUrl: product.url
+                    });
+                }
+            } catch (ignore) { }
 
             const message = [
                 header,

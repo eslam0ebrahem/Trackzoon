@@ -9,6 +9,7 @@ router.put('/settings', userController.updateSettings);
 router.post('/apikey', userController.generateApiKey);
 
 import { authMiddleware } from '../middleware/authMiddleware.js';
+import * as notificationController from '../controllers/notificationController.js';
 
 // GET /me - Get current user info
 router.get('/me', authMiddleware, async (req, res) => {
@@ -29,5 +30,8 @@ router.get('/me', authMiddleware, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+router.get('/notifications', authMiddleware, notificationController.getNotifications);
+router.post('/notifications/clear', authMiddleware, notificationController.clearNotifications);
 
 export default router;

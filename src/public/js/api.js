@@ -187,6 +187,14 @@ export const API = {
         return _req('/user/generate-api-key', { method: 'POST' });
     },
 
+    async getNotifications() {
+        return _req('/user/notifications');
+    },
+
+    async clearNotifications() {
+        return _req('/user/notifications/clear', { method: 'POST' });
+    },
+
     // ── Stats ─────────────────────────────────────────────────────────────────
 
     /** Main dashboard stats (cached 30s) */

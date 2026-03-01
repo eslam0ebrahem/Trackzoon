@@ -499,27 +499,7 @@
       <button onclick="clearNotifs()" style="font-size:12px;color:var(--text2)">Clear all</button>
     </div>
     <div id="notifList">
-      <div class="notif-item">
-        <div class="notif-dot"></div>
-        <div>
-          <div class="notif-msg">Price dropped 24% on Echo Dot 5th Gen</div>
-          <div class="notif-time">2m ago</div>
-        </div>
-      </div>
-      <div class="notif-item">
-        <div class="notif-dot"></div>
-        <div>
-          <div class="notif-msg">Item back in stock: Sony WH-1000XM5</div>
-          <div class="notif-time">18m ago</div>
-        </div>
-      </div>
-      <div class="notif-item">
-        <div class="notif-dot"></div>
-        <div>
-          <div class="notif-msg">Your target price reached on Kindle Paperwhite</div>
-          <div class="notif-time">1h ago</div>
-        </div>
-      </div>
+      <div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Loading notifications...</div>
     </div>
   </div>
 
@@ -720,6 +700,7 @@
       if (STATE.token) {
         await loadStats();
         await loadDeals();
+        await fetchAndRenderNotifs();
       }
     });
 
@@ -788,16 +769,15 @@
       try {
         const chatId = STATE.user?.chatId || '';
         const d = await API.deals(STATE.page, 'smart', 0, chatId);
-        const deals = d.deals || d.data || [];
+        const deals = d.items || d.deals || d.data || [];
         if (append) {
           STATE.allDeals = [...STATE.allDeals, ...deals];
         } else {
           STATE.allDeals = deals;
         }
-        STATE.deals = STATE.allDeals;
-        renderDeals(STATE.deals);
-        updateTicker(STATE.deals);
-        document.getElementById('loadMoreBtn').style.display = (d.hasMore || deals.length === 20) ? '' : 'none';
+        applyFilters();
+        const hasMore = d.page < d.totalPages || deals.length >= 20;
+        document.getElementById('loadMoreBtn').style.display = hasMore ? '' : 'none';
       } catch (e) {
         document.getElementById('dealsList').innerHTML = `
       <div class="empty-state" style="grid-column:1/-1">
@@ -1538,13 +1518,63 @@
     }
 
     // ── NOTIFICATIONS ─────────────────────────────────────────────────────
+    async function fetchAndRenderNotifs() {
+      if (!STATE.user) return;
+      try {
+        const notifs = await API.getNotifications();
+        const listEl = document.getElementById('notifList');
+        const countBtn = document.getElementById('notifCount');
+
+        if (!notifs || notifs.length === 0) {
+          listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">All caught up! 🎉</div>';
+          if (countBtn) countBtn.style.display = 'none';
+          return;
+        }
+
+        const unreadCount = notifs.filter(n => !n.isRead).length;
+        if (unreadCount > 0 && countBtn) {
+          countBtn.textContent = unreadCount;
+          countBtn.style.display = 'inline-block';
+        } else if (countBtn) {
+          countBtn.style.display = 'none';
+        }
+
+        listEl.innerHTML = notifs.map(n => {
+          let dot = n.isRead ? '' : '<div class="notif-dot"></div>';
+          let timeMsg = new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          let onClick = n.productUrl ? `onclick="window.open('${n.productUrl}', '_blank')"` : '';
+          return `
+            <div class="notif-item" ${onClick} style="${n.productUrl ? 'cursor:pointer' : ''}">
+              ${dot}
+              <div>
+                <div class="notif-msg"><strong>${n.title}</strong><br/>${n.message}</div>
+                <div class="notif-time">${timeMsg}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Failed to load notifications:', e);
+      }
+    }
+
     function toggleNotifPanel() {
       document.getElementById('notifPanel').classList.toggle('open');
+      if (document.getElementById('notifPanel').classList.contains('open')) {
+        fetchAndRenderNotifs();
+      }
     }
-    function clearNotifs() {
-      document.getElementById('notifList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">All caught up! 🎉</div>';
-      document.getElementById('notifCount').style.display = 'none';
-      document.getElementById('notifPanel').classList.remove('open');
+
+    async function clearNotifs() {
+      try {
+        await API.clearNotifications();
+        document.getElementById('notifList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">All caught up! 🎉</div>';
+        const countBtn = document.getElementById('notifCount');
+        if (countBtn) countBtn.style.display = 'none';
+        document.getElementById('notifPanel').classList.remove('open');
+      } catch (e) {
+        toast('Failed to clear notifications', 'error');
+      }
     }
     document.addEventListener('click', e => {
       if (!e.target.closest('#notifPanel') && !e.target.closest('#notifBtn')) {
