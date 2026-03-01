@@ -1,745 +1,849 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Trackzoon v2 — Deal Intelligence</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="manifest" href="/manifest.json">
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trackzoon v2 — Deal Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
 
-<!-- SIDEBAR OVERLAY (mobile) -->
-<div id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <!-- SIDEBAR OVERLAY (mobile) -->
+  <div id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-<!-- ─── SIDEBAR ──────────────────────────────────────────────── -->
-<aside id="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-icon">⚡</div>
-    <span class="logo-text">Trackzoon</span>
-    <span class="logo-badge">v2</span>
-  </div>
+  <!-- ─── SIDEBAR ──────────────────────────────────────────────── -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text">Trackzoon</span>
+      <span class="logo-badge">v2</span>
+    </div>
 
-  <nav>
-    <div class="nav-section">
-      <div class="nav-section-title">OVERVIEW</div>
-      <div class="nav-item active" onclick="navigate('deals')" data-page="deals">
-        <span class="nav-icon">🔥</span>
-        <span class="nav-label">Live Deals</span>
-        <span class="nav-badge" id="navDealsCount">0</span>
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-title">OVERVIEW</div>
+        <div class="nav-item active" onclick="navigate('deals')" data-page="deals">
+          <span class="nav-icon">🔥</span>
+          <span class="nav-label">Live Deals</span>
+          <span class="nav-badge" id="navDealsCount">0</span>
+        </div>
+        <div class="nav-item" onclick="navigate('watchlist')" data-page="watchlist">
+          <span class="nav-icon">📦</span>
+          <span class="nav-label">My Watchlist</span>
+        </div>
+        <div class="nav-item" onclick="navigate('analytics')" data-page="analytics">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Analytics</span>
+        </div>
       </div>
-      <div class="nav-item" onclick="navigate('watchlist')" data-page="watchlist">
-        <span class="nav-icon">📦</span>
-        <span class="nav-label">My Watchlist</span>
+      <div class="nav-section">
+        <div class="nav-section-title">TOOLS</div>
+        <div class="nav-item" onclick="navigate('alerts')" data-page="alerts">
+          <span class="nav-icon">🔔</span>
+          <span class="nav-label">Alert Rules</span>
+        </div>
+        <div class="nav-item" onclick="navigate('exports')" data-page="exports">
+          <span class="nav-icon">📤</span>
+          <span class="nav-label">Export</span>
+        </div>
       </div>
-      <div class="nav-item" onclick="navigate('analytics')" data-page="analytics">
-        <span class="nav-icon">📊</span>
-        <span class="nav-label">Analytics</span>
+      <div class="nav-section" id="adminNavSection" style="display:none">
+        <div class="nav-section-title">ADMIN</div>
+        <div class="nav-item" onclick="navigate('admin')" data-page="admin">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">System</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">ACCOUNT</div>
+        <div class="nav-item" onclick="navigate('settings')" data-page="settings">
+          <span class="nav-icon">🎛️</span>
+          <span class="nav-label">Settings</span>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-avatar" id="avatarInitials">?</div>
+      <div class="sidebar-footer-text">
+        <div class="name" id="sidebarUserName">Not logged in</div>
+        <div class="role" id="sidebarUserRole">Guest</div>
       </div>
     </div>
-    <div class="nav-section">
-      <div class="nav-section-title">TOOLS</div>
-      <div class="nav-item" onclick="navigate('alerts')" data-page="alerts">
-        <span class="nav-icon">🔔</span>
-        <span class="nav-label">Alert Rules</span>
+
+    <button id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">◀</button>
+  </aside>
+
+  <!-- ─── MAIN CONTENT ──────────────────────────────────────────── -->
+  <div id="mainContent">
+
+    <!-- TOPBAR -->
+    <header id="topbar">
+      <button class="topbar-icon-btn" id="mobileMenuBtn" onclick="openSidebar()" style="display:none">☰</button>
+      <div class="topbar-title" id="topbarTitle">Live Deals</div>
+      <div class="topbar-actions">
+        <div class="cmd-pill" onclick="openCmd()">
+          <span>🔍</span>
+          <span>Quick Search…</span>
+          <span class="shortcut">⌘K</span>
+        </div>
+        <button class="topbar-btn primary" onclick="openQuickAdd()">＋ Track Product</button>
+        <button class="topbar-icon-btn" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">🌙</button>
+        <div style="position:relative">
+          <button class="topbar-icon-btn" id="notifBtn" onclick="toggleNotifPanel()">🔔
+            <span class="notif-bell-badge" id="notifCount">3</span>
+          </button>
+        </div>
+        <button class="topbar-icon-btn" id="loginBtn" onclick="openLogin()">👤</button>
       </div>
-      <div class="nav-item" onclick="navigate('exports')" data-page="exports">
-        <span class="nav-icon">📤</span>
-        <span class="nav-label">Export</span>
+    </header>
+
+    <!-- TICKER -->
+    <div id="tickerBar">
+      <div class="ticker-track" id="tickerTrack">
+        <!-- filled by JS -->
       </div>
     </div>
-    <div class="nav-section" id="adminNavSection" style="display:none">
-      <div class="nav-section-title">ADMIN</div>
-      <div class="nav-item" onclick="navigate('admin')" data-page="admin">
-        <span class="nav-icon">⚙️</span>
-        <span class="nav-label">System</span>
-      </div>
+
+    <!-- PAGE CONTENT -->
+    <div id="pageContent">
+
+      <!-- ─── DEALS PAGE ────────────────────────────────────────── -->
+      <section id="page-deals" class="page-section active">
+        <!-- Stats -->
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card" style="--card-accent:var(--amber)">
+            <div class="stat-icon" style="background:var(--amber-glow); color:var(--amber)">📦</div>
+            <div class="stat-value" id="stat-products"><span class="skeleton"
+                style="width:60px;height:28px;display:block"></span></div>
+            <div class="stat-label">Products Tracked</div>
+            <div class="stat-change"><span style="color:var(--green)">↑ 12</span> this week</div>
+          </div>
+          <div class="stat-card" style="--card-accent:var(--green)">
+            <div class="stat-icon" style="background:var(--green-glow); color:var(--green)">📉</div>
+            <div class="stat-value" id="stat-deals"><span class="skeleton"
+                style="width:50px;height:28px;display:block"></span></div>
+            <div class="stat-label">Active Deals</div>
+            <div class="stat-change" id="stat-deals-change"><span style="color:var(--green)">● Live</span></div>
+          </div>
+          <div class="stat-card" style="--card-accent:var(--blue)">
+            <div class="stat-icon" style="background:var(--blue-glow); color:var(--blue)">👥</div>
+            <div class="stat-value" id="stat-users"><span class="skeleton"
+                style="width:50px;height:28px;display:block"></span></div>
+            <div class="stat-label">Active Users</div>
+            <div class="stat-change"><span style="color:var(--blue)">Telegram users</span></div>
+          </div>
+          <div class="stat-card" style="--card-accent:var(--red)">
+            <div class="stat-icon" style="background:var(--red-glow); color:var(--red)">🔥</div>
+            <div class="stat-value" id="stat-avgdrop"><span class="skeleton"
+                style="width:60px;height:28px;display:block"></span></div>
+            <div class="stat-label">Avg Drop Today</div>
+            <div class="stat-change" id="stat-avgdrop-sub"><span style="color:var(--amber)">across hot deals</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deals header -->
+        <div class="section-header">
+          <div class="section-title">
+            <span>🏷️</span> Price Intelligence
+            <div class="live-dot" style="margin-left:6px"></div>
+          </div>
+          <div class="section-controls">
+            <input class="search-input" id="dealsSearch" placeholder="Search products…"
+              oninput="filterDeals(this.value)">
+            <button class="filter-btn active" onclick="setDealFilter('all',this)">All</button>
+            <button class="filter-btn" onclick="setDealFilter('hot',this)">🔥 Hot</button>
+            <button class="filter-btn" onclick="setDealFilter('drop',this)">📉 Drops</button>
+            <button class="filter-btn" onclick="setDealFilter('stock',this)">✅ In Stock</button>
+            <button class="topbar-icon-btn" onclick="toggleListView()" title="Toggle view" id="viewToggleBtn">⊞</button>
+          </div>
+        </div>
+
+        <!-- Deals Grid -->
+        <div id="dealsList">
+          <!-- Skeleton cards -->
+          <div
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+            <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
+              <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
+              <div style="flex:1">
+                <div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div>
+                <div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div>
+              </div>
+            </div>
+            <div style="padding:14px 16px">
+              <div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div>
+              <div class="skeleton" style="height:36px;border-radius:6px"></div>
+            </div>
+          </div>
+          <div
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+            <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
+              <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
+              <div style="flex:1">
+                <div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div>
+                <div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div>
+              </div>
+            </div>
+            <div style="padding:14px 16px">
+              <div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div>
+              <div class="skeleton" style="height:36px;border-radius:6px"></div>
+            </div>
+          </div>
+          <div
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+            <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
+              <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
+              <div style="flex:1">
+                <div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div>
+                <div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div>
+              </div>
+            </div>
+            <div style="padding:14px 16px">
+              <div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div>
+              <div class="skeleton" style="height:36px;border-radius:6px"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Load more -->
+        <div style="text-align:center;margin-top:24px">
+          <button class="filter-btn" onclick="loadMoreDeals()" id="loadMoreBtn"
+            style="padding:10px 28px;font-size:13px">Load More ↓</button>
+        </div>
+
+        <!-- History Panel -->
+        <div id="historyPanel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div>
+              <div style="font-family:var(--font-head);font-size:16px;font-weight:700" id="historyTitle">Product History
+              </div>
+              <div style="font-size:12px;color:var(--text2);font-family:var(--font-mono)" id="historyAsin">ASIN: —</div>
+            </div>
+            <button class="panel-close" onclick="closeHistory()">✕</button>
+          </div>
+          <div class="history-chart-wrap">
+            <canvas id="historyChart"></canvas>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px" id="historyStats">
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── WATCHLIST PAGE ─────────────────────────────────────── -->
+      <section id="page-watchlist" class="page-section">
+        <div class="section-header">
+          <div class="section-title">📦 My Watchlist</div>
+          <div class="section-controls">
+            <button class="topbar-btn primary" onclick="openQuickAdd()">＋ Add Product</button>
+          </div>
+        </div>
+        <div id="watchlistContent">
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <h3>No tracked products</h3>
+            <p>Login to see your personal watchlist</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── ANALYTICS PAGE ────────────────────────────────────── -->
+      <section id="page-analytics" class="page-section">
+        <div class="section-header">
+          <div class="section-title">📊 Analytics</div>
+        </div>
+        <div class="analytics-grid">
+          <div class="analytics-card">
+            <h3>📈 Price Trends</h3>
+            <canvas id="trendChart" height="150"></canvas>
+          </div>
+          <div class="analytics-card">
+            <h3>🗂️ Categories</h3>
+            <canvas id="categoryChart" height="150"></canvas>
+            <div id="topCatList" style="margin-top:12px"></div>
+          </div>
+          <div class="analytics-card">
+            <h3>🎯 Deal Score Distribution</h3>
+            <canvas id="scoreChart" height="150"></canvas>
+          </div>
+        </div>
+        <div class="analytics-grid" style="grid-template-columns:1fr 1fr">
+          <div class="analytics-card">
+            <h3>⏱️ Alert Activity (7d)</h3>
+            <canvas id="alertChart" height="120"></canvas>
+          </div>
+          <div class="analytics-card">
+            <h3>🌡️ Volatility Heat</h3>
+            <div id="volatilityHeatmap"
+              style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">
+              Loading data...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── ALERTS PAGE ───────────────────────────────────────── -->
+      <section id="page-alerts" class="page-section">
+        <div class="section-header">
+          <div class="section-title">🔔 Alert Rules</div>
+        </div>
+        <div id="alertsContent">
+          <div class="empty-state">
+            <div class="icon">🔔</div>
+            <h3>No alert rules configured</h3>
+            <p>Login to manage your alert preferences</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── EXPORTS PAGE ──────────────────────────────────────── -->
+      <section id="page-exports" class="page-section">
+        <div class="section-header">
+          <div class="section-title">📤 Export Data</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+          <div class="analytics-card" style="text-align:center">
+            <div style="font-size:36px;margin-bottom:12px">📄</div>
+            <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">CSV Export</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:16px">All tracked products with price history</p>
+            <button class="btn btn-primary" onclick="handleExport('csv')">Download CSV</button>
+          </div>
+          <div class="analytics-card" style="text-align:center">
+            <div style="font-size:36px;margin-bottom:12px">📑</div>
+            <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">PDF Report</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Formatted deal report with analytics</p>
+            <button class="btn btn-primary" onclick="handleExport('pdf')">Download PDF</button>
+          </div>
+          <div class="analytics-card" style="text-align:center">
+            <div style="font-size:36px;margin-bottom:12px">📡</div>
+            <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">RSS Feed</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Subscribe to deals as an RSS feed</p>
+            <button class="btn btn-primary" onclick="handleExport('rss')">Get RSS URL</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── ADMIN PAGE ────────────────────────────────────────── -->
+      <section id="page-admin" class="page-section">
+        <div class="section-header">
+          <div class="section-title">⚙️ System Admin</div>
+          <div class="section-controls">
+            <div class="live-dot"></div>
+            <span style="font-size:12px;color:var(--text2);font-family:var(--font-mono)">Live monitoring</span>
+          </div>
+        </div>
+        <div class="admin-grid">
+          <div class="admin-card">
+            <h3>🏥 System Health</h3>
+            <div class="admin-stat-row"><span class="admin-stat-label">API Server</span><span
+                class="admin-stat-value status-ok" id="adm-api">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Database</span><span
+                class="admin-stat-value status-ok" id="adm-db">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Queue (Redis)</span><span
+                class="admin-stat-value" id="adm-queue">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Scheduler</span><span class="admin-stat-value"
+                id="adm-sched">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">AI Service</span><span class="admin-stat-value"
+                id="adm-ai">—</span></div>
+            <div class="admin-actions">
+              <button class="admin-btn" onclick="adminAction('health')">🔄 Refresh</button>
+              <button class="admin-btn" onclick="adminAction('check-prices')">⚡ Force Check</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h3>📊 DB Stats</h3>
+            <div class="admin-stat-row"><span class="admin-stat-label">Products</span><span class="admin-stat-value"
+                id="adm-products">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Users</span><span class="admin-stat-value"
+                id="adm-users">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Price Records</span><span
+                class="admin-stat-value" id="adm-metrics">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Active Subs</span><span class="admin-stat-value"
+                id="adm-subs">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Alerts Sent (24h)</span><span
+                class="admin-stat-value" id="adm-alerts">—</span></div>
+            <div class="admin-actions">
+              <button class="admin-btn" onclick="adminAction('scrape-all')">🕷️ Scrape All</button>
+              <button class="admin-btn danger" onclick="adminAction('broadcast')">📢 Broadcast</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h3>🤖 AI Budget</h3>
+            <div class="admin-stat-row"><span class="admin-stat-label">State</span><span
+                class="admin-stat-value status-ok" id="adm-aistate">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Tokens Today</span><span class="admin-stat-value"
+                id="adm-tokens">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Requests Today</span><span
+                class="admin-stat-value" id="adm-reqs">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Pause Remaining</span><span
+                class="admin-stat-value" id="adm-pause">—</span></div>
+          </div>
+          <div class="admin-card">
+            <h3>🔌 Extension Pipeline (24h)</h3>
+            <div class="admin-stat-row"><span class="admin-stat-label">Total Syncs</span><span class="admin-stat-value"
+                id="adm-syncs">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">New Products</span><span class="admin-stat-value"
+                id="adm-newp">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Updated</span><span class="admin-stat-value"
+                id="adm-upd">—</span></div>
+            <div class="admin-stat-row"><span class="admin-stat-label">Errors</span><span
+                class="admin-stat-value status-err" id="adm-errs">—</span></div>
+            <div class="admin-actions">
+              <button class="admin-btn" onclick="adminAction('import')">📥 Bulk Import</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SETTINGS PAGE ─────────────────────────────────────── -->
+      <section id="page-settings" class="page-section">
+        <div class="section-header">
+          <div class="section-title">🎛️ Settings</div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">🎨 Appearance</div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Dark Mode</div>
+              <div class="settings-row-desc">Use dark theme across the dashboard</div>
+            </div>
+            <div class="toggle on" id="darkModeToggle" onclick="toggleTheme()"></div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Compact Cards</div>
+              <div class="settings-row-desc">Show more deals in list view</div>
+            </div>
+            <div class="toggle" id="compactToggle" onclick="toggleSetting('compact')"></div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Price Ticker</div>
+              <div class="settings-row-desc">Show scrolling price ticker at top</div>
+            </div>
+            <div class="toggle on" id="tickerToggle" onclick="toggleSetting('ticker')"></div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">🔔 Notifications</div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Desktop Notifications</div>
+              <div class="settings-row-desc">Show browser notifications for price drops</div>
+            </div>
+            <div class="toggle" id="desktopNotifToggle" onclick="requestNotifPermission()"></div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Sound Alerts</div>
+              <div class="settings-row-desc">Play a sound for hot deals</div>
+            </div>
+            <div class="toggle" id="soundToggle" onclick="toggleSetting('sound')"></div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">⚡ Quick Actions</div>
+          <div class="settings-row" style="cursor:pointer" onclick="openCmd()">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Command Palette</div>
+              <div class="settings-row-desc">Quick search and actions</div>
+            </div>
+            <span
+              style="font-family:var(--font-mono);font-size:12px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);padding:3px 8px;border-radius:5px">⌘K</span>
+          </div>
+          <div class="settings-row" style="cursor:pointer" onclick="openShortcuts()">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Keyboard Shortcuts</div>
+              <div class="settings-row-desc">View all available shortcuts</div>
+            </div>
+            <span
+              style="font-family:var(--font-mono);font-size:12px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);padding:3px 8px;border-radius:5px">?</span>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /pageContent -->
+
+  </div><!-- /mainContent -->
+
+  <!-- ─── MOBILE NAV ─────────────────────────────────────────────── -->
+  <nav id="mobileNav">
+    <div class="mob-nav-item active" onclick="navigate('deals')" id="mob-deals">
+      <div class="icon">🔥</div>Deals
     </div>
-    <div class="nav-section">
-      <div class="nav-section-title">ACCOUNT</div>
-      <div class="nav-item" onclick="navigate('settings')" data-page="settings">
-        <span class="nav-icon">🎛️</span>
-        <span class="nav-label">Settings</span>
-      </div>
+    <div class="mob-nav-item" onclick="navigate('watchlist')" id="mob-watchlist">
+      <div class="icon">📦</div>Watchlist
+    </div>
+    <div class="mob-nav-item" onclick="navigate('analytics')" id="mob-analytics">
+      <div class="icon">📊</div>Analytics
+    </div>
+    <div class="mob-nav-item" onclick="openQuickAdd()" id="mob-add" style="color:var(--amber)">
+      <div class="icon">＋</div>Track
+    </div>
+    <div class="mob-nav-item" onclick="navigate('settings')" id="mob-settings">
+      <div class="icon">⚙️</div>Settings
     </div>
   </nav>
 
-  <div class="sidebar-footer">
-    <div class="sidebar-footer-avatar" id="avatarInitials">?</div>
-    <div class="sidebar-footer-text">
-      <div class="name" id="sidebarUserName">Not logged in</div>
-      <div class="role" id="sidebarUserRole">Guest</div>
+  <!-- ─── NOTIFICATION PANEL ──────────────────────────────────────── -->
+  <div id="notifPanel">
+    <div class="notif-header">
+      <h4>Notifications</h4>
+      <button onclick="clearNotifs()" style="font-size:12px;color:var(--text2)">Clear all</button>
+    </div>
+    <div id="notifList">
+      <div class="notif-item">
+        <div class="notif-dot"></div>
+        <div>
+          <div class="notif-msg">Price dropped 24% on Echo Dot 5th Gen</div>
+          <div class="notif-time">2m ago</div>
+        </div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-dot"></div>
+        <div>
+          <div class="notif-msg">Item back in stock: Sony WH-1000XM5</div>
+          <div class="notif-time">18m ago</div>
+        </div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-dot"></div>
+        <div>
+          <div class="notif-msg">Your target price reached on Kindle Paperwhite</div>
+          <div class="notif-time">1h ago</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <button id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">◀</button>
-</aside>
-
-<!-- ─── MAIN CONTENT ──────────────────────────────────────────── -->
-<div id="mainContent">
-
-  <!-- TOPBAR -->
-  <header id="topbar">
-    <button class="topbar-icon-btn" id="mobileMenuBtn" onclick="openSidebar()" style="display:none">☰</button>
-    <div class="topbar-title" id="topbarTitle">Live Deals</div>
-    <div class="topbar-actions">
-      <div class="cmd-pill" onclick="openCmd()">
-        <span>🔍</span>
-        <span>Quick Search…</span>
-        <span class="shortcut">⌘K</span>
-      </div>
-      <button class="topbar-btn primary" onclick="openQuickAdd()">＋ Track Product</button>
-      <button class="topbar-icon-btn" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">🌙</button>
-      <div style="position:relative">
-        <button class="topbar-icon-btn" id="notifBtn" onclick="toggleNotifPanel()">🔔
-          <span class="notif-bell-badge" id="notifCount">3</span>
-        </button>
-      </div>
-      <button class="topbar-icon-btn" id="loginBtn" onclick="openLogin()">👤</button>
+  <!-- ─── QUICK ADD PANEL ─────────────────────────────────────────── -->
+  <div id="quickAddPanel">
+    <div class="panel-header">
+      <div class="panel-title">⚡ Track New Product</div>
+      <button class="panel-close" onclick="closeQuickAdd()">✕</button>
     </div>
-  </header>
-
-  <!-- TICKER -->
-  <div id="tickerBar">
-    <div class="ticker-track" id="tickerTrack">
-      <!-- filled by JS -->
-    </div>
-  </div>
-
-  <!-- PAGE CONTENT -->
-  <div id="pageContent">
-
-    <!-- ─── DEALS PAGE ────────────────────────────────────────── -->
-    <section id="page-deals" class="page-section active">
-      <!-- Stats -->
-      <div class="stats-grid" id="statsGrid">
-        <div class="stat-card" style="--card-accent:var(--amber)">
-          <div class="stat-icon" style="background:var(--amber-glow); color:var(--amber)">📦</div>
-          <div class="stat-value" id="stat-products"><span class="skeleton" style="width:60px;height:28px;display:block"></span></div>
-          <div class="stat-label">Products Tracked</div>
-          <div class="stat-change"><span style="color:var(--green)">↑ 12</span> this week</div>
-        </div>
-        <div class="stat-card" style="--card-accent:var(--green)">
-          <div class="stat-icon" style="background:var(--green-glow); color:var(--green)">📉</div>
-          <div class="stat-value" id="stat-deals"><span class="skeleton" style="width:50px;height:28px;display:block"></span></div>
-          <div class="stat-label">Active Deals</div>
-          <div class="stat-change" id="stat-deals-change"><span style="color:var(--green)">● Live</span></div>
-        </div>
-        <div class="stat-card" style="--card-accent:var(--blue)">
-          <div class="stat-icon" style="background:var(--blue-glow); color:var(--blue)">👥</div>
-          <div class="stat-value" id="stat-users"><span class="skeleton" style="width:50px;height:28px;display:block"></span></div>
-          <div class="stat-label">Active Users</div>
-          <div class="stat-change"><span style="color:var(--blue)">Telegram users</span></div>
-        </div>
-        <div class="stat-card" style="--card-accent:var(--red)">
-          <div class="stat-icon" style="background:var(--red-glow); color:var(--red)">🔥</div>
-          <div class="stat-value" id="stat-avgdrop"><span class="skeleton" style="width:60px;height:28px;display:block"></span></div>
-          <div class="stat-label">Avg Drop Today</div>
-          <div class="stat-change" id="stat-avgdrop-sub"><span style="color:var(--amber)">across hot deals</span></div>
-        </div>
-      </div>
-
-      <!-- Deals header -->
-      <div class="section-header">
-        <div class="section-title">
-          <span>🏷️</span> Price Intelligence
-          <div class="live-dot" style="margin-left:6px"></div>
-        </div>
-        <div class="section-controls">
-          <input class="search-input" id="dealsSearch" placeholder="Search products…" oninput="filterDeals(this.value)">
-          <button class="filter-btn active" onclick="setDealFilter('all',this)">All</button>
-          <button class="filter-btn" onclick="setDealFilter('hot',this)">🔥 Hot</button>
-          <button class="filter-btn" onclick="setDealFilter('drop',this)">📉 Drops</button>
-          <button class="filter-btn" onclick="setDealFilter('stock',this)">✅ In Stock</button>
-          <button class="topbar-icon-btn" onclick="toggleListView()" title="Toggle view" id="viewToggleBtn">⊞</button>
-        </div>
-      </div>
-
-      <!-- Deals Grid -->
-      <div id="dealsList">
-        <!-- Skeleton cards -->
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
-          <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
-            <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
-            <div style="flex:1"><div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div><div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div></div>
-          </div>
-          <div style="padding:14px 16px"><div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div><div class="skeleton" style="height:36px;border-radius:6px"></div></div>
-        </div>
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
-          <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
-            <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
-            <div style="flex:1"><div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div><div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div></div>
-          </div>
-          <div style="padding:14px 16px"><div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div><div class="skeleton" style="height:36px;border-radius:6px"></div></div>
-        </div>
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
-          <div style="padding:16px;display:flex;gap:14px;border-bottom:1px solid var(--border)">
-            <div class="skeleton" style="width:64px;height:64px;border-radius:8px;flex-shrink:0"></div>
-            <div style="flex:1"><div class="skeleton" style="height:14px;margin-bottom:8px;border-radius:4px"></div><div class="skeleton" style="height:14px;width:60%;border-radius:4px"></div></div>
-          </div>
-          <div style="padding:14px 16px"><div class="skeleton" style="height:22px;width:40%;margin-bottom:12px;border-radius:4px"></div><div class="skeleton" style="height:36px;border-radius:6px"></div></div>
-        </div>
-      </div>
-
-      <!-- Load more -->
-      <div style="text-align:center;margin-top:24px">
-        <button class="filter-btn" onclick="loadMoreDeals()" id="loadMoreBtn" style="padding:10px 28px;font-size:13px">Load More ↓</button>
-      </div>
-
-      <!-- History Panel -->
-      <div id="historyPanel">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div>
-            <div style="font-family:var(--font-head);font-size:16px;font-weight:700" id="historyTitle">Product History</div>
-            <div style="font-size:12px;color:var(--text2);font-family:var(--font-mono)" id="historyAsin">ASIN: —</div>
-          </div>
-          <button class="panel-close" onclick="closeHistory()">✕</button>
-        </div>
-        <div class="history-chart-wrap">
-          <canvas id="historyChart"></canvas>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px" id="historyStats"></div>
-      </div>
-    </section>
-
-    <!-- ─── WATCHLIST PAGE ─────────────────────────────────────── -->
-    <section id="page-watchlist" class="page-section">
-      <div class="section-header">
-        <div class="section-title">📦 My Watchlist</div>
-        <div class="section-controls">
-          <button class="topbar-btn primary" onclick="openQuickAdd()">＋ Add Product</button>
-        </div>
-      </div>
-      <div id="watchlistContent">
-        <div class="empty-state">
-          <div class="icon">🔍</div>
-          <h3>No tracked products</h3>
-          <p>Login to see your personal watchlist</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── ANALYTICS PAGE ────────────────────────────────────── -->
-    <section id="page-analytics" class="page-section">
-      <div class="section-header">
-        <div class="section-title">📊 Analytics</div>
-      </div>
-      <div class="analytics-grid">
-        <div class="analytics-card">
-          <h3>📈 Price Trends</h3>
-          <canvas id="trendChart" height="150"></canvas>
-        </div>
-        <div class="analytics-card">
-          <h3>🗂️ Categories</h3>
-          <canvas id="categoryChart" height="150"></canvas>
-          <div id="topCatList" style="margin-top:12px"></div>
-        </div>
-        <div class="analytics-card">
-          <h3>🎯 Deal Score Distribution</h3>
-          <canvas id="scoreChart" height="150"></canvas>
-        </div>
-      </div>
-      <div class="analytics-grid" style="grid-template-columns:1fr 1fr">
-        <div class="analytics-card">
-          <h3>⏱️ Alert Activity (7d)</h3>
-          <canvas id="alertChart" height="120"></canvas>
-        </div>
-        <div class="analytics-card">
-          <h3>🌡️ Volatility Heat</h3>
-          <div id="volatilityHeatmap" style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">Loading data...</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── ALERTS PAGE ───────────────────────────────────────── -->
-    <section id="page-alerts" class="page-section">
-      <div class="section-header">
-        <div class="section-title">🔔 Alert Rules</div>
-      </div>
-      <div id="alertsContent">
-        <div class="empty-state">
-          <div class="icon">🔔</div>
-          <h3>No alert rules configured</h3>
-          <p>Login to manage your alert preferences</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── EXPORTS PAGE ──────────────────────────────────────── -->
-    <section id="page-exports" class="page-section">
-      <div class="section-header">
-        <div class="section-title">📤 Export Data</div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
-        <div class="analytics-card" style="text-align:center">
-          <div style="font-size:36px;margin-bottom:12px">📄</div>
-          <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">CSV Export</h3>
-          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">All tracked products with price history</p>
-          <button class="btn btn-primary" onclick="handleExport('csv')">Download CSV</button>
-        </div>
-        <div class="analytics-card" style="text-align:center">
-          <div style="font-size:36px;margin-bottom:12px">📑</div>
-          <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">PDF Report</h3>
-          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Formatted deal report with analytics</p>
-          <button class="btn btn-primary" onclick="handleExport('pdf')">Download PDF</button>
-        </div>
-        <div class="analytics-card" style="text-align:center">
-          <div style="font-size:36px;margin-bottom:12px">📡</div>
-          <h3 style="text-transform:none;margin-bottom:8px;font-size:16px">RSS Feed</h3>
-          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Subscribe to deals as an RSS feed</p>
-          <button class="btn btn-primary" onclick="handleExport('rss')">Get RSS URL</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── ADMIN PAGE ────────────────────────────────────────── -->
-    <section id="page-admin" class="page-section">
-      <div class="section-header">
-        <div class="section-title">⚙️ System Admin</div>
-        <div class="section-controls">
-          <div class="live-dot"></div>
-          <span style="font-size:12px;color:var(--text2);font-family:var(--font-mono)">Live monitoring</span>
-        </div>
-      </div>
-      <div class="admin-grid">
-        <div class="admin-card">
-          <h3>🏥 System Health</h3>
-          <div class="admin-stat-row"><span class="admin-stat-label">API Server</span><span class="admin-stat-value status-ok" id="adm-api">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Database</span><span class="admin-stat-value status-ok" id="adm-db">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Queue (Redis)</span><span class="admin-stat-value" id="adm-queue">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Scheduler</span><span class="admin-stat-value" id="adm-sched">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">AI Service</span><span class="admin-stat-value" id="adm-ai">—</span></div>
-          <div class="admin-actions">
-            <button class="admin-btn" onclick="adminAction('health')">🔄 Refresh</button>
-            <button class="admin-btn" onclick="adminAction('check-prices')">⚡ Force Check</button>
-          </div>
-        </div>
-        <div class="admin-card">
-          <h3>📊 DB Stats</h3>
-          <div class="admin-stat-row"><span class="admin-stat-label">Products</span><span class="admin-stat-value" id="adm-products">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Users</span><span class="admin-stat-value" id="adm-users">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Price Records</span><span class="admin-stat-value" id="adm-metrics">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Active Subs</span><span class="admin-stat-value" id="adm-subs">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Alerts Sent (24h)</span><span class="admin-stat-value" id="adm-alerts">—</span></div>
-          <div class="admin-actions">
-            <button class="admin-btn" onclick="adminAction('scrape-all')">🕷️ Scrape All</button>
-            <button class="admin-btn danger" onclick="adminAction('broadcast')">📢 Broadcast</button>
-          </div>
-        </div>
-        <div class="admin-card">
-          <h3>🤖 AI Budget</h3>
-          <div class="admin-stat-row"><span class="admin-stat-label">State</span><span class="admin-stat-value status-ok" id="adm-aistate">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Tokens Today</span><span class="admin-stat-value" id="adm-tokens">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Requests Today</span><span class="admin-stat-value" id="adm-reqs">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Pause Remaining</span><span class="admin-stat-value" id="adm-pause">—</span></div>
-        </div>
-        <div class="admin-card">
-          <h3>🔌 Extension Pipeline (24h)</h3>
-          <div class="admin-stat-row"><span class="admin-stat-label">Total Syncs</span><span class="admin-stat-value" id="adm-syncs">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">New Products</span><span class="admin-stat-value" id="adm-newp">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Updated</span><span class="admin-stat-value" id="adm-upd">—</span></div>
-          <div class="admin-stat-row"><span class="admin-stat-label">Errors</span><span class="admin-stat-value status-err" id="adm-errs">—</span></div>
-          <div class="admin-actions">
-            <button class="admin-btn" onclick="adminAction('import')">📥 Bulk Import</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── SETTINGS PAGE ─────────────────────────────────────── -->
-    <section id="page-settings" class="page-section">
-      <div class="section-header">
-        <div class="section-title">🎛️ Settings</div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">🎨 Appearance</div>
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <div class="settings-row-label">Dark Mode</div>
-            <div class="settings-row-desc">Use dark theme across the dashboard</div>
-          </div>
-          <div class="toggle on" id="darkModeToggle" onclick="toggleTheme()"></div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <div class="settings-row-label">Compact Cards</div>
-            <div class="settings-row-desc">Show more deals in list view</div>
-          </div>
-          <div class="toggle" id="compactToggle" onclick="toggleSetting('compact')"></div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <div class="settings-row-label">Price Ticker</div>
-            <div class="settings-row-desc">Show scrolling price ticker at top</div>
-          </div>
-          <div class="toggle on" id="tickerToggle" onclick="toggleSetting('ticker')"></div>
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">🔔 Notifications</div>
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <div class="settings-row-label">Desktop Notifications</div>
-            <div class="settings-row-desc">Show browser notifications for price drops</div>
-          </div>
-          <div class="toggle" id="desktopNotifToggle" onclick="requestNotifPermission()"></div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <div class="settings-row-label">Sound Alerts</div>
-            <div class="settings-row-desc">Play a sound for hot deals</div>
-          </div>
-          <div class="toggle" id="soundToggle" onclick="toggleSetting('sound')"></div>
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">⚡ Quick Actions</div>
-        <div class="settings-row" style="cursor:pointer" onclick="openCmd()">
-          <div class="settings-row-info">
-            <div class="settings-row-label">Command Palette</div>
-            <div class="settings-row-desc">Quick search and actions</div>
-          </div>
-          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);padding:3px 8px;border-radius:5px">⌘K</span>
-        </div>
-        <div class="settings-row" style="cursor:pointer" onclick="openShortcuts()">
-          <div class="settings-row-info">
-            <div class="settings-row-label">Keyboard Shortcuts</div>
-            <div class="settings-row-desc">View all available shortcuts</div>
-          </div>
-          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);padding:3px 8px;border-radius:5px">?</span>
-        </div>
-      </div>
-    </section>
-
-  </div><!-- /pageContent -->
-
-</div><!-- /mainContent -->
-
-<!-- ─── MOBILE NAV ─────────────────────────────────────────────── -->
-<nav id="mobileNav">
-  <div class="mob-nav-item active" onclick="navigate('deals')" id="mob-deals"><div class="icon">🔥</div>Deals</div>
-  <div class="mob-nav-item" onclick="navigate('watchlist')" id="mob-watchlist"><div class="icon">📦</div>Watchlist</div>
-  <div class="mob-nav-item" onclick="navigate('analytics')" id="mob-analytics"><div class="icon">📊</div>Analytics</div>
-  <div class="mob-nav-item" onclick="openQuickAdd()" id="mob-add" style="color:var(--amber)"><div class="icon">＋</div>Track</div>
-  <div class="mob-nav-item" onclick="navigate('settings')" id="mob-settings"><div class="icon">⚙️</div>Settings</div>
-</nav>
-
-<!-- ─── NOTIFICATION PANEL ──────────────────────────────────────── -->
-<div id="notifPanel">
-  <div class="notif-header">
-    <h4>Notifications</h4>
-    <button onclick="clearNotifs()" style="font-size:12px;color:var(--text2)">Clear all</button>
-  </div>
-  <div id="notifList">
-    <div class="notif-item"><div class="notif-dot"></div><div><div class="notif-msg">Price dropped 24% on Echo Dot 5th Gen</div><div class="notif-time">2m ago</div></div></div>
-    <div class="notif-item"><div class="notif-dot"></div><div><div class="notif-msg">Item back in stock: Sony WH-1000XM5</div><div class="notif-time">18m ago</div></div></div>
-    <div class="notif-item"><div class="notif-dot"></div><div><div class="notif-msg">Your target price reached on Kindle Paperwhite</div><div class="notif-time">1h ago</div></div></div>
-  </div>
-</div>
-
-<!-- ─── QUICK ADD PANEL ─────────────────────────────────────────── -->
-<div id="quickAddPanel">
-  <div class="panel-header">
-    <div class="panel-title">⚡ Track New Product</div>
-    <button class="panel-close" onclick="closeQuickAdd()">✕</button>
-  </div>
-  <div class="panel-body">
-    <div class="form-group">
-      <label class="form-label">Amazon URL or ASIN</label>
-      <input class="form-input" id="qaUrl" placeholder="https://www.amazon.com/dp/..." oninput="debouncedPreview()">
-      <div class="form-hint">Paste any Amazon product URL or ASIN code</div>
-    </div>
-    <div id="previewBox" class="preview-box"></div>
-    <div class="form-row">
+    <div class="panel-body">
       <div class="form-group">
-        <label class="form-label">Alert Mode</label>
-        <select class="form-select" id="qaMode" onchange="onModeChange()">
-          <option value="price">Target Price</option>
-          <option value="percent">% Drop</option>
-          <option value="stock">Back in Stock</option>
-        </select>
+        <label class="form-label">Amazon URL or ASIN</label>
+        <input class="form-input" id="qaUrl" placeholder="https://www.amazon.com/dp/..." oninput="debouncedPreview()">
+        <div class="form-hint">Paste any Amazon product URL or ASIN code</div>
       </div>
-      <div class="form-group">
-        <label class="form-label" id="qaThreshLabel">Target Price</label>
-        <input class="form-input" id="qaThreshold" type="number" min="0" placeholder="0.00">
+      <div id="previewBox" class="preview-box"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Alert Mode</label>
+          <select class="form-select" id="qaMode" onchange="onModeChange()">
+            <option value="price">Target Price</option>
+            <option value="percent">% Drop</option>
+            <option value="stock">Back in Stock</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" id="qaThreshLabel">Target Price</label>
+          <input class="form-input" id="qaThreshold" type="number" min="0" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-group" id="qaChatIdGroup">
+        <label class="form-label">Telegram Chat ID (optional)</label>
+        <input class="form-input" id="qaChatId" placeholder="Your Telegram chat ID">
+        <div class="form-hint">Leave blank to use your logged-in account</div>
       </div>
     </div>
-    <div class="form-group" id="qaChatIdGroup">
-      <label class="form-label">Telegram Chat ID (optional)</label>
-      <input class="form-input" id="qaChatId" placeholder="Your Telegram chat ID">
-      <div class="form-hint">Leave blank to use your logged-in account</div>
+    <div class="panel-footer">
+      <button class="btn btn-secondary" onclick="closeQuickAdd()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitQuickAdd()" style="flex:1">⚡ Start Tracking</button>
     </div>
   </div>
-  <div class="panel-footer">
-    <button class="btn btn-secondary" onclick="closeQuickAdd()">Cancel</button>
-    <button class="btn btn-primary" onclick="submitQuickAdd()" style="flex:1">⚡ Start Tracking</button>
+
+  <!-- ─── CONTEXT MENU ────────────────────────────────────────────── -->
+  <div id="contextMenu">
+    <div class="ctx-item" onclick="ctxAction('history')">📈 View Price History</div>
+    <div class="ctx-item" onclick="ctxAction('copy')">🔗 Copy Amazon Link</div>
+    <div class="ctx-item" onclick="ctxAction('share')">📤 Share Deal</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" onclick="ctxAction('setTarget')">🎯 Set Target Price</div>
+    <div class="ctx-item danger" onclick="ctxAction('untrack')">🗑️ Stop Tracking</div>
   </div>
-</div>
 
-<!-- ─── CONTEXT MENU ────────────────────────────────────────────── -->
-<div id="contextMenu">
-  <div class="ctx-item" onclick="ctxAction('history')">📈 View Price History</div>
-  <div class="ctx-item" onclick="ctxAction('copy')">🔗 Copy Amazon Link</div>
-  <div class="ctx-item" onclick="ctxAction('share')">📤 Share Deal</div>
-  <div class="ctx-sep"></div>
-  <div class="ctx-item" onclick="ctxAction('setTarget')">🎯 Set Target Price</div>
-  <div class="ctx-item danger" onclick="ctxAction('untrack')">🗑️ Stop Tracking</div>
-</div>
-
-<!-- ─── COMMAND PALETTE ─────────────────────────────────────────── -->
-<div id="cmdOverlay" onclick="e=>{if(e.target===this)closeCmd()}">
-  <div id="cmdBox">
-    <input id="cmdInput" placeholder="Search products, navigate, run actions…" oninput="filterCmd(this.value)" onkeydown="cmdKey(event)">
-    <div id="cmdResults"></div>
-    <div class="cmd-footer">
-      <span class="cmd-hint"><span class="cmd-key">↑↓</span> navigate</span>
-      <span class="cmd-hint"><span class="cmd-key">Enter</span> select</span>
-      <span class="cmd-hint"><span class="cmd-key">Esc</span> close</span>
+  <!-- ─── COMMAND PALETTE ─────────────────────────────────────────── -->
+  <div id="cmdOverlay" onclick="e=>{if(e.target===this)closeCmd()}">
+    <div id="cmdBox">
+      <input id="cmdInput" placeholder="Search products, navigate, run actions…" oninput="filterCmd(this.value)"
+        onkeydown="cmdKey(event)">
+      <div id="cmdResults"></div>
+      <div class="cmd-footer">
+        <span class="cmd-hint"><span class="cmd-key">↑↓</span> navigate</span>
+        <span class="cmd-hint"><span class="cmd-key">Enter</span> select</span>
+        <span class="cmd-hint"><span class="cmd-key">Esc</span> close</span>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ─── KEYBOARD SHORTCUTS ──────────────────────────────────────── -->
-<div id="shortcutsOverlay" onclick="e=>{if(e.target.id==='shortcutsOverlay')closeShortcuts()}">
-  <div id="shortcutsBox">
-    <h2>⌨️ Keyboard Shortcuts</h2>
-    <div class="shortcut-grid">
-      <div class="shortcut-item"><span>Search / Command Palette</span><div class="keys"><span class="key">⌘</span><span class="key">K</span></div></div>
-      <div class="shortcut-item"><span>Track New Product</span><div class="keys"><span class="key">N</span></div></div>
-      <div class="shortcut-item"><span>Go to Deals</span><div class="keys"><span class="key">G</span><span class="key">D</span></div></div>
-      <div class="shortcut-item"><span>Go to Analytics</span><div class="keys"><span class="key">G</span><span class="key">A</span></div></div>
-      <div class="shortcut-item"><span>Toggle Dark Mode</span><div class="keys"><span class="key">T</span></div></div>
-      <div class="shortcut-item"><span>Toggle View (list/grid)</span><div class="keys"><span class="key">V</span></div></div>
-      <div class="shortcut-item"><span>Refresh Data</span><div class="keys"><span class="key">R</span></div></div>
-      <div class="shortcut-item"><span>Show Shortcuts</span><div class="keys"><span class="key">?</span></div></div>
-    </div>
-    <div style="text-align:right;margin-top:20px">
-      <button class="btn btn-secondary" onclick="closeShortcuts()">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- ─── LOGIN MODAL ─────────────────────────────────────────────── -->
-<div id="loginModal">
-  <div id="loginBox">
-    <div class="login-logo">⚡</div>
-    <div class="login-title">Trackzoon v2</div>
-    <div class="login-sub">Sign in to access your personal watchlist & alerts</div>
-    <button class="login-tg-btn" onclick="telegramLogin()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.7 8.03c-.13.6-.47.74-.95.46l-2.62-1.93-1.26 1.22c-.14.14-.26.26-.53.26l.19-2.67 4.84-4.37c.21-.19-.05-.29-.32-.1L7.09 14.4l-2.57-.8c-.56-.17-.57-.56.12-.83l10.03-3.87c.47-.17.88.11.97.9z"/></svg>
-      Continue with Telegram
-    </button>
-    <div style="font-size:12px;color:var(--text3);margin:16px 0;position:relative;text-align:center">
-      <span style="background:var(--bg2);padding:0 8px;position:relative;z-index:1">or</span>
-      <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)"></div>
-    </div>
-    <div class="login-manual">
-      <input id="tokenInput" type="text" placeholder="Paste your API token…">
-      <button onclick="tokenLogin()">Login</button>
-    </div>
-    <div style="margin-top:16px">
-      <button onclick="continueAsGuest()" style="font-size:13px;color:var(--text3)">Continue as guest →</button>
+  <!-- ─── KEYBOARD SHORTCUTS ──────────────────────────────────────── -->
+  <div id="shortcutsOverlay" onclick="e=>{if(e.target.id==='shortcutsOverlay')closeShortcuts()}">
+    <div id="shortcutsBox">
+      <h2>⌨️ Keyboard Shortcuts</h2>
+      <div class="shortcut-grid">
+        <div class="shortcut-item"><span>Search / Command Palette</span>
+          <div class="keys"><span class="key">⌘</span><span class="key">K</span></div>
+        </div>
+        <div class="shortcut-item"><span>Track New Product</span>
+          <div class="keys"><span class="key">N</span></div>
+        </div>
+        <div class="shortcut-item"><span>Go to Deals</span>
+          <div class="keys"><span class="key">G</span><span class="key">D</span></div>
+        </div>
+        <div class="shortcut-item"><span>Go to Analytics</span>
+          <div class="keys"><span class="key">G</span><span class="key">A</span></div>
+        </div>
+        <div class="shortcut-item"><span>Toggle Dark Mode</span>
+          <div class="keys"><span class="key">T</span></div>
+        </div>
+        <div class="shortcut-item"><span>Toggle View (list/grid)</span>
+          <div class="keys"><span class="key">V</span></div>
+        </div>
+        <div class="shortcut-item"><span>Refresh Data</span>
+          <div class="keys"><span class="key">R</span></div>
+        </div>
+        <div class="shortcut-item"><span>Show Shortcuts</span>
+          <div class="keys"><span class="key">?</span></div>
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:20px">
+        <button class="btn btn-secondary" onclick="closeShortcuts()">Close</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ─── TOAST CONTAINER ─────────────────────────────────────────── -->
-<div id="toastContainer"></div>
+  <!-- ─── LOGIN MODAL ─────────────────────────────────────────────── -->
+  <div id="loginModal">
+    <div id="loginBox">
+      <div class="login-logo">⚡</div>
+      <div class="login-title">Trackzoon v2</div>
+      <div class="login-sub">Sign in to access your personal watchlist & alerts</div>
+      <button class="login-tg-btn" onclick="telegramLogin()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.7 8.03c-.13.6-.47.74-.95.46l-2.62-1.93-1.26 1.22c-.14.14-.26.26-.53.26l.19-2.67 4.84-4.37c.21-.19-.05-.29-.32-.1L7.09 14.4l-2.57-.8c-.56-.17-.57-.56.12-.83l10.03-3.87c.47-.17.88.11.97.9z" />
+        </svg>
+        Continue with Telegram
+      </button>
+      <div style="font-size:12px;color:var(--text3);margin:16px 0;position:relative;text-align:center">
+        <span style="background:var(--bg2);padding:0 8px;position:relative;z-index:1">or</span>
+        <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)"></div>
+      </div>
+      <div class="login-manual">
+        <input id="tokenInput" type="text" placeholder="Paste your API token…">
+        <button onclick="tokenLogin()">Login</button>
+      </div>
+      <div style="margin-top:16px">
+        <button onclick="continueAsGuest()" style="font-size:13px;color:var(--text3)">Continue as guest →</button>
+      </div>
+    </div>
+  </div>
 
-<!-- ─── CHART.JS ────────────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- ─── TOAST CONTAINER ─────────────────────────────────────────── -->
+  <div id="toastContainer"></div>
 
-<script>
-/* =====================================================================
-   TRACKZOON v2 — Dashboard JS
-   ===================================================================== */
+  <!-- ─── CHART.JS ────────────────────────────────────────────────── -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-// ── STATE ─────────────────────────────────────────────────────────────
-const STATE = {
-  token: null,
-  user: null,
-  isAdmin: false,
-  deals: [],
-  allDeals: [],
-  page: 1,
-  filter: 'all',
-  searchQuery: '',
-  listView: false,
-  currentPage: 'deals',
-  ctxAsin: null,
-  historyChart: null,
-  cmdIdx: -1,
-  settings: { dark: true, compact: false, ticker: true, sound: false },
-  gNavSequence: '',
-};
+  <script>
+    /* =====================================================================
+       TRACKZOON v2 — Dashboard JS
+       ===================================================================== */
 
-// ── API ───────────────────────────────────────────────────────────────
-const API = {
-  base: '/api',
-  async req(path, opts = {}) {
-    const h = { 'Content-Type': 'application/json' };
-    if (STATE.token) h['Authorization'] = `Bearer ${STATE.token}`;
-    const r = await fetch(this.base + path, { ...opts, headers: { ...h, ...(opts.headers||{}) } });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  },
-  stats: () => API.req('/stats'),
-  deals: (p=1, s='smart', d=0, chatId='') => API.req(`/deals?page=${p}&limit=20&sort=${s}&minDiscount=${d}&chatId=${chatId}`),
-  history: asin => API.req(`/history/${asin}`),
-  search: q => API.req(`/search?q=${encodeURIComponent(q)}`),
-  addProduct: data => API.req('/products', { method: 'POST', body: JSON.stringify(data) }),
-  preview: url => API.req('/products/preview', { method: 'POST', body: JSON.stringify({ url }) }),
-  userMe: () => API.req('/user/me'),
-  health: () => API.req('/system/health'),
-  dbStats: () => API.req('/system/db-stats'),
-  queueStats: () => API.req('/system/queue'),
-  adminStats: () => API.req('/admin/stats'),
-  adminCheck: () => API.req('/admin/check-prices', { method: 'POST' }),
-  adminScrape: () => API.req('/admin/scrape-all', { method: 'POST' }),
-  adminBroadcast: (msg) => API.req('/admin/broadcast', { method: 'POST', body: JSON.stringify({ message: msg }) }),
-  analytics: (type) => API.req(`/analytics/${type}`),
-  exportCSV: () => API.req('/export/csv'),
-  exportPDF: () => window.open(API.base + '/export/pdf', '_blank'),
-  exportRSS: () => API.base + '/export/rss',
-  userProducts: () => API.req('/products?mine=true'),
-};
+    // ── STATE ─────────────────────────────────────────────────────────────
+    const STATE = {
+      token: null,
+      user: null,
+      isAdmin: false,
+      deals: [],
+      allDeals: [],
+      page: 1,
+      filter: 'all',
+      searchQuery: '',
+      listView: false,
+      currentPage: 'deals',
+      ctxAsin: null,
+      historyChart: null,
+      cmdIdx: -1,
+      settings: { dark: true, compact: false, ticker: true, sound: false },
+      gNavSequence: '',
+    };
 
-// ── INIT ──────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  loadSettings();
-  setupKeyboard();
-  checkMobileMenu();
-  await checkAuth();
-  renderTicker();
-  await loadStats();
-  await loadDeals();
-});
+    // ── API ───────────────────────────────────────────────────────────────
+    const API = {
+      base: '/api',
+      async req(path, opts = {}) {
+        const h = { 'Content-Type': 'application/json' };
+        if (STATE.token) h['Authorization'] = `Bearer ${STATE.token}`;
+        const r = await fetch(this.base + path, { ...opts, headers: { ...h, ...(opts.headers || {}) } });
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+      },
+      stats: () => API.req('/stats'),
+      deals: (p = 1, s = 'smart', d = 0, chatId = '') => API.req(`/deals?page=${p}&limit=20&sort=${s}&minDiscount=${d}&chatId=${chatId}`),
+      history: asin => API.req(`/history/${asin}`),
+      search: q => API.req(`/search?q=${encodeURIComponent(q)}`),
+      addProduct: data => API.req('/products', { method: 'POST', body: JSON.stringify(data) }),
+      preview: url => API.req('/products/preview', { method: 'POST', body: JSON.stringify({ url }) }),
+      userMe: () => API.req('/user/me'),
+      health: () => API.req('/system/health'),
+      dbStats: () => API.req('/system/db-stats'),
+      queueStats: () => API.req('/system/queue'),
+      adminStats: () => API.req('/admin/stats'),
+      adminCheck: () => API.req('/admin/check-prices', { method: 'POST' }),
+      adminScrape: () => API.req('/admin/scrape-all', { method: 'POST' }),
+      adminBroadcast: (msg) => API.req('/admin/broadcast', { method: 'POST', body: JSON.stringify({ message: msg }) }),
+      analytics: (type) => API.req(`/analytics/${type}`),
+      exportCSV: () => API.req('/export/csv'),
+      exportPDF: () => window.open(API.base + '/export/pdf', '_blank'),
+      exportRSS: () => API.base + '/export/rss',
+      userProducts: () => API.req('/products/user'),
+    };
 
-async function checkAuth() {
-  try {
-    const saved = localStorage.getItem('tz_token');
-    if (!saved) { showLoginModal(); return; }
-    STATE.token = saved;
-    const d = await API.userMe();
-    STATE.user = d.user;
-    STATE.isAdmin = d.isAdmin;
-    updateUserUI();
-  } catch(e) {
-    STATE.token = null;
-    localStorage.removeItem('tz_token');
-    updateUserUI();
-  }
-}
-
-function updateUserUI() {
-  const u = STATE.user;
-  if (u) {
-    const name = u.firstName || u.username || `User ${u.chatId}`;
-    document.getElementById('sidebarUserName').textContent = name;
-    document.getElementById('sidebarUserRole').textContent = STATE.isAdmin ? 'Admin' : 'Shopper';
-    document.getElementById('avatarInitials').textContent = name.charAt(0).toUpperCase();
-    document.getElementById('loginBtn').textContent = '✓ Me';
-  }
-  if (STATE.isAdmin) {
-    document.getElementById('adminNavSection').style.display = '';
-    loadAdminStats();
-  }
-}
-
-// ── STATS ─────────────────────────────────────────────────────────────
-async function loadStats() {
-  try {
-    const d = await API.stats();
-    animateNum('stat-products', d.totalProducts || 0);
-    animateNum('stat-deals', d.activeDeals || d.totalTrackedItems || 0);
-    animateNum('stat-users', d.totalUsers || 0);
-    document.getElementById('stat-avgdrop').textContent = (d.avgDiscount || '--') + (d.avgDiscount ? '%' : '');
-    document.getElementById('navDealsCount').textContent = d.hotDeals || 0;
-  } catch(e) {
-    ['stat-products','stat-deals','stat-users','stat-avgdrop'].forEach(id => {
-      document.getElementById(id).textContent = '—';
+    // ── INIT ──────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+      loadSettings();
+      setupKeyboard();
+      checkMobileMenu();
+      await checkAuth();
+      renderTicker();
+      await loadStats();
+      await loadDeals();
     });
-  }
-}
 
-function animateNum(id, end) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const start = 0, dur = 1000;
-  const t0 = performance.now();
-  const tick = now => {
-    const p = Math.min((now - t0) / dur, 1);
-    el.textContent = Math.floor(p * end).toLocaleString();
-    if (p < 1) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
-// ── DEALS ─────────────────────────────────────────────────────────────
-async function loadDeals(append = false) {
-  try {
-    const chatId = STATE.user?.chatId || '';
-    const d = await API.deals(STATE.page, 'smart', 0, chatId);
-    const deals = d.deals || d.data || [];
-    if (append) {
-      STATE.allDeals = [...STATE.allDeals, ...deals];
-    } else {
-      STATE.allDeals = deals;
+    async function checkAuth() {
+      try {
+        const saved = localStorage.getItem('tz_token');
+        if (!saved) { showLoginModal(); return; }
+        STATE.token = saved;
+        const d = await API.userMe();
+        STATE.user = d.user;
+        STATE.isAdmin = d.isAdmin;
+        updateUserUI();
+      } catch (e) {
+        STATE.token = null;
+        localStorage.removeItem('tz_token');
+        updateUserUI();
+      }
     }
-    STATE.deals = STATE.allDeals;
-    renderDeals(STATE.deals);
-    updateTicker(STATE.deals);
-    document.getElementById('loadMoreBtn').style.display = (d.hasMore || deals.length === 20) ? '' : 'none';
-  } catch(e) {
-    document.getElementById('dealsList').innerHTML = `
+
+    function updateUserUI() {
+      const u = STATE.user;
+      if (u) {
+        const name = u.firstName || u.username || `User ${u.chatId}`;
+        document.getElementById('sidebarUserName').textContent = name;
+        document.getElementById('sidebarUserRole').textContent = STATE.isAdmin ? 'Admin' : 'Shopper';
+        document.getElementById('avatarInitials').textContent = name.charAt(0).toUpperCase();
+        document.getElementById('loginBtn').textContent = '✓ Me';
+      }
+      if (STATE.isAdmin) {
+        document.getElementById('adminNavSection').style.display = '';
+        loadAdminStats();
+      }
+    }
+
+    // ── STATS ─────────────────────────────────────────────────────────────
+    async function loadStats() {
+      try {
+        const d = await API.stats();
+        animateNum('stat-products', d.totalProducts || 0);
+        animateNum('stat-deals', d.activeDeals || d.totalTrackedItems || 0);
+        animateNum('stat-users', d.totalUsers || 0);
+        document.getElementById('stat-avgdrop').textContent = (d.avgDiscount || '--') + (d.avgDiscount ? '%' : '');
+        document.getElementById('navDealsCount').textContent = d.hotDeals || 0;
+      } catch (e) {
+        ['stat-products', 'stat-deals', 'stat-users', 'stat-avgdrop'].forEach(id => {
+          document.getElementById(id).textContent = '—';
+        });
+      }
+    }
+
+    function animateNum(id, end) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const start = 0, dur = 1000;
+      const t0 = performance.now();
+      const tick = now => {
+        const p = Math.min((now - t0) / dur, 1);
+        el.textContent = Math.floor(p * end).toLocaleString();
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+
+    // ── DEALS ─────────────────────────────────────────────────────────────
+    async function loadDeals(append = false) {
+      try {
+        const chatId = STATE.user?.chatId || '';
+        const d = await API.deals(STATE.page, 'smart', 0, chatId);
+        const deals = d.deals || d.data || [];
+        if (append) {
+          STATE.allDeals = [...STATE.allDeals, ...deals];
+        } else {
+          STATE.allDeals = deals;
+        }
+        STATE.deals = STATE.allDeals;
+        renderDeals(STATE.deals);
+        updateTicker(STATE.deals);
+        document.getElementById('loadMoreBtn').style.display = (d.hasMore || deals.length === 20) ? '' : 'none';
+      } catch (e) {
+        document.getElementById('dealsList').innerHTML = `
       <div class="empty-state" style="grid-column:1/-1">
         <div class="icon">⚠️</div>
         <h3>Could not load deals</h3>
         <p>${e.message}</p>
       </div>`;
-  }
-}
+      }
+    }
 
-function renderDeals(deals) {
-  const c = document.getElementById('dealsList');
-  if (!deals.length) {
-    c.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔍</div><h3>No deals found</h3><p>Try adjusting your filters</p></div>`;
-    return;
-  }
-  c.innerHTML = deals.map(renderDealCard).join('');
-}
+    function renderDeals(deals) {
+      const c = document.getElementById('dealsList');
+      if (!deals.length) {
+        c.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔍</div><h3>No deals found</h3><p>Try adjusting your filters</p></div>`;
+        return;
+      }
+      c.innerHTML = deals.map(renderDealCard).join('');
+    }
 
-function renderDealCard(deal) {
-  const p = deal.product || deal;
-  const isDrop = deal.percentChange < 0;
-  const isHike = deal.percentChange > 0;
-  const pct = deal.percentChange || 0;
-  const score = Math.round(deal.smartScore || p.smartScore || 0);
-  const cur = p.currentPrice;
-  const curFmt = cur ? `$${cur.toFixed(2)}` : 'N/A';
-  const oos = p.isOutOfStock || p.outOfStock;
+    function renderDealCard(deal) {
+      const p = deal.product || deal;
+      const isDrop = deal.percentChange < 0;
+      const isHike = deal.percentChange > 0;
+      const pct = deal.percentChange || 0;
+      const score = Math.round(deal.smartScore || p.smartScore || 0);
+      const cur = p.currentPrice;
+      const curFmt = cur ? `$${cur.toFixed(2)}` : 'N/A';
+      const oos = p.isOutOfStock || p.outOfStock;
 
-  const badgeMap = {
-    hot_deal: '<span class="badge badge-hot">🔥 Hot Deal</span>',
-    good_deal: '<span class="badge badge-good">✅ Good</span>',
-    fair_price: '<span class="badge badge-fair">🙂 Fair</span>',
-    stable: '<span class="badge badge-stable">➡️ Stable</span>',
-    price_hike: '<span class="badge badge-hike">⬆️ Hike</span>',
-  };
-  const badge = badgeMap[deal.dealLabel] || badgeMap[p.dealLabel] || '';
+      const badgeMap = {
+        hot_deal: '<span class="badge badge-hot">🔥 Hot Deal</span>',
+        good_deal: '<span class="badge badge-good">✅ Good</span>',
+        fair_price: '<span class="badge badge-fair">🙂 Fair</span>',
+        stable: '<span class="badge badge-stable">➡️ Stable</span>',
+        price_hike: '<span class="badge badge-hike">⬆️ Hike</span>',
+      };
+      const badge = badgeMap[deal.dealLabel] || badgeMap[p.dealLabel] || '';
 
-  const sparkline = generateSparkline(p.priceHistory || [], isDrop);
-  const scoreColor = score >= 70 ? '#10B981' : score >= 40 ? '#F59E0B' : '#94a3b8';
-  const scoreCircumference = 2 * Math.PI * 18;
-  const scoreDash = (score / 100) * scoreCircumference;
-  const timeAgo = deal.lastChecked ? formatAgo(deal.lastChecked) : (p.lastChecked ? formatAgo(p.lastChecked) : '—');
-  const title = p.title || p.name || 'Amazon Product';
-  const asin = p.asin || '';
-  const img = p.imageUrl || p.image || '';
+      const sparkline = generateSparkline(p.priceHistory || [], isDrop);
+      const scoreColor = score >= 70 ? '#10B981' : score >= 40 ? '#F59E0B' : '#94a3b8';
+      const scoreCircumference = 2 * Math.PI * 18;
+      const scoreDash = (score / 100) * scoreCircumference;
+      const timeAgo = deal.lastChecked ? formatAgo(deal.lastChecked) : (p.lastChecked ? formatAgo(p.lastChecked) : '—');
+      const title = p.title || p.name || 'Amazon Product';
+      const asin = p.asin || '';
+      const img = p.imageUrl || p.image || '';
 
-  return `
+      return `
   <div class="deal-card" 
     oncontextmenu="openCtxMenu(event,'${asin}')" 
     onclick="handleCardClick('${asin}','${encodeURIComponent(title)}')"
@@ -760,11 +864,11 @@ function renderDealCard(deal) {
     <div class="deal-card-body">
       <div class="deal-price-row">
         <div>
-          <span class="deal-price ${isDrop?'drop':isHike?'hike':''}">${curFmt}</span>
+          <span class="deal-price ${isDrop ? 'drop' : isHike ? 'hike' : ''}">${curFmt}</span>
           ${p.previousPrice ? `<span class="deal-old-price">$${p.previousPrice.toFixed(2)}</span>` : ''}
         </div>
-        <span class="deal-change-badge ${isDrop?'drop':isHike?'hike':'stable'}">
-          ${pct !== 0 ? (isDrop?'↓':'↑') + Math.abs(pct).toFixed(1) + '%' : '→ stable'}
+        <span class="deal-change-badge ${isDrop ? 'drop' : isHike ? 'hike' : 'stable'}">
+          ${pct !== 0 ? (isDrop ? '↓' : '↑') + Math.abs(pct).toFixed(1) + '%' : '→ stable'}
         </span>
       </div>
       <div class="sparkline-wrap">${sparkline}</div>
@@ -796,133 +900,135 @@ function renderDealCard(deal) {
       <span class="deal-time">${timeAgo}</span>
     </div>
   </div>`;
-}
+    }
 
-function generateSparkline(history, isDrop) {
-  if (!history || history.length < 2) {
-    return `<svg viewBox="0 0 200 36"><line x1="0" y1="18" x2="200" y2="18" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 4"/></svg>`;
-  }
-  const prices = history.slice(-20).map(h => h.price || h);
-  const min = Math.min(...prices), max = Math.max(...prices);
-  const range = max - min || 1;
-  const w = 200, h = 36;
-  const pts = prices.map((v, i) => {
-    const x = (i / (prices.length - 1)) * w;
-    const y = h - ((v - min) / range) * (h - 6) - 3;
-    return `${x},${y}`;
-  });
-  const color = isDrop ? 'var(--green)' : 'var(--red)';
-  const fillColor = isDrop ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)';
-  const polyline = pts.join(' ');
-  const last = pts[pts.length - 1].split(',');
-  return `<svg viewBox="0 0 ${w} ${h}">
+    function generateSparkline(history, isDrop) {
+      if (!history || history.length < 2) {
+        return `<svg viewBox="0 0 200 36"><line x1="0" y1="18" x2="200" y2="18" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 4"/></svg>`;
+      }
+      const prices = history.slice(-20).map(h => h.price || h);
+      const min = Math.min(...prices), max = Math.max(...prices);
+      const range = max - min || 1;
+      const w = 200, h = 36;
+      const pts = prices.map((v, i) => {
+        const x = (i / (prices.length - 1)) * w;
+        const y = h - ((v - min) / range) * (h - 6) - 3;
+        return `${x},${y}`;
+      });
+      const color = isDrop ? 'var(--green)' : 'var(--red)';
+      const fillColor = isDrop ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)';
+      const polyline = pts.join(' ');
+      const last = pts[pts.length - 1].split(',');
+      return `<svg viewBox="0 0 ${w} ${h}">
     <polyline points="${polyline} ${last[0]},${h} 0,${h}" fill="${fillColor}" stroke="none"/>
     <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="${last[0]}" cy="${last[1]}" r="3" fill="${color}"/>
   </svg>`;
-}
+    }
 
-// ── FILTER / SEARCH ───────────────────────────────────────────────────
-function filterDeals(q) {
-  STATE.searchQuery = q.toLowerCase();
-  applyFilters();
-}
+    // ── FILTER / SEARCH ───────────────────────────────────────────────────
+    function filterDeals(q) {
+      STATE.searchQuery = q.toLowerCase();
+      applyFilters();
+    }
 
-function setDealFilter(f, btn) {
-  STATE.filter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  applyFilters();
-}
+    function setDealFilter(f, btn) {
+      STATE.filter = f;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      applyFilters();
+    }
 
-function applyFilters() {
-  let d = STATE.allDeals;
-  if (STATE.searchQuery) {
-    d = d.filter(x => {
-      const p = x.product || x;
-      return (p.title||'').toLowerCase().includes(STATE.searchQuery) ||
-             (p.asin||'').toLowerCase().includes(STATE.searchQuery);
-    });
-  }
-  if (STATE.filter === 'hot') d = d.filter(x => (x.dealLabel||x.product?.dealLabel) === 'hot_deal');
-  if (STATE.filter === 'drop') d = d.filter(x => x.percentChange < 0);
-  if (STATE.filter === 'stock') d = d.filter(x => !(x.product||x).isOutOfStock);
-  STATE.deals = d;
-  renderDeals(d);
-}
+    function applyFilters() {
+      let d = STATE.allDeals;
+      if (STATE.searchQuery) {
+        d = d.filter(x => {
+          const p = x.product || x;
+          return (p.title || '').toLowerCase().includes(STATE.searchQuery) ||
+            (p.asin || '').toLowerCase().includes(STATE.searchQuery);
+        });
+      }
+      if (STATE.filter === 'hot') d = d.filter(x => (x.dealLabel || x.product?.dealLabel) === 'hot_deal');
+      if (STATE.filter === 'drop') d = d.filter(x => x.percentChange < 0);
+      if (STATE.filter === 'stock') d = d.filter(x => !(x.product || x).isOutOfStock);
+      STATE.deals = d;
+      renderDeals(d);
+    }
 
-function loadMoreDeals() {
-  STATE.page++;
-  loadDeals(true);
-}
+    function loadMoreDeals() {
+      STATE.page++;
+      loadDeals(true);
+    }
 
-function toggleListView() {
-  STATE.listView = !STATE.listView;
-  document.getElementById('dealsList').classList.toggle('list-view', STATE.listView);
-  document.getElementById('viewToggleBtn').textContent = STATE.listView ? '⊟' : '⊞';
-}
+    function toggleListView() {
+      STATE.listView = !STATE.listView;
+      document.getElementById('dealsList').classList.toggle('list-view', STATE.listView);
+      document.getElementById('viewToggleBtn').textContent = STATE.listView ? '⊟' : '⊞';
+    }
 
-// ── HISTORY ───────────────────────────────────────────────────────────
-async function loadHistory(asin, titleEnc) {
-  const panel = document.getElementById('historyPanel');
-  const title = titleEnc ? decodeURIComponent(titleEnc) : asin;
-  document.getElementById('historyTitle').textContent = title;
-  document.getElementById('historyAsin').textContent = `ASIN: ${asin}`;
-  panel.classList.add('visible');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  document.getElementById('historyStats').innerHTML = '<div style="color:var(--text3);font-size:13px">Loading…</div>';
+    // ── HISTORY ───────────────────────────────────────────────────────────
+    async function loadHistory(asin, titleEnc) {
+      const panel = document.getElementById('historyPanel');
+      const title = titleEnc ? decodeURIComponent(titleEnc) : asin;
+      document.getElementById('historyTitle').textContent = title;
+      document.getElementById('historyAsin').textContent = `ASIN: ${asin}`;
+      panel.classList.add('visible');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document.getElementById('historyStats').innerHTML = '<div style="color:var(--text3);font-size:13px">Loading…</div>';
 
-  try {
-    const d = await API.history(asin);
-    renderHistoryChart(d);
-    renderHistoryStats(d);
-  } catch(e) {
-    document.getElementById('historyStats').innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${e.message}</div>`;
-  }
-}
-
-function renderHistoryChart(data) {
-  const prices = (data.priceHistory || []).slice(-60);
-  if (!prices.length) return;
-  const labels = prices.map(p => new Date(p.date || p.timestamp || Date.now()).toLocaleDateString('en-US', { month:'short', day:'numeric' }));
-  const vals = prices.map(p => p.price || p);
-
-  if (STATE.historyChart) STATE.historyChart.destroy();
-  const ctx = document.getElementById('historyChart');
-  STATE.historyChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        data: vals,
-        borderColor: '#F59E0B',
-        backgroundColor: 'rgba(245,158,11,0.08)',
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        fill: true,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: {
-        callbacks: { label: c => `$${c.raw.toFixed(2)}` }
-      }},
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
-        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, callback: v => `$${v}` } }
+      try {
+        const d = await API.history(asin);
+        renderHistoryChart(d);
+        renderHistoryStats(d);
+      } catch (e) {
+        document.getElementById('historyStats').innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${e.message}</div>`;
       }
     }
-  });
-}
 
-function renderHistoryStats(data) {
-  const prices = (data.priceHistory || []).map(p => p.price || p);
-  if (!prices.length) { document.getElementById('historyStats').innerHTML = ''; return; }
-  const min = Math.min(...prices), max = Math.max(...prices), avg = prices.reduce((a,b)=>a+b,0)/prices.length;
-  document.getElementById('historyStats').innerHTML = `
+    function renderHistoryChart(data) {
+      const prices = (data.priceHistory || []).slice(-60);
+      if (!prices.length) return;
+      const labels = prices.map(p => new Date(p.date || p.timestamp || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      const vals = prices.map(p => p.price || p);
+
+      if (STATE.historyChart) STATE.historyChart.destroy();
+      const ctx = document.getElementById('historyChart');
+      STATE.historyChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data: vals,
+            borderColor: '#F59E0B',
+            backgroundColor: 'rgba(245,158,11,0.08)',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            fill: true,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }, tooltip: {
+              callbacks: { label: c => `$${c.raw.toFixed(2)}` }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, callback: v => `$${v}` } }
+          }
+        }
+      });
+    }
+
+    function renderHistoryStats(data) {
+      const prices = (data.priceHistory || []).map(p => p.price || p);
+      if (!prices.length) { document.getElementById('historyStats').innerHTML = ''; return; }
+      const min = Math.min(...prices), max = Math.max(...prices), avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+      document.getElementById('historyStats').innerHTML = `
     <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
       <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--green)">$${min.toFixed(2)}</div>
       <div style="font-size:11px;color:var(--text2);margin-top:4px">All-time Low</div>
@@ -935,85 +1041,85 @@ function renderHistoryStats(data) {
       <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--red)">$${max.toFixed(2)}</div>
       <div style="font-size:11px;color:var(--text2);margin-top:4px">All-time High</div>
     </div>`;
-}
+    }
 
-function closeHistory() {
-  document.getElementById('historyPanel').classList.remove('visible');
-}
+    function closeHistory() {
+      document.getElementById('historyPanel').classList.remove('visible');
+    }
 
-// ── TICKER ────────────────────────────────────────────────────────────
-function renderTicker(products) {
-  const items = products || STATE.allDeals.slice(0, 20);
-  const track = document.getElementById('tickerTrack');
-  if (!items.length) return;
-  const makeItem = deal => {
-    const p = deal.product || deal;
-    const pct = deal.percentChange || 0;
-    const cls = pct < 0 ? 't-drop' : pct > 0 ? 't-hike' : '';
-    const arrow = pct < 0 ? '▼' : pct > 0 ? '▲' : '—';
-    const name = (p.title||p.name||'').split(' ').slice(0,4).join(' ');
-    const price = p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : '';
-    return `<span class="ticker-item" onclick="loadHistory('${p.asin||''}','${encodeURIComponent(name)}')">
+    // ── TICKER ────────────────────────────────────────────────────────────
+    function renderTicker(products) {
+      const items = products || STATE.allDeals.slice(0, 20);
+      const track = document.getElementById('tickerTrack');
+      if (!items.length) return;
+      const makeItem = deal => {
+        const p = deal.product || deal;
+        const pct = deal.percentChange || 0;
+        const cls = pct < 0 ? 't-drop' : pct > 0 ? 't-hike' : '';
+        const arrow = pct < 0 ? '▼' : pct > 0 ? '▲' : '—';
+        const name = (p.title || p.name || '').split(' ').slice(0, 4).join(' ');
+        const price = p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : '';
+        return `<span class="ticker-item" onclick="loadHistory('${p.asin || ''}','${encodeURIComponent(name)}')">
       ${name} <span class="t-price">${price}</span> <span class="${cls}">${arrow}${Math.abs(pct).toFixed(1)}%</span>
     </span>`;
-  };
-  const content = items.map(makeItem).join('') + items.map(makeItem).join('');
-  track.innerHTML = content;
-}
-
-function updateTicker(deals) { renderTicker(deals); }
-
-// ── NAVIGATION ────────────────────────────────────────────────────────
-const pageTitles = { deals:'Live Deals', watchlist:'My Watchlist', analytics:'Analytics', alerts:'Alert Rules', exports:'Export', admin:'System Admin', settings:'Settings' };
-
-function navigate(page) {
-  STATE.currentPage = page;
-  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-  const el = document.getElementById(`page-${page}`);
-  if (el) el.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => {
-    n.classList.toggle('active', n.dataset.page === page);
-  });
-  document.querySelectorAll('.mob-nav-item').forEach(n => {
-    n.classList.toggle('active', n.id === `mob-${page}`);
-  });
-  document.getElementById('topbarTitle').textContent = pageTitles[page] || page;
-
-  if (page === 'analytics') loadAnalytics();
-  if (page === 'watchlist' && STATE.user) loadWatchlist();
-  if (page === 'admin') loadAdminStats();
-  closeSidebar();
-}
-
-// ── WATCHLIST ─────────────────────────────────────────────────────────
-async function loadWatchlist() {
-  const c = document.getElementById('watchlistContent');
-  c.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center">Loading…</div>';
-  try {
-    const data = await API.userProducts();
-    const items = Array.isArray(data) ? data : (data.products || []);
-    if (!items.length) {
-      c.innerHTML = `<div class="empty-state"><div class="icon">📦</div><h3>Nothing tracked yet</h3><p>Add your first product to get started</p></div>`;
-      return;
+      };
+      const content = items.map(makeItem).join('') + items.map(makeItem).join('');
+      track.innerHTML = content;
     }
-    c.innerHTML = `<div id="watchlistGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
+
+    function updateTicker(deals) { renderTicker(deals); }
+
+    // ── NAVIGATION ────────────────────────────────────────────────────────
+    const pageTitles = { deals: 'Live Deals', watchlist: 'My Watchlist', analytics: 'Analytics', alerts: 'Alert Rules', exports: 'Export', admin: 'System Admin', settings: 'Settings' };
+
+    function navigate(page) {
+      STATE.currentPage = page;
+      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+      const el = document.getElementById(`page-${page}`);
+      if (el) el.classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.toggle('active', n.dataset.page === page);
+      });
+      document.querySelectorAll('.mob-nav-item').forEach(n => {
+        n.classList.toggle('active', n.id === `mob-${page}`);
+      });
+      document.getElementById('topbarTitle').textContent = pageTitles[page] || page;
+
+      if (page === 'analytics') loadAnalytics();
+      if (page === 'watchlist' && STATE.user) loadWatchlist();
+      if (page === 'admin') loadAdminStats();
+      closeSidebar();
+    }
+
+    // ── WATCHLIST ─────────────────────────────────────────────────────────
+    async function loadWatchlist() {
+      const c = document.getElementById('watchlistContent');
+      c.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center">Loading…</div>';
+      try {
+        const data = await API.userProducts();
+        const items = Array.isArray(data) ? data : (data.products || []);
+        if (!items.length) {
+          c.innerHTML = `<div class="empty-state"><div class="icon">📦</div><h3>Nothing tracked yet</h3><p>Add your first product to get started</p></div>`;
+          return;
+        }
+        c.innerHTML = `<div id="watchlistGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
       ${items.map(p => renderWatchlistCard(p)).join('')}
     </div>`;
-  } catch(e) {
-    c.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>Error loading watchlist</h3><p>${e.message}</p></div>`;
-  }
-}
+      } catch (e) {
+        c.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>Error loading watchlist</h3><p>${e.message}</p></div>`;
+      }
+    }
 
-function renderWatchlistCard(p) {
-  const tracked = p.subscriptions?.length || 0;
-  return `<div class="deal-card">
+    function renderWatchlistCard(p) {
+      const tracked = p.subscriptions?.length || 0;
+      return `<div class="deal-card">
     <div class="deal-card-header">
       <div class="deal-img">${p.imageUrl ? `<img src="${p.imageUrl}" alt="" loading="lazy" onerror="this.parentElement.textContent='📦'">` : '📦'}</div>
       <div class="deal-info">
         <div class="deal-title">${p.title || p.asin}</div>
         <div class="deal-badges">
           <span class="badge" style="background:var(--bg3);color:var(--text3);border:1px solid var(--border)">${p.asin}</span>
-          ${tracked ? `<span class="badge badge-good">${tracked} tracker${tracked>1?'s':''}</span>` : ''}
+          ${tracked ? `<span class="badge badge-good">${tracked} tracker${tracked > 1 ? 's' : ''}</span>` : ''}
         </div>
       </div>
     </div>
@@ -1024,117 +1130,117 @@ function renderWatchlistCard(p) {
       </div>
     </div>
     <div class="deal-card-footer">
-      <button class="deal-action" onclick="loadHistory('${p.asin}','${encodeURIComponent(p.title||p.asin)}')">📈 History</button>
+      <button class="deal-action" onclick="loadHistory('${p.asin}','${encodeURIComponent(p.title || p.asin)}')">📈 History</button>
       ${p.asin ? `<a class="deal-action primary" href="https://www.amazon.com/dp/${p.asin}" target="_blank">View ↗</a>` : ''}
     </div>
   </div>`;
-}
-
-// ── ANALYTICS ─────────────────────────────────────────────────────────
-let analyticsLoaded = false;
-async function loadAnalytics() {
-  if (analyticsLoaded) return;
-  analyticsLoaded = true;
-  try {
-    const chartColor = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#94a3b8';
-    const gridColor = 'rgba(255,255,255,0.05)';
-
-    // Price trends
-    const tCtx = document.getElementById('trendChart');
-    new Chart(tCtx, {
-      type: 'line',
-      data: {
-        labels: last7Days(),
-        datasets: [{
-          label: 'Avg Price',
-          data: Array.from({length:7}, () => 40 + Math.random()*30),
-          borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.08)',
-          tension: 0.4, borderWidth: 2, fill: true, pointRadius: 3,
-        }]
-      },
-      options: miniChartOptions(chartColor, gridColor)
-    });
-
-    // Category chart
-    const cCtx = document.getElementById('categoryChart');
-    new Chart(cCtx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Electronics','Home','Books','Sports','Fashion','Other'],
-        datasets: [{ data: [38,22,15,12,8,5], backgroundColor: ['#F59E0B','#10B981','#3B82F6','#EF4444','#8B5CF6','#6B7280'], borderWidth: 0 }]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '60%' }
-    });
-
-    // Score distribution
-    const sCtx = document.getElementById('scoreChart');
-    new Chart(sCtx, {
-      type: 'bar',
-      data: {
-        labels: ['0-20','21-40','41-60','61-80','81-100'],
-        datasets: [{ data: [5,12,28,38,17], backgroundColor: ['#6B7280','#94a3b8','#F59E0B','#10B981','#3B82F6'], borderRadius: 4 }]
-      },
-      options: { ...miniChartOptions(chartColor, gridColor), plugins: { legend: { display: false } } }
-    });
-
-    // Alert activity
-    const aCtx = document.getElementById('alertChart');
-    new Chart(aCtx, {
-      type: 'bar',
-      data: {
-        labels: last7Days(),
-        datasets: [{
-          label: 'Alerts sent',
-          data: Array.from({length:7}, () => Math.floor(2 + Math.random()*18)),
-          backgroundColor: 'rgba(59,130,246,0.4)',
-          borderColor: '#3B82F6',
-          borderWidth: 1,
-          borderRadius: 4,
-        }]
-      },
-      options: miniChartOptions(chartColor, gridColor)
-    });
-
-    // Volatility heatmap (simulated)
-    renderVolatilityHeatmap();
-  } catch(e) {}
-}
-
-function miniChartOptions(tickColor, gridColor) {
-  return {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 7 } },
-      y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 } } }
     }
-  };
-}
 
-function last7Days() {
-  return Array.from({length:7}, (_,i) => {
-    const d = new Date(); d.setDate(d.getDate() - (6-i));
-    return d.toLocaleDateString('en-US', {month:'short',day:'numeric'});
-  });
-}
+    // ── ANALYTICS ─────────────────────────────────────────────────────────
+    let analyticsLoaded = false;
+    async function loadAnalytics() {
+      if (analyticsLoaded) return;
+      analyticsLoaded = true;
+      try {
+        const chartColor = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#94a3b8';
+        const gridColor = 'rgba(255,255,255,0.05)';
 
-function renderVolatilityHeatmap() {
-  const c = document.getElementById('volatilityHeatmap');
-  const categories = ['Electronics','Home','Books','Sports'];
-  const days = ['M','T','W','T','F','S','S'];
-  const cells = categories.map(cat => `
+        // Price trends
+        const tCtx = document.getElementById('trendChart');
+        new Chart(tCtx, {
+          type: 'line',
+          data: {
+            labels: last7Days(),
+            datasets: [{
+              label: 'Avg Price',
+              data: Array.from({ length: 7 }, () => 40 + Math.random() * 30),
+              borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.08)',
+              tension: 0.4, borderWidth: 2, fill: true, pointRadius: 3,
+            }]
+          },
+          options: miniChartOptions(chartColor, gridColor)
+        });
+
+        // Category chart
+        const cCtx = document.getElementById('categoryChart');
+        new Chart(cCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Electronics', 'Home', 'Books', 'Sports', 'Fashion', 'Other'],
+            datasets: [{ data: [38, 22, 15, 12, 8, 5], backgroundColor: ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#8B5CF6', '#6B7280'], borderWidth: 0 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '60%' }
+        });
+
+        // Score distribution
+        const sCtx = document.getElementById('scoreChart');
+        new Chart(sCtx, {
+          type: 'bar',
+          data: {
+            labels: ['0-20', '21-40', '41-60', '61-80', '81-100'],
+            datasets: [{ data: [5, 12, 28, 38, 17], backgroundColor: ['#6B7280', '#94a3b8', '#F59E0B', '#10B981', '#3B82F6'], borderRadius: 4 }]
+          },
+          options: { ...miniChartOptions(chartColor, gridColor), plugins: { legend: { display: false } } }
+        });
+
+        // Alert activity
+        const aCtx = document.getElementById('alertChart');
+        new Chart(aCtx, {
+          type: 'bar',
+          data: {
+            labels: last7Days(),
+            datasets: [{
+              label: 'Alerts sent',
+              data: Array.from({ length: 7 }, () => Math.floor(2 + Math.random() * 18)),
+              backgroundColor: 'rgba(59,130,246,0.4)',
+              borderColor: '#3B82F6',
+              borderWidth: 1,
+              borderRadius: 4,
+            }]
+          },
+          options: miniChartOptions(chartColor, gridColor)
+        });
+
+        // Volatility heatmap (simulated)
+        renderVolatilityHeatmap();
+      } catch (e) { }
+    }
+
+    function miniChartOptions(tickColor, gridColor) {
+      return {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 7 } },
+          y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 } } }
+        }
+      };
+    }
+
+    function last7Days() {
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - (6 - i));
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      });
+    }
+
+    function renderVolatilityHeatmap() {
+      const c = document.getElementById('volatilityHeatmap');
+      const categories = ['Electronics', 'Home', 'Books', 'Sports'];
+      const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+      const cells = categories.map(cat => `
     <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
       <span style="font-size:11px;color:var(--text2);width:70px;font-family:var(--font-mono)">${cat}</span>
       ${days.map(d => {
         const v = Math.random();
         const bg = v > 0.7 ? 'var(--red)' : v > 0.4 ? 'var(--amber)' : 'var(--green)';
         const opacity = 0.3 + v * 0.7;
-        return `<div title="${cat} ${d}: ${(v*100).toFixed(0)}% volatile" style="width:24px;height:24px;border-radius:4px;background:${bg};opacity:${opacity}"></div>`;
+        return `<div title="${cat} ${d}: ${(v * 100).toFixed(0)}% volatile" style="width:24px;height:24px;border-radius:4px;background:${bg};opacity:${opacity}"></div>`;
       }).join('')}
     </div>`).join('');
-  c.innerHTML = `<div style="width:100%">
+      c.innerHTML = `<div style="width:100%">
     <div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding-left:74px">
-      ${days.map(d=>`<span style="width:24px;text-align:center;font-size:10px;color:var(--text3);font-family:var(--font-mono)">${d}</span>`).join('')}
+      ${days.map(d => `<span style="width:24px;text-align:center;font-size:10px;color:var(--text3);font-family:var(--font-mono)">${d}</span>`).join('')}
     </div>
     ${cells}
     <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:10px;color:var(--text3)">
@@ -1143,413 +1249,414 @@ function renderVolatilityHeatmap() {
       <span style="width:12px;height:12px;border-radius:3px;background:var(--red);opacity:0.7;display:inline-block"></span> High
     </div>
   </div>`;
-}
+    }
 
-// ── ADMIN ─────────────────────────────────────────────────────────────
-async function loadAdminStats() {
-  if (!STATE.isAdmin) return;
-  try {
-    const [health, db] = await Promise.all([API.health(), API.dbStats().catch(()=>({}))]);
-    const setEl = (id, val, cls) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.textContent = val;
-      if (cls) { el.className = 'admin-stat-value ' + cls; }
-    };
-    const ok = v => v === true || v === 'ok' || v === 'connected' || v === 'up';
-    setEl('adm-api', 'Online', 'admin-stat-value status-ok');
-    setEl('adm-db', ok(health.db) ? 'Connected' : 'Error', ok(health.db) ? 'admin-stat-value status-ok' : 'admin-stat-value status-err');
-    setEl('adm-queue', ok(health.redis) ? 'Active' : 'Inactive', ok(health.redis) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
-    setEl('adm-sched', ok(health.scheduler) ? 'Running' : 'Stopped', ok(health.scheduler) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
-    setEl('adm-ai', ok(health.ai) ? 'Active' : 'Off', ok(health.ai) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
-    if (db.products !== undefined) {
-      setEl('adm-products', (db.products||0).toLocaleString());
-      setEl('adm-users', (db.users||0).toLocaleString());
-      setEl('adm-metrics', (db.metrics||0).toLocaleString());
-      setEl('adm-subs', (db.subscriptions||0).toLocaleString());
+    // ── ADMIN ─────────────────────────────────────────────────────────────
+    async function loadAdminStats() {
+      if (!STATE.isAdmin) return;
+      try {
+        const [health, db] = await Promise.all([API.health(), API.dbStats().catch(() => ({}))]);
+        const setEl = (id, val, cls) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.textContent = val;
+          if (cls) { el.className = 'admin-stat-value ' + cls; }
+        };
+        const ok = v => v === true || v === 'ok' || v === 'connected' || v === 'up';
+        setEl('adm-api', 'Online', 'admin-stat-value status-ok');
+        setEl('adm-db', ok(health.db) ? 'Connected' : 'Error', ok(health.db) ? 'admin-stat-value status-ok' : 'admin-stat-value status-err');
+        setEl('adm-queue', ok(health.redis) ? 'Active' : 'Inactive', ok(health.redis) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
+        setEl('adm-sched', ok(health.scheduler) ? 'Running' : 'Stopped', ok(health.scheduler) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
+        setEl('adm-ai', ok(health.ai) ? 'Active' : 'Off', ok(health.ai) ? 'admin-stat-value status-ok' : 'admin-stat-value status-warn');
+        if (db.products !== undefined) {
+          setEl('adm-products', (db.products || 0).toLocaleString());
+          setEl('adm-users', (db.users || 0).toLocaleString());
+          setEl('adm-metrics', (db.metrics || 0).toLocaleString());
+          setEl('adm-subs', (db.subscriptions || 0).toLocaleString());
+        }
+        if (health.ai && typeof health.ai === 'object') {
+          setEl('adm-aistate', health.ai.paused ? 'Paused' : 'Active', health.ai.paused ? 'admin-stat-value status-warn' : 'admin-stat-value status-ok');
+          setEl('adm-tokens', health.ai.tokensToday ? `${health.ai.tokensToday.toLocaleString()} / ${(health.ai.tokenBudget || 0).toLocaleString()}` : '—');
+          setEl('adm-reqs', health.ai.requestsToday || '—');
+          setEl('adm-pause', health.ai.pauseUntil ? formatAgo(health.ai.pauseUntil) : 'None');
+        }
+        if (health.extension) {
+          setEl('adm-syncs', health.extension.totalSyncs || '—');
+          setEl('adm-newp', health.extension.newProducts || '—');
+          setEl('adm-upd', health.extension.updates || '—');
+          setEl('adm-errs', health.extension.errors || '0');
+        }
+      } catch (e) {
+        document.getElementById('adm-api').textContent = 'Error';
+        document.getElementById('adm-api').className = 'admin-stat-value status-err';
+      }
     }
-    if (health.ai && typeof health.ai === 'object') {
-      setEl('adm-aistate', health.ai.paused ? 'Paused' : 'Active', health.ai.paused ? 'admin-stat-value status-warn' : 'admin-stat-value status-ok');
-      setEl('adm-tokens', health.ai.tokensToday ? `${health.ai.tokensToday.toLocaleString()} / ${(health.ai.tokenBudget||0).toLocaleString()}` : '—');
-      setEl('adm-reqs', health.ai.requestsToday || '—');
-      setEl('adm-pause', health.ai.pauseUntil ? formatAgo(health.ai.pauseUntil) : 'None');
-    }
-    if (health.extension) {
-      setEl('adm-syncs', health.extension.totalSyncs || '—');
-      setEl('adm-newp', health.extension.newProducts || '—');
-      setEl('adm-upd', health.extension.updates || '—');
-      setEl('adm-errs', health.extension.errors || '0');
-    }
-  } catch(e) {
-    document.getElementById('adm-api').textContent = 'Error';
-    document.getElementById('adm-api').className = 'admin-stat-value status-err';
-  }
-}
 
-async function adminAction(action) {
-  try {
-    if (action === 'health') { await loadAdminStats(); toast('Health data refreshed', 'success'); }
-    else if (action === 'check-prices') { await API.adminCheck(); toast('Price check triggered', 'success'); }
-    else if (action === 'scrape-all') { await API.adminScrape(); toast('Scrape job queued', 'success'); }
-    else if (action === 'broadcast') {
-      const msg = prompt('Enter broadcast message:');
-      if (!msg) return;
-      await API.adminBroadcast(msg);
-      toast('Broadcast sent', 'success');
+    async function adminAction(action) {
+      try {
+        if (action === 'health') { await loadAdminStats(); toast('Health data refreshed', 'success'); }
+        else if (action === 'check-prices') { await API.adminCheck(); toast('Price check triggered', 'success'); }
+        else if (action === 'scrape-all') { await API.adminScrape(); toast('Scrape job queued', 'success'); }
+        else if (action === 'broadcast') {
+          const msg = prompt('Enter broadcast message:');
+          if (!msg) return;
+          await API.adminBroadcast(msg);
+          toast('Broadcast sent', 'success');
+        }
+        else if (action === 'import') {
+          toast('Bulk import: use the API endpoint /api/admin/import', 'info');
+        }
+      } catch (e) {
+        toast('Action failed: ' + e.message, 'error');
+      }
     }
-    else if (action === 'import') {
-      toast('Bulk import: use the API endpoint /api/admin/import', 'info');
-    }
-  } catch(e) {
-    toast('Action failed: ' + e.message, 'error');
-  }
-}
 
-// ── QUICK ADD ─────────────────────────────────────────────────────────
-let previewTimer;
-function openQuickAdd() {
-  document.getElementById('quickAddPanel').classList.add('open');
-}
-function closeQuickAdd() {
-  document.getElementById('quickAddPanel').classList.remove('open');
-  document.getElementById('qaUrl').value = '';
-  document.getElementById('previewBox').classList.remove('visible');
-  document.getElementById('previewBox').innerHTML = '';
-}
-function onModeChange() {
-  const mode = document.getElementById('qaMode').value;
-  const lbl = document.getElementById('qaThreshLabel');
-  const inp = document.getElementById('qaThreshold');
-  if (mode === 'price') { lbl.textContent = 'Target Price'; inp.placeholder = '0.00'; }
-  else if (mode === 'percent') { lbl.textContent = '% Drop'; inp.placeholder = '10'; }
-  else { lbl.textContent = 'N/A'; inp.value = ''; inp.placeholder = '—'; }
-}
-function debouncedPreview() {
-  clearTimeout(previewTimer);
-  previewTimer = setTimeout(doPreview, 800);
-}
-async function doPreview() {
-  const url = document.getElementById('qaUrl').value.trim();
-  if (!url) return;
-  const box = document.getElementById('previewBox');
-  box.innerHTML = '<div class="preview-loading">🔍 Fetching product…</div>';
-  box.classList.add('visible');
-  try {
-    const d = await API.preview(url);
-    const p = d.product || d;
-    box.innerHTML = `<div style="display:flex;gap:12px;align-items:center">
+    // ── QUICK ADD ─────────────────────────────────────────────────────────
+    let previewTimer;
+    function openQuickAdd() {
+      document.getElementById('quickAddPanel').classList.add('open');
+    }
+    function closeQuickAdd() {
+      document.getElementById('quickAddPanel').classList.remove('open');
+      document.getElementById('qaUrl').value = '';
+      document.getElementById('previewBox').classList.remove('visible');
+      document.getElementById('previewBox').innerHTML = '';
+    }
+    function onModeChange() {
+      const mode = document.getElementById('qaMode').value;
+      const lbl = document.getElementById('qaThreshLabel');
+      const inp = document.getElementById('qaThreshold');
+      if (mode === 'price') { lbl.textContent = 'Target Price'; inp.placeholder = '0.00'; }
+      else if (mode === 'percent') { lbl.textContent = '% Drop'; inp.placeholder = '10'; }
+      else { lbl.textContent = 'N/A'; inp.value = ''; inp.placeholder = '—'; }
+    }
+    function debouncedPreview() {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(doPreview, 800);
+    }
+    async function doPreview() {
+      const url = document.getElementById('qaUrl').value.trim();
+      if (!url) return;
+      const box = document.getElementById('previewBox');
+      box.innerHTML = '<div class="preview-loading">🔍 Fetching product…</div>';
+      box.classList.add('visible');
+      try {
+        const d = await API.preview(url);
+        const p = d.product || d;
+        box.innerHTML = `<div style="display:flex;gap:12px;align-items:center">
       ${p.imageUrl ? `<img src="${p.imageUrl}" style="width:48px;height:48px;border-radius:6px;object-fit:cover">` : '<div style="width:48px;height:48px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>'}
       <div>
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${(p.title||'Product').slice(0,60)}…</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${(p.title || 'Product').slice(0, 60)}…</div>
         <div style="font-family:var(--font-mono);font-size:15px;color:var(--amber)">${p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : 'N/A'}</div>
       </div>
     </div>`;
-  } catch(e) {
-    box.innerHTML = `<div style="color:var(--red);font-size:13px">⚠️ ${e.message}</div>`;
-  }
-}
-async function submitQuickAdd() {
-  const url = document.getElementById('qaUrl').value.trim();
-  if (!url) { toast('Please enter a product URL', 'warn'); return; }
-  const mode = document.getElementById('qaMode').value;
-  const thresh = document.getElementById('qaThreshold').value;
-  const chatId = document.getElementById('qaChatId').value.trim() || STATE.user?.chatId;
-  try {
-    await API.addProduct({ url, threshold: thresh ? parseFloat(thresh) : 0, mode, chatId });
-    toast('Product added to tracking! 🎉', 'success');
-    closeQuickAdd();
-    STATE.page = 1;
-    loadDeals();
-    loadStats();
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  }
-}
+      } catch (e) {
+        box.innerHTML = `<div style="color:var(--red);font-size:13px">⚠️ ${e.message}</div>`;
+      }
+    }
+    async function submitQuickAdd() {
+      const url = document.getElementById('qaUrl').value.trim();
+      if (!url) { toast('Please enter a product URL', 'warn'); return; }
+      const mode = document.getElementById('qaMode').value;
+      const thresh = document.getElementById('qaThreshold').value;
+      const chatId = document.getElementById('qaChatId').value.trim() || STATE.user?.chatId;
+      try {
+        await API.addProduct({ url, threshold: thresh ? parseFloat(thresh) : 0, mode, chatId });
+        toast('Product added to tracking! 🎉', 'success');
+        closeQuickAdd();
+        STATE.page = 1;
+        loadDeals();
+        loadStats();
+      } catch (e) {
+        toast('Error: ' + e.message, 'error');
+      }
+    }
 
-// ── CONTEXT MENU ──────────────────────────────────────────────────────
-function openCtxMenu(e, asin) {
-  e.preventDefault();
-  e.stopPropagation();
-  STATE.ctxAsin = asin;
-  const m = document.getElementById('contextMenu');
-  m.style.display = 'block';
-  m.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
-  m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
-}
-document.addEventListener('click', () => {
-  document.getElementById('contextMenu').style.display = 'none';
-});
-function ctxAction(action) {
-  const asin = STATE.ctxAsin;
-  if (!asin) return;
-  const deal = STATE.allDeals.find(d => (d.product||d).asin === asin);
-  const p = deal ? (deal.product || deal) : {};
-  if (action === 'history') loadHistory(asin, encodeURIComponent(p.title||asin));
-  else if (action === 'copy') { navigator.clipboard.writeText(`https://www.amazon.com/dp/${asin}`); toast('Link copied!', 'success'); }
-  else if (action === 'share') shareDeal(asin, p);
-  else if (action === 'setTarget') {
-    const t = prompt(`Set target price for ${asin}:`);
-    if (t) toast('Target price feature requires login', 'info');
-  }
-  else if (action === 'untrack') toast('Stop tracking requires login', 'info');
-  document.getElementById('contextMenu').style.display = 'none';
-}
+    // ── CONTEXT MENU ──────────────────────────────────────────────────────
+    function openCtxMenu(e, asin) {
+      e.preventDefault();
+      e.stopPropagation();
+      STATE.ctxAsin = asin;
+      const m = document.getElementById('contextMenu');
+      m.style.display = 'block';
+      m.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+      m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+    }
+    document.addEventListener('click', () => {
+      document.getElementById('contextMenu').style.display = 'none';
+    });
+    function ctxAction(action) {
+      const asin = STATE.ctxAsin;
+      if (!asin) return;
+      const deal = STATE.allDeals.find(d => (d.product || d).asin === asin);
+      const p = deal ? (deal.product || deal) : {};
+      if (action === 'history') loadHistory(asin, encodeURIComponent(p.title || asin));
+      else if (action === 'copy') { navigator.clipboard.writeText(`https://www.amazon.com/dp/${asin}`); toast('Link copied!', 'success'); }
+      else if (action === 'share') shareDeal(asin, p);
+      else if (action === 'setTarget') {
+        const t = prompt(`Set target price for ${asin}:`);
+        if (t) toast('Target price feature requires login', 'info');
+      }
+      else if (action === 'untrack') toast('Stop tracking requires login', 'info');
+      document.getElementById('contextMenu').style.display = 'none';
+    }
 
-function handleCardClick(asin, titleEnc) {
-  loadHistory(asin, titleEnc);
-}
+    function handleCardClick(asin, titleEnc) {
+      loadHistory(asin, titleEnc);
+    }
 
-function shareDeal(asin, p) {
-  const url = `https://www.amazon.com/dp/${asin}`;
-  if (navigator.share) navigator.share({ title: (p && p.title) || 'Check this deal', url });
-  else { navigator.clipboard.writeText(url); toast('Link copied!', 'success'); }
-}
+    function shareDeal(asin, p) {
+      const url = `https://www.amazon.com/dp/${asin}`;
+      if (navigator.share) navigator.share({ title: (p && p.title) || 'Check this deal', url });
+      else { navigator.clipboard.writeText(url); toast('Link copied!', 'success'); }
+    }
 
-// ── COMMAND PALETTE ───────────────────────────────────────────────────
-const cmdActions = [
-  { icon:'🔥', label:'Go to Live Deals', sub:'G D', action: () => navigate('deals') },
-  { icon:'📦', label:'Go to Watchlist', sub:'', action: () => navigate('watchlist') },
-  { icon:'📊', label:'Go to Analytics', sub:'', action: () => navigate('analytics') },
-  { icon:'⚡', label:'Track New Product', sub:'N', action: openQuickAdd },
-  { icon:'📤', label:'Export CSV', sub:'', action: () => handleExport('csv') },
-  { icon:'🎛️', label:'Settings', sub:'', action: () => navigate('settings') },
-  { icon:'⌨️', label:'Keyboard Shortcuts', sub:'?', action: openShortcuts },
-  { icon:'🌙', label:'Toggle Dark Mode', sub:'T', action: toggleTheme },
-  { icon:'🔄', label:'Refresh Deals', sub:'R', action: () => { STATE.page=1; loadDeals(); } },
-  { icon:'🔔', label:'Notifications', sub:'', action: toggleNotifPanel },
-];
+    // ── COMMAND PALETTE ───────────────────────────────────────────────────
+    const cmdActions = [
+      { icon: '🔥', label: 'Go to Live Deals', sub: 'G D', action: () => navigate('deals') },
+      { icon: '📦', label: 'Go to Watchlist', sub: '', action: () => navigate('watchlist') },
+      { icon: '📊', label: 'Go to Analytics', sub: '', action: () => navigate('analytics') },
+      { icon: '⚡', label: 'Track New Product', sub: 'N', action: openQuickAdd },
+      { icon: '📤', label: 'Export CSV', sub: '', action: () => handleExport('csv') },
+      { icon: '🎛️', label: 'Settings', sub: '', action: () => navigate('settings') },
+      { icon: '⌨️', label: 'Keyboard Shortcuts', sub: '?', action: openShortcuts },
+      { icon: '🌙', label: 'Toggle Dark Mode', sub: 'T', action: toggleTheme },
+      { icon: '🔄', label: 'Refresh Deals', sub: 'R', action: () => { STATE.page = 1; loadDeals(); } },
+      { icon: '🔔', label: 'Notifications', sub: '', action: toggleNotifPanel },
+    ];
 
-function openCmd() {
-  const o = document.getElementById('cmdOverlay');
-  o.classList.add('open');
-  document.getElementById('cmdInput').value = '';
-  STATE.cmdIdx = -1;
-  filterCmd('');
-  setTimeout(() => document.getElementById('cmdInput').focus(), 50);
-}
-function closeCmd() {
-  document.getElementById('cmdOverlay').classList.remove('open');
-}
-function filterCmd(q) {
-  const lower = q.toLowerCase();
-  const items = lower ? cmdActions.filter(a => a.label.toLowerCase().includes(lower)) : cmdActions;
-  STATE.cmdItems = items;
-  STATE.cmdIdx = items.length ? 0 : -1;
-  renderCmdResults(items);
-}
-function renderCmdResults(items) {
-  document.getElementById('cmdResults').innerHTML = items.map((a, i) => `
+    function openCmd() {
+      const o = document.getElementById('cmdOverlay');
+      o.classList.add('open');
+      document.getElementById('cmdInput').value = '';
+      STATE.cmdIdx = -1;
+      filterCmd('');
+      setTimeout(() => document.getElementById('cmdInput').focus(), 50);
+    }
+    function closeCmd() {
+      document.getElementById('cmdOverlay').classList.remove('open');
+    }
+    function filterCmd(q) {
+      const lower = q.toLowerCase();
+      const items = lower ? cmdActions.filter(a => a.label.toLowerCase().includes(lower)) : cmdActions;
+      STATE.cmdItems = items;
+      STATE.cmdIdx = items.length ? 0 : -1;
+      renderCmdResults(items);
+    }
+    function renderCmdResults(items) {
+      document.getElementById('cmdResults').innerHTML = items.map((a, i) => `
     <div class="cmd-result-item ${i === STATE.cmdIdx ? 'selected' : ''}" onclick="runCmdItem(${i})">
       <span class="cmd-result-icon">${a.icon}</span>
       <span>${a.label}</span>
       ${a.sub ? `<span class="cmd-result-sub">${a.sub}</span>` : ''}
     </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No results</div>';
-}
-function runCmdItem(i) {
-  const items = STATE.cmdItems || cmdActions;
-  if (items[i]) { items[i].action(); closeCmd(); }
-}
-function cmdKey(e) {
-  const items = STATE.cmdItems || cmdActions;
-  if (e.key === 'ArrowDown') { e.preventDefault(); STATE.cmdIdx = (STATE.cmdIdx + 1) % items.length; renderCmdResults(items); }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); STATE.cmdIdx = (STATE.cmdIdx - 1 + items.length) % items.length; renderCmdResults(items); }
-  else if (e.key === 'Enter') { if (STATE.cmdIdx >= 0) runCmdItem(STATE.cmdIdx); }
-  else if (e.key === 'Escape') closeCmd();
-}
-
-// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────
-function openShortcuts() { document.getElementById('shortcutsOverlay').classList.add('open'); }
-function closeShortcuts() { document.getElementById('shortcutsOverlay').classList.remove('open'); }
-
-function setupKeyboard() {
-  document.addEventListener('keydown', e => {
-    const tag = document.activeElement.tagName;
-    const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openCmd(); return; }
-    if (document.getElementById('cmdOverlay').classList.contains('open')) return;
-    if (typing) return;
-    if (e.key === '?') openShortcuts();
-    else if (e.key === 'n' || e.key === 'N') openQuickAdd();
-    else if (e.key === 't' || e.key === 'T') toggleTheme();
-    else if (e.key === 'v' || e.key === 'V') toggleListView();
-    else if (e.key === 'r' || e.key === 'R') { STATE.page=1; loadDeals(); toast('Refreshed', 'info'); }
-    else if (e.key === 'Escape') { closeCmd(); closeShortcuts(); closeQuickAdd(); }
-    else if (e.key === 'g' || e.key === 'G') {
-      STATE.gNavSequence = 'g';
-      setTimeout(() => STATE.gNavSequence = '', 1000);
-    } else if (STATE.gNavSequence === 'g') {
-      if (e.key === 'd') navigate('deals');
-      else if (e.key === 'a') navigate('analytics');
-      else if (e.key === 'w') navigate('watchlist');
-      STATE.gNavSequence = '';
     }
-  });
-}
-
-// ── TOAST ─────────────────────────────────────────────────────────────
-function toast(msg, type = 'info') {
-  const icons = { success: '✅', error: '❌', info: 'ℹ️', warn: '⚠️' };
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
-  document.getElementById('toastContainer').prepend(t);
-  setTimeout(() => { t.classList.add('hide'); setTimeout(() => t.remove(), 300); }, 3500);
-}
-
-// ── THEME ─────────────────────────────────────────────────────────────
-function toggleTheme() {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  STATE.settings.dark = !isDark;
-  document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
-  document.getElementById('darkModeToggle').classList.toggle('on', !isDark);
-  saveSettings();
-}
-
-function toggleSetting(key) {
-  STATE.settings[key] = !STATE.settings[key];
-  const toggleEl = document.getElementById(key + 'Toggle');
-  if (toggleEl) toggleEl.classList.toggle('on', STATE.settings[key]);
-  if (key === 'ticker') document.getElementById('tickerBar').style.display = STATE.settings.ticker ? '' : 'none';
-  saveSettings();
-}
-
-function loadSettings() {
-  try {
-    const s = JSON.parse(localStorage.getItem('tz_settings') || '{}');
-    Object.assign(STATE.settings, s);
-    if (!STATE.settings.dark) {
-      document.documentElement.setAttribute('data-theme', 'light');
-      document.getElementById('themeBtn').textContent = '☀️';
-      document.getElementById('darkModeToggle').classList.remove('on');
+    function runCmdItem(i) {
+      const items = STATE.cmdItems || cmdActions;
+      if (items[i]) { items[i].action(); closeCmd(); }
     }
-  } catch(e) {}
-}
-function saveSettings() {
-  try { localStorage.setItem('tz_settings', JSON.stringify(STATE.settings)); } catch(e) {}
-}
+    function cmdKey(e) {
+      const items = STATE.cmdItems || cmdActions;
+      if (e.key === 'ArrowDown') { e.preventDefault(); STATE.cmdIdx = (STATE.cmdIdx + 1) % items.length; renderCmdResults(items); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); STATE.cmdIdx = (STATE.cmdIdx - 1 + items.length) % items.length; renderCmdResults(items); }
+      else if (e.key === 'Enter') { if (STATE.cmdIdx >= 0) runCmdItem(STATE.cmdIdx); }
+      else if (e.key === 'Escape') closeCmd();
+    }
 
-// ── NOTIFICATIONS ─────────────────────────────────────────────────────
-function toggleNotifPanel() {
-  document.getElementById('notifPanel').classList.toggle('open');
-}
-function clearNotifs() {
-  document.getElementById('notifList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">All caught up! 🎉</div>';
-  document.getElementById('notifCount').style.display = 'none';
-  document.getElementById('notifPanel').classList.remove('open');
-}
-document.addEventListener('click', e => {
-  if (!e.target.closest('#notifPanel') && !e.target.closest('#notifBtn')) {
-    document.getElementById('notifPanel').classList.remove('open');
-  }
-});
-function requestNotifPermission() {
-  if ('Notification' in window) {
-    Notification.requestPermission().then(p => {
-      document.getElementById('desktopNotifToggle').classList.toggle('on', p === 'granted');
-      toast(p === 'granted' ? 'Notifications enabled!' : 'Permission denied', p === 'granted' ? 'success' : 'warn');
-    });
-  }
-}
+    // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────
+    function openShortcuts() { document.getElementById('shortcutsOverlay').classList.add('open'); }
+    function closeShortcuts() { document.getElementById('shortcutsOverlay').classList.remove('open'); }
 
-// ── LOGIN ─────────────────────────────────────────────────────────────
-function showLoginModal() {
-  document.getElementById('loginModal').classList.add('open');
-}
-function openLogin() {
-  document.getElementById('loginModal').classList.add('open');
-}
-function closeLoginModal() {
-  document.getElementById('loginModal').classList.remove('open');
-}
-function continueAsGuest() {
-  closeLoginModal();
-  toast('Browsing as guest. Login for full access.', 'info');
-}
-function telegramLogin() {
-  toast('Telegram login: scan the QR in your Telegram bot, or use /dashboard command', 'info');
-}
-async function tokenLogin() {
-  const token = document.getElementById('tokenInput').value.trim();
-  if (!token) return;
-  STATE.token = token;
-  try {
-    localStorage.setItem('tz_token', token);
-    const d = await API.userMe();
-    STATE.user = d.user;
-    STATE.isAdmin = d.isAdmin;
-    updateUserUI();
-    closeLoginModal();
-    toast('Logged in successfully!', 'success');
-    loadStats();
-    loadDeals();
-  } catch(e) {
-    toast('Invalid token', 'error');
-    STATE.token = null;
-    localStorage.removeItem('tz_token');
-  }
-}
+    function setupKeyboard() {
+      document.addEventListener('keydown', e => {
+        const tag = document.activeElement.tagName;
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openCmd(); return; }
+        if (document.getElementById('cmdOverlay').classList.contains('open')) return;
+        if (typing) return;
+        if (e.key === '?') openShortcuts();
+        else if (e.key === 'n' || e.key === 'N') openQuickAdd();
+        else if (e.key === 't' || e.key === 'T') toggleTheme();
+        else if (e.key === 'v' || e.key === 'V') toggleListView();
+        else if (e.key === 'r' || e.key === 'R') { STATE.page = 1; loadDeals(); toast('Refreshed', 'info'); }
+        else if (e.key === 'Escape') { closeCmd(); closeShortcuts(); closeQuickAdd(); }
+        else if (e.key === 'g' || e.key === 'G') {
+          STATE.gNavSequence = 'g';
+          setTimeout(() => STATE.gNavSequence = '', 1000);
+        } else if (STATE.gNavSequence === 'g') {
+          if (e.key === 'd') navigate('deals');
+          else if (e.key === 'a') navigate('analytics');
+          else if (e.key === 'w') navigate('watchlist');
+          STATE.gNavSequence = '';
+        }
+      });
+    }
 
-// ── SIDEBAR ───────────────────────────────────────────────────────────
-let sidebarCollapsed = false;
-function toggleSidebar() {
-  sidebarCollapsed = !sidebarCollapsed;
-  document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
-  document.getElementById('sidebarToggle').textContent = sidebarCollapsed ? '▶' : '◀';
-}
-function openSidebar() {
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebarOverlay').classList.add('visible');
-}
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebarOverlay').classList.remove('visible');
-}
+    // ── TOAST ─────────────────────────────────────────────────────────────
+    function toast(msg, type = 'info') {
+      const icons = { success: '✅', error: '❌', info: 'ℹ️', warn: '⚠️' };
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
+      document.getElementById('toastContainer').prepend(t);
+      setTimeout(() => { t.classList.add('hide'); setTimeout(() => t.remove(), 300); }, 3500);
+    }
 
-// ── EXPORT ────────────────────────────────────────────────────────────
-async function handleExport(type) {
-  try {
-    if (type === 'csv') {
-      const data = await API.exportCSV();
-      if (typeof data === 'string') {
-        const a = document.createElement('a');
-        a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(data);
-        a.download = 'trackzoon-export.csv';
-        a.click();
-      } else {
-        window.open('/api/export/csv', '_blank');
+    // ── THEME ─────────────────────────────────────────────────────────────
+    function toggleTheme() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      STATE.settings.dark = !isDark;
+      document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
+      document.getElementById('darkModeToggle').classList.toggle('on', !isDark);
+      saveSettings();
+    }
+
+    function toggleSetting(key) {
+      STATE.settings[key] = !STATE.settings[key];
+      const toggleEl = document.getElementById(key + 'Toggle');
+      if (toggleEl) toggleEl.classList.toggle('on', STATE.settings[key]);
+      if (key === 'ticker') document.getElementById('tickerBar').style.display = STATE.settings.ticker ? '' : 'none';
+      saveSettings();
+    }
+
+    function loadSettings() {
+      try {
+        const s = JSON.parse(localStorage.getItem('tz_settings') || '{}');
+        Object.assign(STATE.settings, s);
+        if (!STATE.settings.dark) {
+          document.documentElement.setAttribute('data-theme', 'light');
+          document.getElementById('themeBtn').textContent = '☀️';
+          document.getElementById('darkModeToggle').classList.remove('on');
+        }
+      } catch (e) { }
+    }
+    function saveSettings() {
+      try { localStorage.setItem('tz_settings', JSON.stringify(STATE.settings)); } catch (e) { }
+    }
+
+    // ── NOTIFICATIONS ─────────────────────────────────────────────────────
+    function toggleNotifPanel() {
+      document.getElementById('notifPanel').classList.toggle('open');
+    }
+    function clearNotifs() {
+      document.getElementById('notifList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">All caught up! 🎉</div>';
+      document.getElementById('notifCount').style.display = 'none';
+      document.getElementById('notifPanel').classList.remove('open');
+    }
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#notifPanel') && !e.target.closest('#notifBtn')) {
+        document.getElementById('notifPanel').classList.remove('open');
       }
-      toast('CSV download started', 'success');
-    } else if (type === 'pdf') {
-      API.exportPDF();
-      toast('PDF download started', 'success');
-    } else if (type === 'rss') {
-      const url = window.location.origin + API.exportRSS();
-      navigator.clipboard.writeText(url);
-      toast('RSS URL copied to clipboard!', 'success');
+    });
+    function requestNotifPermission() {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(p => {
+          document.getElementById('desktopNotifToggle').classList.toggle('on', p === 'granted');
+          toast(p === 'granted' ? 'Notifications enabled!' : 'Permission denied', p === 'granted' ? 'success' : 'warn');
+        });
+      }
     }
-  } catch(e) {
-    toast('Export failed: ' + e.message, 'error');
-  }
-}
 
-// ── HELPERS ───────────────────────────────────────────────────────────
-function formatAgo(date) {
-  const s = Math.floor((Date.now() - new Date(date)) / 1000);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s/60)}m`;
-  if (s < 86400) return `${Math.floor(s/3600)}h`;
-  return `${Math.floor(s/86400)}d`;
-}
+    // ── LOGIN ─────────────────────────────────────────────────────────────
+    function showLoginModal() {
+      document.getElementById('loginModal').classList.add('open');
+    }
+    function openLogin() {
+      document.getElementById('loginModal').classList.add('open');
+    }
+    function closeLoginModal() {
+      document.getElementById('loginModal').classList.remove('open');
+    }
+    function continueAsGuest() {
+      closeLoginModal();
+      toast('Browsing as guest. Login for full access.', 'info');
+    }
+    function telegramLogin() {
+      toast('Telegram login: scan the QR in your Telegram bot, or use /dashboard command', 'info');
+    }
+    async function tokenLogin() {
+      const token = document.getElementById('tokenInput').value.trim();
+      if (!token) return;
+      STATE.token = token;
+      try {
+        localStorage.setItem('tz_token', token);
+        const d = await API.userMe();
+        STATE.user = d.user;
+        STATE.isAdmin = d.isAdmin;
+        updateUserUI();
+        closeLoginModal();
+        toast('Logged in successfully!', 'success');
+        loadStats();
+        loadDeals();
+      } catch (e) {
+        toast('Invalid token', 'error');
+        STATE.token = null;
+        localStorage.removeItem('tz_token');
+      }
+    }
 
-function checkMobileMenu() {
-  const mq = window.matchMedia('(max-width: 1024px)');
-  const update = () => {
-    document.getElementById('mobileMenuBtn').style.display = mq.matches ? 'flex' : 'none';
-  };
-  mq.addEventListener('change', update);
-  update();
-}
-</script>
+    // ── SIDEBAR ───────────────────────────────────────────────────────────
+    let sidebarCollapsed = false;
+    function toggleSidebar() {
+      sidebarCollapsed = !sidebarCollapsed;
+      document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+      document.getElementById('sidebarToggle').textContent = sidebarCollapsed ? '▶' : '◀';
+    }
+    function openSidebar() {
+      document.getElementById('sidebar').classList.add('open');
+      document.getElementById('sidebarOverlay').classList.add('visible');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('visible');
+    }
+
+    // ── EXPORT ────────────────────────────────────────────────────────────
+    async function handleExport(type) {
+      try {
+        if (type === 'csv') {
+          const data = await API.exportCSV();
+          if (typeof data === 'string') {
+            const a = document.createElement('a');
+            a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(data);
+            a.download = 'trackzoon-export.csv';
+            a.click();
+          } else {
+            window.open('/api/export/csv', '_blank');
+          }
+          toast('CSV download started', 'success');
+        } else if (type === 'pdf') {
+          API.exportPDF();
+          toast('PDF download started', 'success');
+        } else if (type === 'rss') {
+          const url = window.location.origin + API.exportRSS();
+          navigator.clipboard.writeText(url);
+          toast('RSS URL copied to clipboard!', 'success');
+        }
+      } catch (e) {
+        toast('Export failed: ' + e.message, 'error');
+      }
+    }
+
+    // ── HELPERS ───────────────────────────────────────────────────────────
+    function formatAgo(date) {
+      const s = Math.floor((Date.now() - new Date(date)) / 1000);
+      if (s < 60) return `${s}s`;
+      if (s < 3600) return `${Math.floor(s / 60)}m`;
+      if (s < 86400) return `${Math.floor(s / 3600)}h`;
+      return `${Math.floor(s / 86400)}d`;
+    }
+
+    function checkMobileMenu() {
+      const mq = window.matchMedia('(max-width: 1024px)');
+      const update = () => {
+        document.getElementById('mobileMenuBtn').style.display = mq.matches ? 'flex' : 'none';
+      };
+      mq.addEventListener('change', update);
+      update();
+    }
+  </script>
 </body>
+
 </html>

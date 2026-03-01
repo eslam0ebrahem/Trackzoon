@@ -233,7 +233,7 @@ export const API = {
     },
 
     async getUserProducts() {
-        return _req('/products?mine=true');
+        return _req('/products/user');
     },
 
     /** Preview product before adding */
@@ -332,12 +332,12 @@ export const API = {
         ]);
 
         return {
-            history:         historyRes.status      === 'fulfilled' ? historyRes.value      : null,
-            forecast:        forecastRes.status      === 'fulfilled' ? forecastRes.value      : null,
-            volatility:      volatilityRes.status    === 'fulfilled' ? volatilityRes.value    : null,
-            bestDay:         bestDayRes.status       === 'fulfilled' ? bestDayRes.value       : null,
-            stockHistory:    stockHistoryRes.status  === 'fulfilled' ? stockHistoryRes.value  : [],
-            dealIntelligence: dealIntelRes.status    === 'fulfilled' ? dealIntelRes.value     : null,
+            history: historyRes.status === 'fulfilled' ? historyRes.value : null,
+            forecast: forecastRes.status === 'fulfilled' ? forecastRes.value : null,
+            volatility: volatilityRes.status === 'fulfilled' ? volatilityRes.value : null,
+            bestDay: bestDayRes.status === 'fulfilled' ? bestDayRes.value : null,
+            stockHistory: stockHistoryRes.status === 'fulfilled' ? stockHistoryRes.value : [],
+            dealIntelligence: dealIntelRes.status === 'fulfilled' ? dealIntelRes.value : null,
         };
     },
 
@@ -449,5 +449,5 @@ export const API = {
     },
 
     storeToken: _storeToken,
-    clearToken:  _clearToken,
+    clearToken: _clearToken,
 };
