@@ -880,8 +880,8 @@
     </div>
     <div class="deal-card-footer">
       <button class="deal-action" onclick="event.stopPropagation();loadHistory('${asin}','${encodeURIComponent(title)}')">📈 History</button>
-      <button class="deal-action" onclick="event.stopPropagation();shareDeal('${asin}')">📤</button>
-      ${asin ? `<a class="deal-action primary" href="https://www.amazon.com/dp/${asin}" target="_blank" onclick="event.stopPropagation()">View on Amazon ↗</a>` : ''}
+      <button class="deal-action" onclick="event.stopPropagation();shareDeal('${asin}', '${p.url}')">📤</button>
+      ${asin ? `<a class="deal-action primary" href="${p.url || 'https://www.amazon.com/dp/' + asin}" target="_blank" onclick="event.stopPropagation()">View on Amazon ↗</a>` : ''}
       <span class="deal-time">${timeAgo}</span>
     </div>
   </div>`;
