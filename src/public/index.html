@@ -263,22 +263,30 @@
         <div class="analytics-grid">
           <div class="analytics-card">
             <h3>📈 Price Trends</h3>
-            <canvas id="trendChart" height="150"></canvas>
+            <div style="position: relative; height: 150px; width: 100%;">
+              <canvas id="trendChart"></canvas>
+            </div>
           </div>
           <div class="analytics-card">
             <h3>🗂️ Categories</h3>
-            <canvas id="categoryChart" height="150"></canvas>
+            <div style="position: relative; height: 150px; width: 100%;">
+              <canvas id="categoryChart"></canvas>
+            </div>
             <div id="topCatList" style="margin-top:12px"></div>
           </div>
           <div class="analytics-card">
             <h3>🎯 Deal Score Distribution</h3>
-            <canvas id="scoreChart" height="150"></canvas>
+            <div style="position: relative; height: 150px; width: 100%;">
+              <canvas id="scoreChart"></canvas>
+            </div>
           </div>
         </div>
         <div class="analytics-grid" style="grid-template-columns:1fr 1fr">
           <div class="analytics-card">
             <h3>⏱️ Alert Activity (7d)</h3>
-            <canvas id="alertChart" height="120"></canvas>
+            <div style="position: relative; height: 120px; width: 100%;">
+              <canvas id="alertChart"></canvas>
+            </div>
           </div>
           <div class="analytics-card">
             <h3>🌡️ Volatility Heat</h3>
@@ -779,6 +787,7 @@
           STATE.allDeals = deals;
         }
         applyFilters();
+        renderTicker();
         const hasMore = d.page < d.totalPages || deals.length >= 20;
         document.getElementById('loadMoreBtn').style.display = hasMore ? '' : 'none';
       } catch (e) {
