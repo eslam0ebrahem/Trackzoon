@@ -143,7 +143,7 @@ const formatProductDetails = (product, tracker) => {
     const usdRate = 50.0; // Approximate EGP/USD rate
     const usdPrice = (currentPrice / usdRate).toFixed(2);
 
-    message += `💰 *Current Price:* ${escapeMarkdownV2(formatPrice(currentPrice))} \\(~\\$${usdPrice} USD\\)\n`;
+    message += `💰 *Current Price:* ${escapeMarkdownV2(formatPrice(currentPrice))} \\(~\\EGP${usdPrice} USD\\)\n`;
     if (isPercentageAlert && percentValue) {
         const targetSuffix = percentTarget ? ` (EGP${percentTarget.toFixed(2)})` : '';
         message += `🎯 *Alert:* ${escapeMarkdownV2(`${percentValue}% drop${targetSuffix}`)}\n\n`;

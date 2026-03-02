@@ -807,7 +807,7 @@
       const pct = deal.percentChange || 0;
       const score = Math.round(deal.smartScore || p.smartScore || 0);
       const cur = p.currentPrice;
-      const curFmt = cur ? `$${cur.toFixed(2)}` : 'N/A';
+      const curFmt = cur ? `EGP${cur.toFixed(2)}` : 'N/A';
       const oos = p.isOutOfStock || p.outOfStock;
 
       const badgeMap = {
@@ -850,7 +850,7 @@
       <div class="deal-price-row">
         <div>
           <span class="deal-price ${isDrop ? 'drop' : isHike ? 'hike' : ''}">${curFmt}</span>
-          ${p.previousPrice ? `<span class="deal-old-price">$${p.previousPrice.toFixed(2)}</span>` : ''}
+          ${p.previousPrice ? `<span class="deal-old-price">EGP${p.previousPrice.toFixed(2)}</span>` : ''}
         </div>
         <span class="deal-change-badge ${isDrop ? 'drop' : isHike ? 'hike' : 'stable'}">
           ${pct !== 0 ? (isDrop ? '↓' : '↑') + Math.abs(pct).toFixed(1) + '%' : '→ stable'}
@@ -1006,12 +1006,12 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { display: false }, tooltip: {
-              callbacks: { label: c => `$${c.raw.toFixed(2)}` }
+              callbacks: { label: c => `EGP${c.raw.toFixed(2)}` }
             }
           },
           scales: {
             x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
-            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, callback: v => `$${v}` } }
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, callback: v => `EGP${v}` } }
           }
         }
       });
@@ -1023,15 +1023,15 @@
       const min = Math.min(...prices), max = Math.max(...prices), avg = prices.reduce((a, b) => a + b, 0) / prices.length;
       document.getElementById('historyStats').innerHTML = `
     <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
-      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--green)">$${min.toFixed(2)}</div>
+      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--green)">EGP${min.toFixed(2)}</div>
       <div style="font-size:11px;color:var(--text2);margin-top:4px">All-time Low</div>
     </div>
     <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
-      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--amber)">$${avg.toFixed(2)}</div>
+      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--amber)">EGP${avg.toFixed(2)}</div>
       <div style="font-size:11px;color:var(--text2);margin-top:4px">Average Price</div>
     </div>
     <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
-      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--red)">$${max.toFixed(2)}</div>
+      <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--red)">EGP${max.toFixed(2)}</div>
       <div style="font-size:11px;color:var(--text2);margin-top:4px">All-time High</div>
     </div>`;
     }
@@ -1051,7 +1051,7 @@
         const cls = pct < 0 ? 't-drop' : pct > 0 ? 't-hike' : '';
         const arrow = pct < 0 ? '▼' : pct > 0 ? '▲' : '—';
         const name = (p.title || p.name || '').split(' ').slice(0, 4).join(' ');
-        const price = p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : '';
+        const price = p.currentPrice ? `EGP${p.currentPrice.toFixed(2)}` : '';
         return `<span class="ticker-item" onclick="loadHistory('${p.asin || ''}','${encodeURIComponent(name)}')">
       ${name} <span class="t-price">${price}</span> <span class="${cls}">${arrow}${Math.abs(pct).toFixed(1)}%</span>
     </span>`;
@@ -1118,7 +1118,7 @@
     </div>
     <div class="deal-card-body">
       <div class="deal-price-row">
-        <span class="deal-price">${p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : 'N/A'}</span>
+        <span class="deal-price">${p.currentPrice ? `EGP${p.currentPrice.toFixed(2)}` : 'N/A'}</span>
         ${p.smartScore ? `<span class="deal-change-badge stable">Score: ${Math.round(p.smartScore)}</span>` : ''}
       </div>
     </div>
@@ -1349,7 +1349,7 @@
       ${p.imageUrl ? `<img src="${p.imageUrl}" style="width:48px;height:48px;border-radius:6px;object-fit:cover">` : '<div style="width:48px;height:48px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>'}
       <div>
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">${(p.title || 'Product').slice(0, 60)}…</div>
-        <div style="font-family:var(--font-mono);font-size:15px;color:var(--amber)">${p.currentPrice ? `$${p.currentPrice.toFixed(2)}` : 'N/A'}</div>
+        <div style="font-family:var(--font-mono);font-size:15px;color:var(--amber)">${p.currentPrice ? `EGP${p.currentPrice.toFixed(2)}` : 'N/A'}</div>
       </div>
     </div>`;
       } catch (e) {
