@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import { BotError, ErrorCodes } from '../utils/errorHandler.js';
+import { logger } from '../utils/logger.js';
 
 export class UserService {
   static async getOrCreateUser(telegramId) {
@@ -12,15 +13,15 @@ export class UserService {
       let user = await User.findOne({ telegramId: id });
 
       if (!user) {
-        console.log(`Creating new user with telegramId: "${id}"`);
+        logger.info(`Creating new user with telegramId: "${id}"`);
         user = new User({ telegramId: id });
         await user.save();
-        console.log(`User created successfully: "${id}"`);
+        logger.info(`User created successfully: "${id}"`);
       }
 
       return user;
     } catch (error) {
-      console.error('Error getting/creating user:', error);
+      logger.error('Error getting/creating user:', error);
       throw new BotError(
         'Failed to process user',
         ErrorCodes.DATABASE_ERROR,
@@ -45,7 +46,7 @@ export class UserService {
     } catch (error) {
       if (error instanceof BotError) throw error;
 
-      console.error('Error fetching user settings:', error);
+      logger.error('Error fetching user settings:', error);
       throw new BotError(
         'Failed to fetch settings',
         ErrorCodes.DATABASE_ERROR,

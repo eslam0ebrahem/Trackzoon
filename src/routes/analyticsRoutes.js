@@ -1,7 +1,11 @@
 import express from 'express';
 import * as analyticsController from '../controllers/analyticsController.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// All analytics routes require authentication
+router.use(authMiddleware);
 
 router.get('/forecast/:asin', analyticsController.getForecast);
 router.get('/volatility/:asin', analyticsController.getVolatility);

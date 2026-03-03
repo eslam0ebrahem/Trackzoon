@@ -33,15 +33,18 @@ export const errorHandler = async (ctx, next) => {
 };
 
 export const timeoutHandler = async (ctx, next) => {
+  let timeoutId;
   try {
     const result = await Promise.race([
       next(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Operation timed out')), 30000)
-      )
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Operation timed out')), 30000);
+      })
     ]);
+    clearTimeout(timeoutId);
     return result;
   } catch (error) {
+    clearTimeout(timeoutId);
     return handleError(ctx, error, 'operationTimeout');
   }
 };

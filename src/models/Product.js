@@ -112,8 +112,7 @@ const ProductSchema = new mongoose.Schema({
 
 // Indexes for performance optimization (Phase 1)
 ProductSchema.index({ asin: 1 }, { unique: true });
-ProductSchema.index({ 'trackedBy.chatId': 1 });
-ProductSchema.index({ asin: 1, 'trackedBy.chatId': 1 });
+// trackedBy indexes removed (field removed in v2 migration)
 ProductSchema.index({ lastChecked: 1 }); // For finding stale products
 ProductSchema.index({ nextCheck: 1 }); // For optimized scheduler
 ProductSchema.index({ category: 1 });

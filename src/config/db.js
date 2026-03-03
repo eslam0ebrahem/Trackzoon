@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { logger } from '../utils/logger.js';
 
 const connectDB = async () => {
   try {
@@ -14,11 +15,11 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 30000, // 30 second timeout
       socketTimeoutMS: 45000,
     });
-    console.log('MongoDB connected.');
+    logger.info('MongoDB connected.');
   } catch (err) {
-    console.error('MongoDB connection error:', err.message);
-    console.error('\n⚠️  IP Whitelist Issue? Add 0.0.0.0/0 to MongoDB Atlas Network Access');
-    console.error('   Visit: https://cloud.mongodb.com → Network Access → Add IP Address\n');
+    logger.error('MongoDB connection error:', err.message);
+    logger.error('\n⚠️  IP Whitelist Issue? Add 0.0.0.0/0 to MongoDB Atlas Network Access');
+    logger.error('   Visit: https://cloud.mongodb.com → Network Access → Add IP Address\n');
     process.exit(1);
   }
 };

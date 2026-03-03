@@ -135,15 +135,17 @@ export class DashboardService {
       data: []
     };
 
-    volatilityHeatmap.categories.forEach(cat => {
+    volatilityHeatmap.categories.forEach((cat, catIdx) => {
       const stat = categoryVolatility[cat];
       const avgVol = stat && stat.count ? stat.sum / stat.count : 0;
       const normalized = Math.min(1, Math.max(0, avgVol / 10)); // 0-1
 
       const catDays = [];
       for (let i = 0; i < 7; i++) {
-        const noise = (Math.random() * 0.4) - 0.2;
-        catDays.push(Number(Math.max(0, Math.min(1, normalized + noise)).toFixed(2)));
+        // Deterministic variation based on category index and day
+        const seed = ((catIdx + 1) * 31 + (i + 1) * 17) % 100;
+        const variation = (seed / 100) * 0.4 - 0.2; // -0.2 to +0.2 range
+        catDays.push(Number(Math.max(0, Math.min(1, normalized + variation)).toFixed(2)));
       }
       volatilityHeatmap.data.push(catDays);
     });
@@ -387,12 +389,30 @@ export class DashboardService {
     );
   }
 
-  static async updateTargetPrice(asin, targetPrice) {
-    return Product.findOneAndUpdate(
+  static async updateTargetPrice(asin, targetPrice, chatId = null) {
+    // Update target price on the user's subscription (user-specific setting)
+    const product = await Product.findOne({ asin });
+    if (!product) return null;
+
+    if (chatId) {
+      const user = await User.findOne({ telegramId: String(chatId) });
+      if (user) {
+        const sub = await Subscription.findOneAndUpdate(
+          { user: user._id, product: product._id },
+          { $set: { targetPrice } },
+          { new: true }
+        );
+        if (sub) return { asin, targetPrice: sub.targetPrice, scope: 'subscription' };
+      }
+    }
+
+    // Fallback: update product-level threshold for backwards compatibility
+    const updated = await Product.findOneAndUpdate(
       { asin },
       { $set: { thresholdPrice: targetPrice } },
       { new: true }
     );
+    return updated;
   }
 
   static async archiveProduct(asin, isArchived) {
@@ -467,5 +487,27 @@ export class DashboardService {
       .slice(0, 5);
 
     return summary;
+  }
+
+  static async deleteProduct(asin) {
+    const product = await Product.findOne({ asin });
+    if (!product) return null;
+
+    // Clean up all related data
+    const [subResult, ppResult] = await Promise.all([
+      Subscription.deleteMany({ product: product._id }),
+      PricePoint.deleteMany({ asin: product.asin })
+    ]);
+
+    await Product.deleteOne({ _id: product._id });
+
+    return {
+      deleted: true,
+      asin,
+      cleanup: {
+        subscriptions: subResult.deletedCount,
+        pricePoints: ppResult.deletedCount
+      }
+    };
   }
 }

@@ -4,6 +4,7 @@ import Product from '../models/Product.js';
 import SystemMetric from '../models/SystemMetric.js';
 import Subscription from '../models/Subscription.js';
 import { PriceTrackerService } from '../services/priceTrackerService.js';
+import { logger } from '../utils/logger.js';
 
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
@@ -124,7 +125,7 @@ router.post('/broadcast', async (req, res) => {
                 await new Promise(r => setTimeout(r, 50)); // Rate limit
             } catch (e) {
                 failed++;
-                console.error(`Failed to send to ${user.telegramId}`, e.message);
+                logger.error(`Failed to send to ${user.telegramId}`, e.message);
             }
         }
 

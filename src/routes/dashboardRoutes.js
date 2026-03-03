@@ -3,11 +3,12 @@ import * as dashboardController from '../controllers/dashboardController.js';
 import * as authController from '../controllers/authController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { validate, schemas } from '../middleware/validation.js';
+import { authRateLimit } from '../middleware/rateLimit.js';
 
 const router = express.Router();
 
 // Public Routes
-router.post('/login', express.json(), validate(schemas.login), authController.login);
+router.post('/login', authRateLimit, express.json(), validate(schemas.login), authController.login);
 router.get('/health', dashboardController.getHealth);
 // Removed redundant /user/me override
 
@@ -32,9 +33,10 @@ router.post('/products', express.json(), validate(schemas.addProduct), dashboard
 router.post('/products/preview', express.json(), validate(schemas.previewProduct), dashboardController.previewProduct);
 
 // Management Features
-router.post('/products/bulk', validate(schemas.bulkImport), dashboardController.bulkImportProducts);
-router.put('/products/:asin/tags', validate(schemas.updateTags), dashboardController.updateTags);
-router.put('/products/:asin/target', validate(schemas.updateTarget), dashboardController.updateTargetPrice);
-router.put('/products/:asin/archive', validate(schemas.archive), dashboardController.archiveProduct);
+router.post('/products/bulk', express.json(), validate(schemas.bulkImport), dashboardController.bulkImportProducts);
+router.put('/products/:asin/tags', express.json(), validate(schemas.updateTags), dashboardController.updateTags);
+router.put('/products/:asin/target', express.json(), validate(schemas.updateTarget), dashboardController.updateTargetPrice);
+router.put('/products/:asin/archive', express.json(), validate(schemas.archive), dashboardController.archiveProduct);
+router.delete('/products/:asin', dashboardController.deleteProduct);
 
 export default router;

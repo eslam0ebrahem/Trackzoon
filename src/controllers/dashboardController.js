@@ -205,7 +205,11 @@ export const updateTargetPrice = async (req, res) => {
     try {
         const { asin } = req.params;
         const { targetPrice } = req.body;
-        const product = await DashboardService.updateTargetPrice(asin, targetPrice);
+        const chatId = req.query.chatId
+            || req.headers['x-chat-id']
+            || req.user?.telegramId
+            || null;
+        const product = await DashboardService.updateTargetPrice(asin, targetPrice, chatId);
         res.json(product);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -240,3 +244,15 @@ export const getUserProducts = async (req, res) => {
 };
 
 // Feature 10: Broadcast Message
+
+// Feature 11: Delete Product
+export const deleteProduct = async (req, res) => {
+    try {
+        const { asin } = req.params;
+        const result = await DashboardService.deleteProduct(asin);
+        if (!result) return res.status(404).json({ error: 'Product not found' });
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

@@ -10,6 +10,8 @@ import userRoutes from './routes/userRoutes.js';
 import exportRoutes from './routes/exportRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import extensionRoutes from './routes/extensionRoutes.js';
+import { logger } from './utils/logger.js';
+import { apiRateLimit } from './middleware/rateLimit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,14 +27,17 @@ app.use(helmet({
 app.use(cors({
     origin: process.env.CORS_ORIGIN || '*', // Default to * but allow restriction via env
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-chat-id', 'x-telegram-id']
 }));
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Extension Routes (Must be before /api catch-all)
+// Extension Routes (Must be before /api catch-all, higher rate limit)
 app.use('/api/v1/extension', extensionRoutes);
+
+// Apply rate limiting to all API routes
+app.use('/api', apiRateLimit);
 
 // Use Dashboard Routes
 app.use('/api', dashboardRoutes);
@@ -48,6 +53,6 @@ export const startServer = (bot) => {
         app.locals.bot = bot;
     }
     app.listen(PORT, () => {
-        console.log(`🌐 Web Dashboard running at http://localhost:${PORT}`);
+        logger.info(`🌐 Web Dashboard running at http://localhost:${PORT}`);
     });
 };
