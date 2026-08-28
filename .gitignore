@@ -1,60 +1,29 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production build
-/dist
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-server.log
-debug_page_v2.html
-
-# local env files
+# Environment variables — NEVER commit these
 .env
-.env*.local
 .env.local
-.env.bot
-.env.development.local
-.env.test.local
-.env.production.local
 .env.production
+.env.development
 
-# vercel
-.vercel
+# Dependencies
+node_modules/
 
-# typescript
-*.tsbuildinfo
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Build outputs
 .next/
+out/
 dist/
-logs/app.log
-logs/error.log
 
-/logs
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
 .DS_Store
-/CyberScraper-2077
-.puppeteer_profile
-.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets
+*.pem
+*.key
